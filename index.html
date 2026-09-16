@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SextantDrift — 架构 X 光机与偏航检测罗盘 (Engineering Drafting Edition)</title>
+  <meta name="description" content="面向现代工程团队的架构红笔审查台。回归20世纪计算机科学家的严谨图纸与语义不变量，告别浮夸赛博，一眼看透代码偏航。">
+  
+  <!-- Fonts: Technical Serif & Grotesk & Monospace -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Newsreader"', 'Georgia', 'serif'],
+            sans: ['"Space Grotesk"', '-apple-system', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', '"Courier Prime"', 'monospace'],
+          },
+          colors: {
+            paper: {
+              50: '#FAF9F5',
+              100: '#F4F2EB',
+              200: '#E9E6DB',
+              300: '#DAD6C7',
+              400: '#C7C2AF',
+            },
+            ink: {
+              900: '#141416',
+              800: '#232326',
+              700: '#38383C',
+              600: '#525257',
+              500: '#717178',
+              400: '#94949C',
+              300: '#B8B8C0',
+              200: '#DCDCE2',
+              100: '#EFEFF3',
+            },
+            drafting: {
+              grid: '#E5E2D6',
+              border: '#D3CEBE',
+              rule: '#8E8876',
+            },
+            redline: {
+              DEFAULT: '#C92A2A',
+              light: '#F8E8E8',
+              border: '#F09595',
+              dark: '#9B1C1C',
+            },
+            stamp: {
+              green: '#2B6E3F',
+              greenBg: '#EEF7F1',
+              greenBorder: '#A3D9B5',
+              amber: '#92400E',
+              amberBg: '#FEF3C7',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Millimeter Graph Paper Grid */
+    .bg-drafting-paper {
+      background-color: #F7F5EE;
+      background-image: 
+        linear-gradient(to right, rgba(142, 136, 118, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(142, 136, 118, 0.12) 1px, transparent 1px),
+        linear-gradient(to right, rgba(142, 136, 118, 0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(142, 136, 118, 0.25) 1px, transparent 1px);
+      background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+    }
+
+    /* Fine Technical Drawing Paper Sheet */
+    .drafting-sheet {
+      background: #FCFBF8;
+      border: 1px solid #C8C3B1;
+      box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.05),
+        0 12px 36px -4px rgba(35, 35, 38, 0.08),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Registration Mark `+` */
+    .reg-mark {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      color: #94949C;
+      pointer-events: none;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F4F2EB;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #C7C2AF;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #8E8876;
+    }
+
+    /* Technical Ruler Border */
+    .ruler-ticks-x {
+      background-image: repeating-linear-gradient(
+        to right,
+        #8E8876 0px,
+        #8E8876 1px,
+        transparent 1px,
+        transparent 10px
+      );
+      height: 6px;
+    }
+    .ruler-ticks-y {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        #8E8876 0px,
+        #8E8876 1px,
+        transparent 1px,
+        transparent 10px
+      );
+      width: 6px;
+    }
+
+    /* Redline Stamp */
+    .stamp-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      text-transform: uppercase;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      border: 1.5px solid;
+      border-radius: 2px;
+      transform: rotate(-2deg);
+    }
+
+    /* Hand-drawn feel redline circle */
+    .redline-pencil-box {
+      border: 2px dashed #C92A2A;
+      background: rgba(201, 42, 42, 0.04);
+      position: relative;
+    }
+  </style>
+</head>
+<body class="bg-drafting-paper text-ink-800 antialiased min-h-[100dvh] flex flex-col relative font-sans selection:bg-paper-300 selection:text-ink-900">
+
+  <!-- Top Technical Margin Ruler Line -->
+  <div class="w-full bg-paper-200/80 border-b border-drafting-border py-1 px-4 sm:px-8 flex items-center justify-between text-[11px] font-mono text-ink-500 tracking-wider">
+    <div class="flex items-center gap-4">
+      <span class="font-bold text-ink-700">SPEC NO. SD-2026-REV.B</span>
+      <span class="hidden sm:inline">|</span>
+      <span class="hidden sm:inline">SCALE 1:1</span>
+      <span class="hidden sm:inline">|</span>
+      <span class="hidden sm:inline">SHEET 01 OF 04</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span>DRAFTSMAN ARCHIVE</span>
+      <span class="inline-block w-2 h-2 bg-redline rounded-full"></span>
+      <span class="text-redline font-semibold">REDLINE AUDIT MODE</span>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- FULLSCREEN LOADING MODAL: MECHANICAL PEN PLOTTER / DRAFTING TABLE        -->
+  <!-- ========================================================================= -->
+  <div id="fullscreen-loader" class="fixed inset-0 z-50 bg-paper-100/95 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8 transition-all duration-300 opacity-0 pointer-events-none">
+    
+    <!-- Top Bar of Drafting Plotter -->
+    <div class="absolute top-6 left-6 right-6 flex items-center justify-between z-20 pb-3 border-b border-drafting-border">
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 border border-ink-700 flex items-center justify-center font-mono text-xs font-bold text-ink-900 bg-white shadow-sm">
+          ✛
+        </div>
+        <div>
+          <div class="text-xs font-mono uppercase tracking-widest text-ink-900 font-bold">
+            FLATBED PEN PLOTTER & AST ANALYZER
+          </div>
+          <div class="text-[11px] text-ink-500 font-mono" id="plotter-sub-status">CALIBRATING DRAFTING PENS & NODES...</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="restartPlotterScan()" class="px-3 py-1.5 text-xs font-mono bg-white hover:bg-paper-100 border border-drafting-border text-ink-800 transition-colors flex items-center gap-1.5 shadow-sm">
+          <span>↺ 重新绘图扫描</span>
+        </button>
+        <button onclick="closeFullscreenLoader()" class="px-3 py-1.5 text-xs font-mono bg-white hover:bg-paper-100 border border-drafting-border text-ink-600 transition-colors">
+          关闭 (ESC)
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Drawing Sheet on Drafting Table -->
+    <div class="relative w-full max-w-3xl drafting-sheet rounded-none p-6 sm:p-10 my-auto">
+      <!-- Registration marks in corners -->
+      <div class="reg-mark top-2 left-2 text-ink-400">┌</div>
+      <div class="reg-mark top-2 right-2 text-ink-400">┐</div>
+      <div class="reg-mark bottom-2 left-2 text-ink-400">└</div>
+      <div class="reg-mark bottom-2 right-2 text-ink-400">┘</div>
+
+      <!-- Sheet Title Block (Classic Engineering Drawing Title Block) -->
+      <div class="flex items-center justify-between pb-4 mb-6 border-b border-ink-800">
+        <div>
+          <div class="text-[10px] font-mono text-ink-500 uppercase tracking-widest">LABORATORY BLUEPRINT & VERIFICATION</div>
+          <div class="text-xl font-serif font-bold text-ink-900">工程绘图仪：代码 AST 拓扑提取中</div>
+        </div>
+        <div class="text-right font-mono text-xs">
+          <div class="text-ink-400 text-[10px]">PROGRESS</div>
+          <div class="text-2xl font-bold text-ink-900" id="plotter-percent">0%</div>
+        </div>
+      </div>
+
+      <!-- Canvas: Drawing Vector Lines & Nodes in crisp ink -->
+      <div class="relative h-64 bg-white border border-drafting-border mb-6 flex items-center justify-center overflow-hidden">
+        <!-- Mechanical ruler markings inside canvas border -->
+        <div class="absolute top-0 left-0 right-0 ruler-ticks-x"></div>
+        <div class="absolute top-0 bottom-0 left-0 ruler-ticks-y"></div>
+
+        <canvas id="plotter-canvas" width="600" height="240" class="w-full h-full"></canvas>
+
+        <!-- Simulated Plotter Pen Head Indicator -->
+        <div id="plotter-head" class="absolute w-4 h-4 border border-ink-800 bg-paper-100 rounded-full flex items-center justify-center text-[8px] font-mono text-ink-700 shadow pointer-events-none transition-all duration-75" style="top: 50%; left: 50%;">
+          •
+        </div>
+
+        <!-- Stamp overlay once done -->
+        <div id="plotter-stamp" class="absolute inset-0 flex items-center justify-center bg-paper-50/60 transition-opacity duration-300 opacity-0 pointer-events-none">
+          <div class="stamp-badge text-redline border-redline bg-redline-light/90 px-6 py-3 text-sm font-bold tracking-widest shadow-md">
+            ✖ AUDIT FAILED: ARCHITECTURAL DRIFT DETECTED
+          </div>
+        </div>
+      </div>
+
+      <!-- Typewriter Diagnostic Stream -->
+      <div class="bg-paper-100 border border-drafting-border p-4 font-mono text-xs text-ink-800">
+        <div class="flex items-center justify-between pb-2 mb-2 border-b border-drafting-border text-[11px] text-ink-500">
+          <span>IBM SELECTRIC TERMINAL :: DRAFTING_LOG.TXT</span>
+          <span id="plotter-telemetry-status">STATUS: RUNNING</span>
+        </div>
+        <div id="plotter-logs" class="space-y-1 h-24 overflow-y-auto font-mono text-xs text-ink-700 leading-relaxed">
+          <div>> Ingesting AGENTS.md and Mermaid flowcharts from disk...</div>
+        </div>
+      </div>
+
+      <!-- Plotter Finish Action Button -->
+      <div id="plotter-action-btn" class="mt-6 flex items-center justify-between opacity-0 transition-opacity duration-300">
+        <span class="text-xs font-mono text-ink-500">已在第 47 行标注红笔违规批注 (Redline Revision Ready)</span>
+        <button onclick="viewReportFromLoader()" class="px-5 py-2.5 bg-ink-900 hover:bg-ink-800 text-paper-50 font-mono text-xs font-medium transition-colors flex items-center gap-2 shadow">
+          <span>查看图纸红笔差分</span>
+          <span>→</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- NAVIGATION BAR                                                            -->
+  <!-- ========================================================================= -->
+  <header class="w-full px-4 sm:px-8 py-5 border-b border-drafting-border bg-paper-50/90 backdrop-blur-sm sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand & Title Block Style -->
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="w-9 h-9 border-2 border-ink-800 bg-white flex items-center justify-center text-ink-900 font-serif font-bold text-lg shadow-sm group-hover:bg-paper-100 transition-colors">
+          S
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-serif font-bold text-lg text-ink-900 tracking-tight">SextantDrift</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 border border-ink-300 text-ink-600 uppercase bg-white">REBOOT V2.0</span>
+          </div>
+          <div class="text-[10px] font-mono text-ink-500 uppercase tracking-wider">架构 X 光机与偏航检测罗盘</div>
+        </div>
+      </a>
+
+      <!-- Center Links -->
+      <nav class="hidden md:flex items-center gap-8 font-mono text-xs text-ink-700">
+        <a href="#workbench" class="hover:text-ink-900 hover:underline transition-all">01. 图纸红绿差分</a>
+        <a href="#pillars" class="hover:text-ink-900 hover:underline transition-all">02. 形式化三大支柱</a>
+        <a href="#terminal" class="hover:text-ink-900 hover:underline transition-all">03. 命令行门禁</a>
+        <a href="#archive" class="hover:text-ink-900 hover:underline transition-all">04. 踩坑与复盘档案</a>
+      </nav>
+
+      <!-- Right Action Button -->
+      <div class="flex items-center gap-3">
+        <button onclick="openFullscreenLoader()" class="px-4 py-2 border-2 border-ink-800 bg-white hover:bg-paper-100 text-ink-900 text-xs font-mono font-semibold transition-all flex items-center gap-2 shadow-sm active:translate-y-0.5">
+          <span class="w-2 h-2 bg-ink-800 rounded-full animate-pulse"></span>
+          <span>绘图仪扫描 (Loading Page)</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- ========================================================================= -->
+  <!-- HERO SECTION: 20TH CENTURY COMPUTER SCIENCE ETHOS                         -->
+  <!-- ========================================================================= -->
+  <main class="flex-grow">
+    <section class="py-16 sm:py-24 px-4 sm:px-8 border-b border-drafting-border relative">
+      <div class="max-w-4xl mx-auto text-center">
+        
+        <!-- Document Meta Badge -->
+        <div class="inline-flex items-center gap-2 px-3 py-1 border border-drafting-border bg-white text-[11px] font-mono text-ink-600 mb-8 shadow-sm">
+          <span>DOC REF: RFC-1974-SD</span>
+          <span class="text-ink-300">•</span>
+          <span>DESIGN BY DIAGRAM, DIFF BY REDLINE</span>
+          <span class="text-ink-300">•</span>
+          <span class="text-redline font-semibold">弃绝 AGENT 自证幻觉</span>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="text-4xl sm:text-6xl md:text-7xl font-serif font-bold text-ink-900 tracking-tight leading-[1.08] mb-6">
+          代码终将膨胀，<br>
+          唯有<span class="underline decoration-ink-400 decoration-2 underline-offset-8">红铅笔审阅图</span>能管住偏航。
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-base sm:text-lg md:text-xl text-ink-600 max-w-2xl mx-auto leading-relaxed mb-10 font-sans">
+          20 世纪的计算机科学家用塑料绘图尺与网格纸推演程序结构；而在 AI 日均生成百万行黑盒代码的今天，行级 diff 支离破碎。
+          SextantDrift 带来真正的「架构红笔审阅台」：以确定性 AST 与语义不变量，一眼识破结构僭越。
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-wrap items-center justify-center gap-4 mb-12">
+          <!-- Primary CTA Button -->
+          <button onclick="scrollToWorkbench()" class="px-7 py-3.5 bg-ink-900 hover:bg-ink-800 text-paper-50 font-mono font-medium text-xs sm:text-sm transition-all shadow-md flex items-center gap-3">
+            <span>进入图纸审阅台比对实测</span>
+            <span>↓</span>
+          </button>
+
+          <!-- Launch Fullscreen Plotter CTA -->
+          <button onclick="openFullscreenLoader()" class="px-7 py-3.5 border-2 border-ink-800 bg-white hover:bg-paper-100 text-ink-900 font-mono font-medium text-xs sm:text-sm transition-all shadow-sm flex items-center gap-2">
+            <span>✛ 启动全屏绘图扫描 (Loading)</span>
+          </button>
+        </div>
+
+        <!-- Classic Command Box -->
+        <div class="inline-flex items-center gap-3 px-4 py-2 border border-drafting-border bg-white text-xs font-mono text-ink-700 shadow-sm">
+          <span class="text-ink-400">$</span>
+          <span class="font-semibold text-ink-900">npx sextant-drift check</span>
+          <span class="text-ink-300">|</span>
+          <span class="text-ink-500 text-[11px]">五秒原则：0.38s 完成架构阻断</span>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- INTERACTIVE WORKBENCH: THE DRAFTING BOARD & REDLINE DIFF                  -->
+    <!-- ========================================================================= -->
+    <section id="workbench" class="py-16 sm:py-24 px-4 sm:px-8 border-b border-drafting-border">
+      <div class="max-w-6xl mx-auto">
+        
+        <!-- Section Header -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-ink-800 gap-4">
+          <div>
+            <div class="text-[10px] font-mono text-ink-500 uppercase tracking-widest">FIGURE 1.0 — DUAL ARCHITECTURE REDLINE</div>
+            <h2 class="text-2xl sm:text-3xl font-serif font-bold text-ink-900">
+              永远只看两张图的红绿差分
+            </h2>
+          </div>
+          <div class="text-xs font-mono text-ink-600">
+            左侧：设计意图原稿 (Target) ✛ 右侧：代码推导实际拓扑 (Actual)
+          </div>
+        </div>
+
+        <!-- The Physical Drafting Sheet Container -->
+        <div class="drafting-sheet p-6 sm:p-10 relative">
+          <!-- Sheet Corner Crosshairs -->
+          <div class="reg-mark top-3 left-3 text-ink-400 font-mono text-xs">+</div>
+          <div class="reg-mark top-3 right-3 text-ink-400 font-mono text-xs">+</div>
+          <div class="reg-mark bottom-3 left-3 text-ink-400 font-mono text-xs">+</div>
+          <div class="reg-mark bottom-3 right-3 text-ink-400 font-mono text-xs">+</div>
+
+          <!-- Controls Header -->
+          <div class="flex flex-wrap items-center justify-between gap-4 pb-6 mb-8 border-b border-drafting-border">
+            <div class="flex items-center gap-3">
+              <button id="inline-scan-btn" onclick="runInlinePlotterScan()" class="px-5 py-2.5 bg-ink-900 hover:bg-ink-800 text-paper-50 font-mono text-xs font-semibold transition-all shadow flex items-center gap-2">
+                <span id="inline-btn-icon">▶</span>
+                <span id="inline-btn-text">运行图纸比对 (Execute Check)</span>
+              </button>
+              <div id="inline-scan-tag" class="hidden px-2.5 py-1 bg-paper-100 border border-drafting-border text-[11px] font-mono text-ink-700">
+                正在用 AST 遍历 import/export...
+              </div>
+            </div>
+
+            <!-- View toggle -->
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <span class="text-ink-500">图纸对照方式:</span>
+              <button id="toggle-split-btn" onclick="setWorkbenchMode('split')" class="px-3 py-1 bg-ink-800 text-white font-medium">左右双屏对照</button>
+              <button id="toggle-slider-btn" onclick="setWorkbenchMode('slider')" class="px-3 py-1 bg-white border border-drafting-border text-ink-700 hover:bg-paper-100">卷帘对比滑尺</button>
+            </div>
+          </div>
+
+          <!-- Inline progress bar (Classic Drafting style) -->
+          <div id="inline-progress-wrapper" class="hidden mb-8 p-4 bg-paper-50 border border-drafting-border font-mono text-xs">
+            <div class="flex items-center justify-between mb-2">
+              <span id="inline-progress-step" class="text-ink-800 font-bold">[1/4] 读取 AGENTS.md 设计图...</span>
+              <span id="inline-progress-num" class="text-ink-500">25%</span>
+            </div>
+            <div class="w-full h-2 bg-paper-200 border border-drafting-border overflow-hidden">
+              <div id="inline-progress-fill" class="h-full bg-ink-800 transition-all duration-300 w-1/4"></div>
+            </div>
+            <div id="inline-progress-desc" class="mt-2 text-[11px] text-ink-500">已从代码库解析 142 个模块关系，正在核对分层规则...</div>
+          </div>
+
+          <!-- ============================================================= -->
+          <!-- MODE 1: DUAL-SCREEN SIDE-BY-SIDE                              -->
+          <!-- ============================================================= -->
+          <div id="split-display" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- LEFT: TARGET BLUEPRINT (Original Design Intent) -->
+            <div class="border-2 border-ink-700 bg-white p-6 relative flex flex-col justify-between">
+              <!-- Corner stamp -->
+              <div class="flex items-center justify-between pb-3 mb-6 border-b border-drafting-border">
+                <div>
+                  <div class="text-[10px] font-mono text-ink-400 uppercase">DRAWING NO. TARGET-01</div>
+                  <div class="font-serif font-bold text-ink-900 text-lg">设计意图原案 (Expected)</div>
+                </div>
+                <!-- Green Approval Stamp -->
+                <div class="stamp-badge text-stamp-green border-stamp-green bg-stamp-greenBg font-bold">
+                  ✓ VERIFIED SPEC
+                </div>
+              </div>
+
+              <!-- Architectural Flow Diagram (Ink Stencil Style) -->
+              <div class="py-6 flex flex-col items-center justify-center space-y-3 font-mono text-xs">
+                
+                <!-- Presentation Box -->
+                <div class="w-56 p-3 border-2 border-ink-800 bg-paper-50 text-center shadow-sm">
+                  <div class="text-[9px] text-ink-400 uppercase tracking-widest">LAYER 01 : PRESENTATION</div>
+                  <div class="font-bold text-ink-900 mt-0.5">OrderController</div>
+                </div>
+
+                <!-- Downward Arrow -->
+                <div class="flex flex-col items-center text-ink-500 py-1">
+                  <div class="w-[1.5px] h-6 bg-ink-700"></div>
+                  <div class="text-[9px] -mt-1">▼</div>
+                  <span class="text-[10px] text-ink-500 font-mono mt-0.5">calls service</span>
+                </div>
+
+                <!-- Domain Service Box -->
+                <div class="w-56 p-3 border-2 border-ink-800 bg-paper-50 text-center shadow-sm">
+                  <div class="text-[9px] text-ink-400 uppercase tracking-widest">LAYER 02 : DOMAIN LOGIC</div>
+                  <div class="font-bold text-ink-900 mt-0.5">OrderService</div>
+                </div>
+
+                <!-- Downward Arrow -->
+                <div class="flex flex-col items-center text-ink-500 py-1">
+                  <div class="w-[1.5px] h-6 bg-ink-700"></div>
+                  <div class="text-[9px] -mt-1">▼</div>
+                  <span class="text-[10px] text-ink-500 font-mono mt-0.5">calls repository</span>
+                </div>
+
+                <!-- Persistence Box -->
+                <div class="w-56 p-3 border-2 border-ink-800 bg-paper-50 text-center shadow-sm">
+                  <div class="text-[9px] text-ink-400 uppercase tracking-widest">LAYER 03 : PERSISTENCE</div>
+                  <div class="font-bold text-ink-900 mt-0.5">OrderRepository (DB)</div>
+                </div>
+
+              </div>
+
+              <!-- Blueprint Footer Info -->
+              <div class="pt-4 border-t border-drafting-border text-[11px] font-mono text-ink-500 flex items-center justify-between">
+                <span>规范源: AGENTS.md #architecture</span>
+                <span class="text-stamp-green font-semibold">100% 结构合规</span>
+              </div>
+            </div>
+
+
+            <!-- RIGHT: ACTUAL CODE TOPOLOGY WITH REDLINE PENCIL AUDIT -->
+            <div class="border-2 border-redline-border bg-white p-6 relative flex flex-col justify-between">
+              <!-- Corner stamp -->
+              <div class="flex items-center justify-between pb-3 mb-6 border-b border-drafting-border">
+                <div>
+                  <div class="text-[10px] font-mono text-redline uppercase font-bold">REVISION REVISE-01 • DRIFT DETECTED</div>
+                  <div class="font-serif font-bold text-ink-900 text-lg">源码实际拓扑 (Actual AST)</div>
+                </div>
+                <!-- Redline Violation Stamp -->
+                <div class="stamp-badge text-redline border-redline bg-redline-light font-bold">
+                  ✖ REJECTED (EXIT 1)
+                </div>
+              </div>
+
+              <!-- Architectural Flow Diagram with REDLINE Bypass Callout -->
+              <div class="py-6 flex flex-col items-center justify-center space-y-3 font-mono text-xs relative">
+                
+                <!-- Redline hand-drawn curve connecting Controller directly to Repo -->
+                <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 360 260" preserveAspectRatio="none">
+                  <!-- Red pencil curved bypass stroke -->
+                  <path d="M 240 35 C 330 65, 330 195, 240 225" fill="none" stroke="#C92A2A" stroke-width="2.5" stroke-dasharray="5,4" />
+                  <polygon points="238,225 248,220 248,230" fill="#C92A2A"></polygon>
+                </svg>
+
+                <!-- Hand-annotated redline sticker note -->
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 z-20 redline-pencil-box p-3 max-w-[170px] shadow-md cursor-pointer" onclick="highlightRedlineFile()">
+                  <div class="text-[10px] font-mono text-redline font-bold uppercase tracking-tight flex items-center gap-1">
+                    <span>✏️ 审阅红笔批注</span>
+                  </div>
+                  <div class="text-xs font-mono text-ink-900 font-bold mt-1">跨层穿透旁路！</div>
+                  <div class="text-[10px] text-ink-600 mt-1 leading-snug">
+                    Controller 越过 Service 直接导入了 Repo 实例。
+                  </div>
+                  <div class="text-[9px] text-redline underline font-bold mt-2">
+                    查看第 47 行代码 →
+                  </div>
+                </div>
+
+                <!-- Presentation Box -->
+                <div class="w-56 p-3 border-2 border-ink-800 bg-paper-50 text-center shadow-sm relative z-10">
+                  <div class="text-[9px] text-ink-400 uppercase tracking-widest">LAYER 01 : PRESENTATION</div>
+                  <div class="font-bold text-ink-900 mt-0.5">OrderController</div>
+                </div>
+
+                <!-- Downward Arrow (Normal) -->
+                <div class="flex flex-col items-center text-ink-400 py-1 relative z-10">
+                  <div class="w-[1.5px] h-6 bg-ink-400"></div>
+                  <div class="text-[9px] -mt-1">▼</div>
+                </div>
+
+                <!-- Domain Service Box -->
+                <div class="w-56 p-3 border-2 border-ink-800 bg-paper-50 text-center shadow-sm relative z-10">
+                  <div class="text-[9px] text-ink-400 uppercase tracking-widest">LAYER 02 : DOMAIN LOGIC</div>
+                  <div class="font-bold text-ink-900 mt-0.5">OrderService</div>
+                </div>
+
+                <!-- Downward Arrow (Normal) -->
+                <div class="flex flex-col items-center text-ink-400 py-1 relative z-10">
+                  <div class="w-[1.5px] h-6 bg-ink-400"></div>
+                  <div class="text-[9px] -mt-1">▼</div>
+                </div>
+
+                <!-- Persistence Box -->
+                <div class="w-56 p-3 border-2 border-redline bg-redline-light/30 text-center shadow-sm relative z-10">
+                  <div class="text-[9px] text-redline uppercase tracking-widest font-bold">LAYER 03 : PERSISTENCE</div>
+                  <div class="font-bold text-ink-900 mt-0.5">OrderRepository (DB)</div>
+                </div>
+
+              </div>
+
+              <!-- Blueprint Footer Info -->
+              <div class="pt-4 border-t border-drafting-border text-[11px] font-mono text-ink-500 flex items-center justify-between">
+                <span>AST 提取源: src/controllers/order.ts</span>
+                <span class="text-redline font-bold">违背分层不变量</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ============================================================= -->
+          <!-- MODE 2: MECHANICAL SLIDER COMPARISON                          -->
+          <!-- ============================================================= -->
+          <div id="slider-display" class="hidden relative h-80 bg-white border-2 border-ink-800 select-none overflow-hidden">
+            <!-- Background Layer: Target -->
+            <div class="absolute inset-0 p-8 flex flex-col items-center justify-center bg-paper-50">
+              <div class="text-xs font-mono text-stamp-green font-bold mb-4 tracking-wider uppercase">✓ 设计原案 TARGET（严格三层结构）</div>
+              <div class="flex items-center gap-6 font-mono text-xs">
+                <div class="p-3 border-2 border-ink-800 bg-white font-bold">OrderController</div>
+                <span>──▶</span>
+                <div class="p-3 border-2 border-ink-800 bg-white font-bold">OrderService</div>
+                <span>──▶</span>
+                <div class="p-3 border-2 border-ink-800 bg-white font-bold">OrderRepository</div>
+              </div>
+            </div>
+
+            <!-- Clipped Foreground Layer: Actual with Redline -->
+            <div id="slider-reveal-box" class="absolute inset-0 p-8 flex flex-col items-center justify-center bg-white border-r-2 border-redline overflow-hidden" style="width: 50%;">
+              <div class="w-[700px] flex flex-col items-center justify-center">
+                <div class="text-xs font-mono text-redline font-bold mb-4 tracking-wider uppercase">✖ 实际拓扑 ACTUAL（红笔标出违规旁路）</div>
+                <div class="flex items-center gap-6 font-mono text-xs relative">
+                  <div class="p-3 border-2 border-redline bg-redline-light font-bold text-redline">OrderController</div>
+                  <span>──▶</span>
+                  <div class="p-3 border-2 border-ink-400 text-ink-400">OrderService</div>
+                  <span>──▶</span>
+                  <div class="p-3 border-2 border-redline bg-redline-light font-bold text-redline">OrderRepository</div>
+                  <div class="absolute -bottom-7 left-12 right-12 border-b-2 border-dashed border-redline h-4 text-center">
+                    <span class="text-[9px] text-redline bg-white px-2 -mb-5 inline-block font-bold">跨层越界旁路</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mechanical Vernier Slider Caliper Handle -->
+            <div id="vernier-slider-handle" class="absolute top-0 bottom-0 w-8 -ml-4 flex items-center justify-center cursor-ew-resize z-30" style="left: 50%;">
+              <div class="w-6 h-12 bg-ink-900 text-paper-50 flex flex-col items-center justify-center text-[10px] font-mono border border-ink-600 shadow">
+                <span>◀</span>
+                <span>▶</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inspector Drawer: Redline Source Code Memo -->
+          <div id="redline-code-memo" class="mt-8 p-5 border-2 border-drafting-border bg-paper-50 font-mono text-xs">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-drafting-border">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 bg-redline rounded-full"></span>
+                <span class="font-bold text-ink-900">REDLINE DEFECT MEMORANDUM #047</span>
+              </div>
+              <span class="text-[10px] text-ink-500 uppercase">RULE: FORBID_BYPASS_LAYER</span>
+            </div>
+
+            <p class="text-ink-600 text-xs mb-3 font-sans">
+              <strong>总工审查批注：</strong>控制层严禁直接跨层依赖数据持久层。该改动绕过了业务鉴权与领域事件触发，属于致命架构漂移。
+            </p>
+
+            <!-- Code snippet -->
+            <div class="bg-white border border-drafting-border p-3 overflow-x-auto text-[11px] leading-relaxed">
+              <div class="text-ink-400 mb-1">// file: src/controllers/order.controller.ts:46-48</div>
+              <div class="text-ink-500">46: import { OrderService } from '@/services/order.service';</div>
+              <div class="bg-redline-light/80 text-redline font-bold px-1 py-0.5 border-l-2 border-redline">
+                47: + import { OrderRepository } from '@/repositories/order.repo'; // ✖ 架构越界
+              </div>
+              <div class="text-ink-500">48: export class OrderController { ... }</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- THREE PILLARS: TECHNICAL ENGINEERING STANDARDS                            -->
+    <!-- ========================================================================= -->
+    <section id="pillars" class="py-16 sm:py-24 px-4 sm:px-8 max-w-6xl mx-auto border-b border-drafting-border">
+      
+      <div class="text-center max-w-2xl mx-auto mb-16">
+        <div class="text-[10px] font-mono text-ink-500 uppercase tracking-widest mb-2">ENGINEERING STANDARDS</div>
+        <h2 class="text-3xl sm:text-4xl font-serif font-bold text-ink-900">
+          三大形式化支柱引擎
+        </h2>
+        <p class="text-ink-600 text-sm sm:text-base mt-3 font-sans">
+          回归经典计算机科学的纯粹理性。不盲猜运行时，不听信 Agent 自述，以确定性 AST 图论与规范模式匹配构筑防线。
+        </p>
+      </div>
+
+      <!-- Standards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Standard 01 -->
+        <div class="drafting-sheet p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-drafting-border">
+              <span class="font-mono text-xs font-bold text-ink-900">STANDARD 01</span>
+              <span class="text-[10px] font-mono text-ink-400">DAG TOPOLOGY</span>
+            </div>
+            <h3 class="text-lg font-serif font-bold text-ink-900 mb-2">确定性模块与分层漂移</h3>
+            <p class="text-xs text-ink-600 leading-relaxed font-sans mb-4">
+              利用 TypeScript 编译器 AST 遍历所有 <code class="bg-paper-100 px-1 border border-drafting-border font-mono">import</code> 与 <code class="bg-paper-100 px-1 border border-drafting-border font-mono">export</code>，生成无环有向图（DAG）。秒级捕捉跨层旁路、领域逆向依赖与循环依赖。
+            </p>
+          </div>
+          <div class="pt-3 border-t border-drafting-border text-[11px] font-mono text-stamp-green font-semibold">
+            ✓ 0 假阳性 (Zero False Positives)
+          </div>
+        </div>
+
+        <!-- Standard 02 -->
+        <div class="drafting-sheet p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-drafting-border">
+              <span class="font-mono text-xs font-bold text-ink-900">STANDARD 02</span>
+              <span class="text-[10px] font-mono text-ink-400">HOARE INVARIANTS</span>
+            </div>
+            <h3 class="text-lg font-serif font-bold text-ink-900 mb-2">语义不变量规则引擎</h3>
+            <p class="text-xs text-ink-600 leading-relaxed font-sans mb-4">
+              继承 Tony Hoare 形式化验证精神。图旁边永远伴随 3~5 条硬性规则（80% 图 + 20% Rules）：例如在发起外部 LLM 调用前必须先落库；UI 表现层严禁直接导入 DB 驱动。
+            </p>
+          </div>
+          <div class="pt-3 border-t border-drafting-border text-[11px] font-mono text-ink-700">
+            YAML 规则 DSL 驱动
+          </div>
+        </div>
+
+        <!-- Standard 03 -->
+        <div class="drafting-sheet p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-drafting-border">
+              <span class="font-mono text-xs font-bold text-ink-900">STANDARD 03</span>
+              <span class="text-[10px] font-mono text-ink-400">STATE VERIFIER</span>
+            </div>
+            <h3 class="text-lg font-serif font-bold text-ink-900 mb-2">Mermaid 状态机死锁排查</h3>
+            <p class="text-xs text-ink-600 leading-relaxed font-sans mb-4">
+              解析 Mermaid <code class="bg-paper-100 px-1 border border-drafting-border font-mono">stateDiagram-v2</code>。静态排查“黑洞状态（有入无出非终止态）”、“孤岛不可达状态”及异步等待中缺失的 <code class="bg-paper-100 px-1 border border-drafting-border font-mono text-redline">Timeout / Failed</code> 兜底。
+            </p>
+          </div>
+          <div class="pt-3 border-t border-drafting-border text-[11px] font-mono text-ink-700">
+            静态图可达性定理证明
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- TELETYPE & TERMINAL CI GATE DEMO                                          -->
+    <!-- ========================================================================= -->
+    <section id="terminal" class="py-16 sm:py-24 px-4 sm:px-8 border-b border-drafting-border bg-paper-100/60">
+      <div class="max-w-4xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <div class="text-[10px] font-mono text-ink-500 uppercase tracking-widest mb-2">TERMINAL & CI INTEGRATION</div>
+          <h2 class="text-2xl sm:text-3xl font-serif font-bold text-ink-900">
+            五秒原则：敲下回车，立见分晓
+          </h2>
+          <p class="text-ink-600 text-xs sm:text-sm mt-2 font-sans">
+            无需启动繁琐 GUI。在终端或 GitHub Actions 中运行单条命令，返回确定性 Exit Code 与精准行号指引。
+          </p>
+        </div>
+
+        <!-- Classic DEC / Teletype Terminal Sheet -->
+        <div class="border-2 border-ink-800 bg-white p-6 font-mono text-xs shadow-md">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-drafting-border text-ink-500 text-[11px]">
+            <span>TELETYPE SESSION — TTY01</span>
+            <span>EXECUTION TIME: 0.38 SECONDS</span>
+          </div>
+
+          <div class="space-y-1.5 text-ink-800 leading-relaxed">
+            <div><span class="text-ink-500">$</span> <strong>npx sextant-drift check --strict</strong></div>
+            <div class="text-ink-500">[INFO] Loading target specification: AGENTS.md (3 flowcharts, 4 invariants)</div>
+            <div class="text-ink-500">[INFO] Ingesting TypeScript AST: 142 files traversed in 184ms</div>
+            <div class="text-stamp-green font-semibold">✓ Invariant PERSIST_BEFORE_EXTERNAL passed (12 call-sites verified)</div>
+            <div class="text-stamp-green font-semibold">✓ State machine order-flow.mermaid: 0 deadlocks, all timeouts wired</div>
+            <div class="text-redline font-bold pt-2">
+              ✖ DRIFT DETECTED: Layer Bypass Rule Violated!
+            </div>
+            <div class="pl-4 border-l-2 border-redline my-1 text-ink-700 text-[11px]">
+              Target Spec : OrderController ──▶ OrderService ──▶ OrderRepository<br>
+              Actual Code : <span class="text-redline font-bold">src/controllers/order.controller.ts:47 directly imports OrderRepository</span><br>
+              Remediation : Route query through OrderService.getOrderById() instead.
+            </div>
+            <div class="pt-3 border-t border-drafting-border text-redline font-bold flex items-center justify-between">
+              <span>CHECK FAILED (1 critical drift). EXIT CODE 1.</span>
+              <span class="text-[10px] text-ink-500 font-normal">Report generated: ./drift-report.html</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- PITFALLS ARCHIVE (Lessons Learned Memo)                                   -->
+    <!-- ========================================================================= -->
+    <section id="archive" class="py-16 sm:py-24 px-4 sm:px-8 max-w-5xl mx-auto">
+      <div class="text-center max-w-2xl mx-auto mb-14">
+        <div class="text-[10px] font-mono text-ink-500 uppercase tracking-widest mb-2">LABORATORY ARCHIVE & PITFALLS</div>
+        <h2 class="text-2xl sm:text-3xl font-serif font-bold text-ink-900">
+          踩坑复盘：为什么重启后的设计无懈可击？
+        </h2>
+        <p class="text-ink-600 text-xs sm:text-sm mt-2 font-sans">
+          诚实面对第一版尝试踩下的 4 大致命陷阱，确立纯粹的工程定力。
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs">
+        <!-- Pitfall 1 -->
+        <div class="drafting-sheet p-5">
+          <div class="text-redline font-bold mb-1">✖ 陷阱 1：切入顺序严重倒置</div>
+          <p class="text-ink-600 text-[11px] font-sans leading-relaxed mb-3">
+            把成熟度仅 3/10 的异步动态时序当 MVP 交付，撞上不可信的高假阳性硬墙。
+          </p>
+          <div class="pt-2 border-t border-drafting-border text-stamp-green font-semibold">
+            ✔ 重启：先做 8/10 确定性的 AST 模块依赖与语义规则，零误报建立信任。
+          </div>
+        </div>
+
+        <!-- Pitfall 2 -->
+        <div class="drafting-sheet p-5">
+          <div class="text-redline font-bold mb-1">✖ 陷阱 2：Agent 自证即幻觉</div>
+          <p class="text-ink-600 text-[11px] font-sans leading-relaxed mb-3">
+            让 Agent 在编码后自己写实际时序图回写，等于让嫌疑人自拟结案报告。
+          </p>
+          <div class="pt-2 border-t border-drafting-border text-stamp-green font-semibold">
+            ✔ 重启：弃绝 Agent 自述，所有实际拓扑 100% 由编译器机器静态提取。
+          </div>
+        </div>
+
+        <!-- Pitfall 3 -->
+        <div class="drafting-sheet p-5">
+          <div class="text-redline font-bold mb-1">✖ 陷阱 3：孤岛私有 Spec 格式</div>
+          <p class="text-ink-600 text-[11px] font-sans leading-relaxed mb-3">
+            强推私有 .sextant/spec.md 规范，脱离主流生态造成极高门槛。
+          </p>
+          <div class="pt-2 border-t border-drafting-border text-stamp-green font-semibold">
+            ✔ 重启：做适配器，原生兼容业界通用的 AGENTS.md 与 GitHub Spec Kit。
+          </div>
+        </div>
+
+        <!-- Pitfall 4 -->
+        <div class="drafting-sheet p-5">
+          <div class="text-redline font-bold mb-1">✖ 陷阱 4：沉重桌面端拖垮核心</div>
+          <p class="text-ink-600 text-[11px] font-sans leading-relaxed mb-3">
+            过早深陷 Tauri 桌面 GUI 与番茄钟等无关插件，核心差分引擎沦为玩具。
+          </p>
+          <div class="pt-2 border-t border-drafting-border text-stamp-green font-semibold">
+            ✔ 重启：Core-First。以可以在 CI 和终端飞速执行的无头 CLI 为第一核心。
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+
+  <!-- ========================================================================= -->
+  <!-- FOOTER                                                                    -->
+  <!-- ========================================================================= -->
+  <footer class="border-t border-drafting-border py-10 px-4 sm:px-8 bg-paper-100 text-xs font-mono text-ink-500">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>
+        <span class="font-serif font-bold text-ink-900 text-sm">SextantDrift</span>
+        <span>• Architectural X-Ray & Drift Compass (1974/2026)</span>
+      </div>
+
+      <div class="flex items-center gap-6 text-[11px]">
+        <a href="docs/SEXTANT_REBOOT_CHARTER_AND_PITFALLS.md" class="hover:text-ink-900 underline">重启白皮书</a>
+        <a href="#workbench" class="hover:text-ink-900 underline">图纸红绿差分</a>
+        <a href="javascript:void(0)" onclick="openFullscreenLoader()" class="hover:text-ink-900 underline">绘图仪扫描屏</a>
+      </div>
+
+      <div class="text-[11px]">
+        <span>Design by Diagram, Diff by Redline.</span>
+      </div>
+    </div>
+  </footer>
+
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT: PEN PLOTTER ENGINE & WORKBENCH LOGIC                          -->
+  <!-- ========================================================================= -->
+  <script>
+    // -------------------------------------------------------------------------
+    // 1. Fullscreen Pen Plotter Loading Screen
+    // -------------------------------------------------------------------------
+    const fullscreenLoader = document.getElementById('fullscreen-loader');
+    const plotterCanvas = document.getElementById('plotter-canvas');
+    const plotterCtx = plotterCanvas.getContext('2d');
+    const plotterPercent = document.getElementById('plotter-percent');
+    const plotterSubStatus = document.getElementById('plotter-sub-status');
+    const plotterLogs = document.getElementById('plotter-logs');
+    const plotterStamp = document.getElementById('plotter-stamp');
+    const plotterActionBtn = document.getElementById('plotter-action-btn');
+    const plotterHead = document.getElementById('plotter-head');
+
+    let plotterProgress = 0;
+    let plotterTimer = null;
+
+    // Architectural nodes to draw on paper
+    const drawingSteps = [
+      { x: 100, y: 50, label: 'OrderController', type: 'box' },
+      { x: 300, y: 50, label: 'OrderService', type: 'box' },
+      { x: 500, y: 50, label: 'OrderRepository', type: 'box' },
+      { x1: 170, y1: 50, x2: 230, y2: 50, type: 'line', color: '#141416' },
+      { x1: 370, y1: 50, x2: 430, y2: 50, type: 'line', color: '#141416' },
+      // Redline bypass curve
+      { x1: 150, y1: 75, cx: 300, cy: 190, x2: 450, y2: 75, type: 'curve', color: '#C92A2A' }
+    ];
+
+    function drawPlotterFrame(progressPct) {
+      plotterCtx.clearRect(0, 0, 600, 240);
+
+      // Fine millimeter background grid on canvas
+      plotterCtx.strokeStyle = 'rgba(142, 136, 118, 0.2)';
+      plotterCtx.lineWidth = 1;
+      for (let x = 0; x < 600; x += 20) {
+        plotterCtx.beginPath();
+        plotterCtx.moveTo(x, 0);
+        plotterCtx.lineTo(x, 240);
+        plotterCtx.stroke();
+      }
+      for (let y = 0; y < 240; y += 20) {
+        plotterCtx.beginPath();
+        plotterCtx.moveTo(0, y);
+        plotterCtx.lineTo(600, y);
+        plotterCtx.stroke();
+      }
+
+      // Draw elements up to current progress
+      const itemsToDraw = Math.floor((progressPct / 100) * drawingSteps.length);
+
+      for (let i = 0; i <= itemsToDraw && i < drawingSteps.length; i++) {
+        const item = drawingSteps[i];
+
+        if (item.type === 'box') {
+          plotterCtx.strokeStyle = '#141416';
+          plotterCtx.lineWidth = 2;
+          plotterCtx.strokeRect(item.x - 50, item.y - 20, 100, 40);
+          plotterCtx.fillStyle = '#141416';
+          plotterCtx.font = 'bold 11px "IBM Plex Mono", monospace';
+          plotterCtx.textAlign = 'center';
+          plotterCtx.fillText(item.label, item.x, item.y + 4);
+        } else if (item.type === 'line') {
+          plotterCtx.strokeStyle = item.color;
+          plotterCtx.lineWidth = 2;
+          plotterCtx.beginPath();
+          plotterCtx.moveTo(item.x1, item.y1);
+          plotterCtx.lineTo(item.x2, item.y2);
+          plotterCtx.stroke();
+        } else if (item.type === 'curve') {
+          plotterCtx.strokeStyle = item.color;
+          plotterCtx.lineWidth = 2.5;
+          plotterCtx.setLineDash([5, 4]);
+          plotterCtx.beginPath();
+          plotterCtx.moveTo(item.x1, item.y1);
+          plotterCtx.quadraticCurveTo(item.cx, item.cy, item.x2, item.y2);
+          plotterCtx.stroke();
+          plotterCtx.setLineDash([]);
+        }
+      }
+
+      // Update simulated plotter pen position
+      if (itemsToDraw < drawingSteps.length) {
+        const cur = drawingSteps[itemsToDraw];
+        const targetX = cur.x || cur.x2 || 300;
+        const targetY = cur.y || cur.y2 || 120;
+        plotterHead.style.left = (targetX / 600 * 100) + '%';
+        plotterHead.style.top = (targetY / 240 * 100) + '%';
+      }
+    }
+
+    const plotterPhases = [
+      { pct: 20, sub: 'TRAVERSING AST NODES (1/4)', log: '> [01/04] Reading AGENTS.md: Found 3 flowcharts & 4 Hoare invariants.' },
+      { pct: 50, sub: 'GENERATING DAG TOPOLOGY (2/4)', log: '> [02/04] Ingesting TypeScript imports: 142 source files analyzed.' },
+      { pct: 75, sub: 'EVALUATING INVARIANT RULES (3/4)', log: '> [03/04] Checking FORBID_BYPASS: Layer rule assertion running...' },
+      { pct: 100, sub: 'DRIFT DETECTED (EXIT 1)', log: '> [04/04] ALERT: Bypass edge detected! Controller -> Repository. Exit code 1.' }
+    ];
+
+    function openFullscreenLoader() {
+      fullscreenLoader.classList.remove('opacity-0', 'pointer-events-none');
+      fullscreenLoader.classList.add('opacity-100');
+      restartPlotterScan();
+    }
+
+    function closeFullscreenLoader() {
+      fullscreenLoader.classList.remove('opacity-100');
+      fullscreenLoader.classList.add('opacity-0', 'pointer-events-none');
+      if (plotterTimer) clearInterval(plotterTimer);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !fullscreenLoader.classList.contains('pointer-events-none')) {
+        closeFullscreenLoader();
+      }
+    });
+
+    function restartPlotterScan() {
+      if (plotterTimer) clearInterval(plotterTimer);
+      plotterProgress = 0;
+      plotterLogs.innerHTML = '<div>> Plotter pen initialized. Drawing architectural DAG...</div>';
+      plotterStamp.classList.add('opacity-0');
+      plotterActionBtn.classList.add('opacity-0');
+
+      let phaseIdx = 0;
+
+      plotterTimer = setInterval(() => {
+        plotterProgress += 2;
+        if (plotterProgress > 100) plotterProgress = 100;
+
+        plotterPercent.innerText = plotterProgress + '%';
+        drawPlotterFrame(plotterProgress);
+
+        if (phaseIdx < plotterPhases.length && plotterProgress >= plotterPhases[phaseIdx].pct) {
+          const p = plotterPhases[phaseIdx];
+          plotterSubStatus.innerText = p.sub;
+          
+          const line = document.createElement('div');
+          line.className = phaseIdx === 3 ? 'text-redline font-bold' : 'text-ink-700';
+          line.innerText = p.log;
+          plotterLogs.appendChild(line);
+          plotterLogs.scrollTop = plotterLogs.scrollHeight;
+
+          phaseIdx++;
+        }
+
+        if (plotterProgress >= 100) {
+          clearInterval(plotterTimer);
+          plotterStamp.classList.remove('opacity-0');
+          plotterActionBtn.classList.remove('opacity-0');
+          document.getElementById('plotter-telemetry-status').innerText = 'STATUS: EXIT 1 (DRIFT FOUND)';
+          document.getElementById('plotter-telemetry-status').className = 'text-redline font-bold';
+        }
+      }, 50);
+    }
+
+    function viewReportFromLoader() {
+      closeFullscreenLoader();
+      document.getElementById('workbench').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Inline Workbench Logic
+    // -------------------------------------------------------------------------
+    let isInlineScanning = false;
+    function runInlinePlotterScan() {
+      if (isInlineScanning) return;
+      isInlineScanning = true;
+
+      const btn = document.getElementById('inline-scan-btn');
+      const btnText = document.getElementById('inline-btn-text');
+      const tag = document.getElementById('inline-scan-tag');
+      const box = document.getElementById('inline-progress-wrapper');
+      const fill = document.getElementById('inline-progress-fill');
+      const stepText = document.getElementById('inline-progress-step');
+      const numText = document.getElementById('inline-progress-num');
+      const descText = document.getElementById('inline-progress-desc');
+
+      btn.classList.add('opacity-60');
+      btnText.innerText = '正在比对...';
+      tag.classList.remove('hidden');
+      box.classList.remove('hidden');
+
+      let currentStep = 1;
+      const steps = [
+        { pct: 25, title: '[1/4] 读取 AGENTS.md 设计图纸...', desc: '已提取 3 张架构流程图，4 条霍尔不变量规则。' },
+        { pct: 50, title: '[2/4] AST 遍历所有 import / export...', desc: '构建有向图 (DAG): 142 个模块节点，298 条导入连线。' },
+        { pct: 75, title: '[3/4] 核对分层不变量规则...', desc: 'PERSIST_BEFORE_EXTERNAL 通过；检查跨层调用...' },
+        { pct: 100, title: '[4/4] 比对完毕！发现 1 处严重架构违背！', desc: 'src/controllers/order.controller.ts:47 越过 Service 导入了 Repository。' }
+      ];
+
+      function nextStep() {
+        if (currentStep <= steps.length) {
+          const s = steps[currentStep - 1];
+          fill.style.width = s.pct + '%';
+          numText.innerText = s.pct + '%';
+          stepText.innerText = s.title;
+          descText.innerText = s.desc;
+
+          currentStep++;
+          setTimeout(nextStep, 650);
+        } else {
+          btn.classList.remove('opacity-60');
+          btnText.innerText = '重新图纸比对 (Re-check)';
+          tag.innerText = '发现 1 处偏航 (Exit 1)';
+          tag.className = 'px-2.5 py-1 bg-redline-light border border-redline-border text-[11px] font-mono text-redline font-bold';
+          isInlineScanning = false;
+        }
+      }
+
+      nextStep();
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. View Switcher (Split vs Slider)
+    // -------------------------------------------------------------------------
+    function setWorkbenchMode(mode) {
+      const split = document.getElementById('split-display');
+      const slider = document.getElementById('slider-display');
+      const btnSplit = document.getElementById('toggle-split-btn');
+      const btnSlider = document.getElementById('toggle-slider-btn');
+
+      if (mode === 'split') {
+        split.classList.remove('hidden');
+        slider.classList.add('hidden');
+        btnSplit.className = 'px-3 py-1 bg-ink-800 text-white font-medium';
+        btnSlider.className = 'px-3 py-1 bg-white border border-drafting-border text-ink-700 hover:bg-paper-100';
+      } else {
+        split.classList.add('hidden');
+        slider.classList.remove('hidden');
+        btnSlider.className = 'px-3 py-1 bg-ink-800 text-white font-medium';
+        btnSplit.className = 'px-3 py-1 bg-white border border-drafting-border text-ink-700 hover:bg-paper-100';
+      }
+    }
+
+    // Draggable Vernier Caliper Slider
+    const sliderBox = document.getElementById('slider-display');
+    const sliderReveal = document.getElementById('slider-reveal-box');
+    const sliderHandle = document.getElementById('vernier-slider-handle');
+    let isDragging = false;
+
+    function moveSlider(e) {
+      if (!isDragging) return;
+      const rect = sliderBox.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let pos = (clientX - rect.left) / rect.width;
+      if (pos < 0.1) pos = 0.1;
+      if (pos > 0.9) pos = 0.9;
+
+      const pct = (pos * 100).toFixed(1) + '%';
+      sliderReveal.style.width = pct;
+      sliderHandle.style.left = pct;
+    }
+
+    sliderHandle.addEventListener('mousedown', () => isDragging = true);
+    sliderBox.addEventListener('touchstart', () => isDragging = true);
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('touchend', () => isDragging = false);
+    window.addEventListener('mousemove', moveSlider);
+    window.addEventListener('touchmove', moveSlider);
+
+    // -------------------------------------------------------------------------
+    // 4. Highlight & Navigation Helpers
+    // -------------------------------------------------------------------------
+    function highlightRedlineFile() {
+      const memo = document.getElementById('redline-code-memo');
+      memo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      memo.classList.add('border-redline', 'bg-redline-light/20');
+      setTimeout(() => {
+        memo.classList.remove('border-redline', 'bg-redline-light/20');
+      }, 1500);
+    }
+
+    function scrollToWorkbench() {
+      document.getElementById('workbench').scrollIntoView({ behavior: 'smooth' });
+      setTimeout(runInlinePlotterScan, 400);
+    }
+  </script>
+</body>
+</html>

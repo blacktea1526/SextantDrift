@@ -1,0 +1,19 @@
+{
+  "name": "sextant-drift-web",
+  "version": "2.0.0",
+  "description": "SextantDrift — 架构 X 光机与偏航检测罗盘 (Architecture X-Ray & Drift Compass)",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 3333",
+    "preview": "python3 -m http.server 3333"
+  },
+  "keywords": [
+    "architecture-x-ray",
+    "drift-detection",
+    "ast-analysis",
+    "invariants",
+    "mermaid"
+  ],
+  "author": "",
+  "license": "MIT"
+}
