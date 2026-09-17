@@ -54,6 +54,32 @@ export function getObjectLiteralPropertyNames(obj: ts.ObjectLiteralExpression): 
   return names;
 }
 
+function getEnclosingFunctionName(node: ts.Node): string {
+  let curr = node.parent;
+  while (curr) {
+    if (ts.isFunctionDeclaration(curr)) {
+      return curr.name ? curr.name.text : '<anonymous_function>';
+    }
+    if (ts.isMethodDeclaration(curr)) {
+      return curr.name.getText();
+    }
+    if (ts.isConstructorDeclaration(curr)) {
+      return 'constructor';
+    }
+    if (ts.isArrowFunction(curr) || ts.isFunctionExpression(curr)) {
+      if (curr.parent && ts.isVariableDeclaration(curr.parent) && ts.isIdentifier(curr.parent.name)) {
+        return curr.parent.name.text;
+      }
+      if (curr.parent && ts.isPropertyAssignment(curr.parent) && ts.isIdentifier(curr.parent.name)) {
+        return curr.parent.name.text;
+      }
+      return '<anonymous_arrow>';
+    }
+    curr = curr.parent;
+  }
+  return '<top_level>';
+}
+
 /**
  * Audits call expressions against require_config invariant rules.
  * Ensures external and configured network calls pass an options object with required configuration keys (e.g. 'timeout').
@@ -142,6 +168,7 @@ export function matchConfigInvariants(
       const lineNumber = line + 1;
       const columnNumber = character + 1;
       const snippet = getLineSnippet(lineNumber);
+      const enclosingFn = getEnclosingFunctionName(call);
 
       if (objectArgs.length === 0) {
         // Explicit target was specified, but no config object was provided
@@ -156,6 +183,8 @@ export function matchConfigInvariants(
           line: lineNumber,
           column: columnNumber,
           snippet,
+          enclosingFunction: enclosingFn,
+          targetCall: calleeName,
         });
       } else {
         // Verify that all required keys are present across object literal arguments
@@ -180,6 +209,8 @@ export function matchConfigInvariants(
             line: lineNumber,
             column: columnNumber,
             snippet,
+            enclosingFunction: enclosingFn,
+            targetCall: calleeName,
           });
         }
       }

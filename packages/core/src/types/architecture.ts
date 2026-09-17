@@ -43,4 +43,5 @@ export interface TargetArchitecture {
   components: Component[];
   allowDependencies: AllowedDependency[];
   invariants?: InvariantRule[];
+  mermaid?: string;
 }

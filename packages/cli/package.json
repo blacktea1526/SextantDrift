@@ -4,14 +4,17 @@
   "description": "SextantDrift CLI — Command-line interface and CI quality gate",
   "type": "module",
   "bin": {
-    "sextant-drift": "./dist/index.js"
+    "sextant-drift": "./dist/bin/sextant-drift.js"
   },
   "scripts": {
     "build": "tsup",
     "test": "vitest run"
   },
   "dependencies": {
-    "@sextant/core": "workspace:*"
+    "@sextant/core": "workspace:*",
+    "@sextant/web-report": "workspace:*",
+    "cac": "^6.7.14",
+    "picocolors": "^1.1.1"
   },
   "license": "MIT"
 }

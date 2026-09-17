@@ -141,6 +141,29 @@ interface StatementCallOccurrence {
 
 interface StatementBlockInfo {
   statements: readonly ts.Statement[];
+  enclosingFunction: string;
+}
+
+function getEnclosingFunctionName(node: ts.Node): string {
+  if (ts.isFunctionDeclaration(node)) {
+    return node.name ? node.name.text : '<anonymous_function>';
+  }
+  if (ts.isMethodDeclaration(node)) {
+    return node.name.getText();
+  }
+  if (ts.isConstructorDeclaration(node)) {
+    return 'constructor';
+  }
+  if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+    if (node.parent && ts.isVariableDeclaration(node.parent) && ts.isIdentifier(node.parent.name)) {
+      return node.parent.name.text;
+    }
+    if (node.parent && ts.isPropertyAssignment(node.parent) && ts.isIdentifier(node.parent.name)) {
+      return node.parent.name.text;
+    }
+    return '<anonymous_arrow>';
+  }
+  return '<top_level>';
 }
 
 /**
@@ -153,7 +176,7 @@ function collectStatementBlocks(sourceFile: ts.SourceFile): StatementBlockInfo[]
 
   // Top-level statements
   if (sourceFile.statements && sourceFile.statements.length > 0) {
-    blocks.push({ statements: sourceFile.statements });
+    blocks.push({ statements: sourceFile.statements, enclosingFunction: '<top_level>' });
   }
 
   function visit(node: ts.Node) {
@@ -167,7 +190,10 @@ function collectStatementBlocks(sourceFile: ts.SourceFile): StatementBlockInfo[]
       ts.isSetAccessorDeclaration(node)
     ) {
       if (node.body && ts.isBlock(node.body)) {
-        blocks.push({ statements: node.body.statements });
+        blocks.push({
+          statements: node.body.statements,
+          enclosingFunction: getEnclosingFunctionName(node),
+        });
       }
     }
 
@@ -308,6 +334,8 @@ export function matchSequenceInvariants(
             line: lineNumber,
             column: columnNumber,
             snippet,
+            enclosingFunction: block.enclosingFunction,
+            targetCall: targetOcc.calleeName,
           });
         }
       }

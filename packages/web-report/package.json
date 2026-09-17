@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "description": "SextantDrift Web Report — Self-contained dual-diagram HTML visual inspection report",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "echo 'web-report build ready'"
+    "build": "tsup",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sextant/core": "workspace:*"
   },
   "license": "MIT"
 }

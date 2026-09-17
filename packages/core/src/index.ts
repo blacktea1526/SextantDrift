@@ -21,6 +21,12 @@ import {
   RawFileDependency,
 } from './comparator/inversion-detector.js';
 import { executeInvariantsEngine } from './invariants/engine.js';
+import { computeViolationFingerprint } from './baseline/fingerprint.js';
+import {
+  loadBaseline,
+  diffWithBaseline,
+  DEFAULT_BASELINE_FILENAME,
+} from './baseline/manager.js';
 
 export const VERSION = '0.1.0';
 
@@ -42,6 +48,8 @@ export * from './invariants/sequence-matcher.js';
 export * from './invariants/import-matcher.js';
 export * from './invariants/config-matcher.js';
 export * from './invariants/engine.js';
+export * from './baseline/fingerprint.js';
+export * from './baseline/manager.js';
 
 /**
  * Builds Mermaid flowchart representing the actual detected component dependencies,
@@ -231,10 +239,27 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     ...invariantViolations,
   ];
 
+  // 7. Ensure every violation has a deterministic semantic fingerprint
+  for (const v of allViolations) {
+    if (!v.fingerprint) {
+      v.fingerprint = computeViolationFingerprint(v);
+    }
+  }
+
+  // 8. Baseline evaluation if baseline file exists or is specified
+  const baselineFile = options.baselinePath
+    ? path.resolve(rootDir, options.baselinePath)
+    : path.resolve(rootDir, DEFAULT_BASELINE_FILENAME);
+
+  const baseline = loadBaseline(baselineFile);
+  const { newViolations, exemptions } = diffWithBaseline(allViolations, baseline);
+
   const summary: DriftSummary = {
     totalFiles: filePaths.length,
     totalDependencies,
     totalViolations: allViolations.length,
+    exemptedViolations: exemptions.length,
+    newViolations: newViolations.length,
     bypassCount: bypassViolations.length,
     inversionCount: inversionViolations.length,
     cycleCount: cycleViolations.length,
@@ -244,13 +269,14 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
 
   const actualMermaid = generateActualMermaid(arch, componentGraph, allViolations);
   const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
-  const passed = allViolations.length === 0;
+  const passed = newViolations.length === 0;
 
   return {
     passed,
     exitCode: passed ? 0 : 1,
     summary,
-    violations: allViolations,
+    violations: newViolations,
+    exemptions,
     targetArchitecture: arch,
     actualMermaid,
     durationMs,

@@ -16,7 +16,7 @@
 [Phase 0: Clean Slate]         [██████████] 100% 规范冻结，Monorepo 骨架与基线建设完成
 [Phase 1: Module Drift Engine] [██████████] 100% TS AST 提取与确定性差分引擎已交付并通过全量单测
 [Phase 2: Invariants Engine]   [██████████] 100% 同步作用域 AST 语句匹配与违禁拦截已交付并通过全量单测 (已完成)
-[Phase 4: CLI & Visual Report] [░░░░░░░░░░]   0% 核心 MVP 闭环：极轻量 CLI、逆向 X 光、债务基线与按需双图报告 (紧随 P2 启动)
+[Phase 4: CLI & Visual Report] [██████████] 100% 核心 MVP 闭环：极轻量 CLI、逆向 X 光、债务基线与按需双图报告 (已完成)
 [Phase 3: State Verifier]      [░░░░░░░░░░]   0% 状态机死锁/孤岛/缺失降级静态分析 (Post-MVP 扩展插件)
 [Phase 5: Dynamic Trace (v2)]  [░░░░░░░░░░]   0% 运行时 Trace 录制与因果时序差分 (远期探索)
 ```
@@ -350,7 +350,7 @@ packages/core/src/state/
 ### Phase 4: CLI 门禁与双图审查报告 (CLI & Visual Report)
 
 - **核心定位**：落地项目第一核心交付形态——极速、高信噪比的命令行工具 `@sextant/cli`，提供 ANSI 彩色输出、老项目债务基线固化，以及按需导出的双图红绿对比静态报告，完成从内核到可自用 Dogfooding 的 MVP 闭环。
-- **阶段状态**：`[PLANNED]`
+- **阶段状态**：`[COMPLETED / 100%]`
 - **前置依赖**：Phase 1, Phase 2 (与 Phase 3 状态机解耦，优先打通开发闭环)
 
 ```
@@ -371,13 +371,13 @@ packages/cli/src/
 
 #### 细化任务列表
 
-#### [ ] Task 4.1: CLI 极轻量脚手架搭建 (cac + picocolors)
+#### [x] Task 4.1: CLI 极轻量脚手架搭建 (cac + picocolors)
 - **目标**：体积控制在 50KB 以内，冷启动时间 < 10ms，零多余重型终端依赖。
 - **全局选项**：`--json`（机器可读输出）、`--strict`（Warning 视同 Error）、`--filter <package>`（Monorepo 子包过滤）。
 - **自动化验证**：
-  - [ ] `npx sextant-drift --help` 极速输出命令说明。
+  - [x] `npx sextant-drift --help` 极速输出命令说明。
 
-#### [ ] Task 4.2: 核心 `check` 门禁命令与标准退出码协议
+#### [x] Task 4.2: 核心 `check` 门禁命令与标准退出码协议
 - **命令语法**：`npx sextant-drift check [options]`
 - **退出码标准协议**：
   - **`Exit Code 0`（Pass）**：架构完全合规，或既有违规均已在基线快照中豁免；
@@ -387,10 +387,10 @@ packages/cli/src/
   - 严格控制单次检查输出占用在 **50 ~ 200 Tokens** 以内；
   - 每条报警必须包含四要素：严重级别标签（如 `[CRITICAL BYPASS]`）、物理文件与行号（如 `src/controllers/order.ts:47`）、确凿导入证据、所破坏的架构规则与修复建议。
 - **自动化验证**：
-  - [ ] 违规工程执行 `check` 返回 exit code 1；
-  - [ ] 终端输出不包含任何多余文字废话，无 HTML 产生。
+  - [x] 违规工程执行 `check` 返回 exit code 1；
+  - [x] 终端输出不包含任何多余文字废话，无 HTML 产生。
 
-#### [ ] Task 4.3: 逆向工程命令 `init` (Reverse X-Ray)
+#### [x] Task 4.3: 逆向工程命令 `init` (Reverse X-Ray)
 - **命令语法**：`npx sextant-drift init`
 - **目标**：存量项目一键反向扫描目录结构与依赖拓扑，以 `sextant.json` 为单源事实，并同步生成只读预览文档 `ARCHITECTURE.md`。
 - **工作流**：
@@ -399,9 +399,9 @@ packages/cli/src/
   3. 写入 `sextant.json`（配置 `$schema` 支持 IDE 自动补全与类型校验）；
   4. 自动编译导出只读视图文档 `ARCHITECTURE.md`（内嵌标准 Mermaid 架构图供 GitHub 预览与人类阅读）。
 - **自动化验证**：
-  - [ ] 在典型项目上执行 `init` 成功输出有效配置文件与 Markdown 视图。
+  - [x] 在典型项目上执行 `init` 成功输出有效配置文件与 Markdown 视图。
 
-#### [ ] Task 4.4: 存量老项目债务隔离命令 `baseline` (Brownfield Baseline)
+#### [x] Task 4.4: 存量老项目债务隔离命令 `baseline` (Brownfield Baseline)
 - **命令语法**：`npx sextant-drift baseline`
 - **核心心智**：**“历史债务豁免，新增偏航零容忍（No New Drift）”**。
 - **双模 AST 语义指纹匹配算法**：
@@ -412,12 +412,12 @@ packages/cli/src/
     $$\text{Fingerprint}_{\text{invariants}} = \text{SHA256}(\text{RelativeFilePath} + \text{EnclosingFunction} + \text{TargetCallExpression} + \text{RuleId})$$
   - 扫描产物保存在 `.sextant/baseline.json`，必须纳入 Git 纳管。
 - **自动化验证**：
-  - [ ] 老项目存在 10 处违规时执行 `baseline`，生成快照；
-  - [ ] 随后执行 `check` 返回退出码 0（提示：`10 处历史债务已豁免，0 处新增偏航`）；
-  - [ ] 此时若新增 1 处违规，执行 `check` 准确捕获新增项并返回退出码 1；
-  - [ ] 在旧违规所在函数内插入空行或调整格式，`check` 依然判定豁免通过，0 假阳性。
+  - [x] 老项目存在 10 处违规时执行 `baseline`，生成快照；
+  - [x] 随后执行 `check` 返回退出码 0（提示：`10 处历史债务已豁免，0 处新增偏航`）；
+  - [x] 此时若新增 1 处违规，执行 `check` 准确捕获新增项并返回退出码 1；
+  - [x] 在旧违规所在函数内插入空行或调整格式，`check` 依然判定豁免通过，0 假阳性。
 
-#### [ ] Task 4.5: 单文件自包含双图审查报告生成器 (`web-report`)
+#### [x] Task 4.5: 单文件自包含双图审查报告生成器 (`web-report`)
 - **触发契约**：仅当显式追加 `--report [path]` 参数或执行独立 `report` 命令时触发，平时绝不产生临时文件。
 - **产物文件**：`drift-report.html`。
 - **分包物理隔离与资源管理**：
@@ -427,12 +427,12 @@ packages/cli/src/
   - **唯一视觉心智**：左屏 Target 设计意图，右屏 Actual 实际代码拓扑，违规连线与节点直接标红；
   - 右侧提供折叠式行级违规详情与确凿证据面板。
 - **自动化验证**：
-  - [ ] 断网离线状态下打开 `drift-report.html` 正常渲染双图与红绿高亮。
+  - [x] 断网离线状态下打开 `drift-report.html` 正常渲染双图与红绿高亮。
 
-#### [ ] Task 4.6: GitHub Actions 门禁集成与 Step Summary
+#### [x] Task 4.6: GitHub Actions 门禁集成与 Step Summary
 - **目标**：通过 `check --github-summary` 将检测诊断表追加至 `$GITHUB_STEP_SUMMARY`，在 PR 页面生成红绿表格。
 - **自动化验证**：
-  - [ ] GitHub Actions 环境下检测失败正常阻断 PR 并呈现诊断 Markdown。
+  - [x] GitHub Actions 环境下检测失败正常阻断 PR 并呈现诊断 Markdown。
 
 ---
 

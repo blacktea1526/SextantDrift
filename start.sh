@@ -138,8 +138,20 @@ case $ACTION in
     ;;
   check)
     print_banner
-    echo -e "${COLOR_GREEN}==>${COLOR_RESET} 正在执行 ${COLOR_BOLD}Phase 1 架构偏航检测验证${COLOR_RESET}..."
-    npx vitest run packages/core/tests/e2e/
+    if [ ! -f "packages/cli/dist/bin/sextant-drift.js" ]; then
+      echo -e "${COLOR_YELLOW}[提示] 未发现 CLI 构建产物，正在自动构建...${COLOR_RESET}"
+      $PNPM_BIN -r run build
+    fi
+    echo -e "${COLOR_GREEN}==>${COLOR_RESET} 正在执行 ${COLOR_BOLD}@sextant/cli 架构门禁实测 (Clean & Drifted 双向核验)${COLOR_RESET}..."
+    echo -e "\n${COLOR_CYAN}[1/2] 正在校验合规架构工程 (Clean Layered App)...${COLOR_RESET}"
+    node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/clean-layered-app
+    echo -e "\n${COLOR_CYAN}[2/2] 正在校验偏航架构工程 (Drifted App，预期退出码 1 拦截)...${COLOR_RESET}"
+    if node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/drifted-bypass-app; then
+      echo -e "${COLOR_RED}✖ 错误：违规工程未被拦截！${COLOR_RESET}"
+      exit 1
+    else
+      echo -e "\n${COLOR_GREEN}✔ 成功：@sextant/cli 架构门禁成功阻断偏航工程！${COLOR_RESET}"
+    fi
     ;;
   dev)
     print_banner
