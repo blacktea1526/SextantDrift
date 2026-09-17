@@ -1,5 +1,6 @@
 import { TargetArchitecture } from '../types/architecture.js';
 import { ConfigSyntaxError, ConfigValidationError } from '../errors/config-error.js';
+import { parseInvariantRules } from '../invariants/parser.js';
 
 export function parseJsonSpec(rawJson: string): TargetArchitecture {
   let parsed: unknown;
@@ -135,6 +136,11 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     }
   }
 
+  let invariants: TargetArchitecture['invariants'] = [];
+  if (spec.invariants !== undefined) {
+    invariants = parseInvariantRules(spec.invariants);
+  }
+
   return {
     $schema: typeof spec.$schema === 'string' ? spec.$schema : undefined,
     name: typeof spec.name === 'string' ? spec.name : undefined,
@@ -142,6 +148,6 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     layers: spec.layers as TargetArchitecture['layers'],
     components: spec.components as TargetArchitecture['components'],
     allowDependencies: allowDependencies as TargetArchitecture['allowDependencies'],
-    invariants: Array.isArray(spec.invariants) ? spec.invariants as TargetArchitecture['invariants'] : [],
+    invariants,
   };
 }

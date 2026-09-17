@@ -54,4 +54,59 @@ flowchart TD
     const arch = resolveTargetArchitecture(tmpDir, customPath);
     expect(arch.layers[0].id).toBe('Custom');
   });
+
+  it('should extract invariants from ARCHITECTURE.md alongside mermaid diagram', () => {
+    const md = `# Target Architecture
+\`\`\`mermaid
+flowchart TD
+    subgraph Service ["Service Layer"]
+        App["Application"]
+    end
+\`\`\`
+
+\`\`\`yaml
+invariants:
+  - id: rule-md-inv
+    severity: critical
+    desc: DB save before external call
+    pattern:
+      must_precede:
+        - "db.save"
+\`\`\`
+`;
+    fs.writeFileSync(path.join(tmpDir, 'ARCHITECTURE.md'), md);
+
+    const arch = resolveTargetArchitecture(tmpDir);
+    expect(arch.layers[0].id).toBe('Service');
+    expect(arch.invariants).toHaveLength(1);
+    expect(arch.invariants?.[0].id).toBe('rule-md-inv');
+    expect(arch.invariants?.[0].pattern.must_precede).toEqual(['db.save']);
+  });
+
+  it('should merge invariants from AGENTS.md when sextant.json is present', () => {
+    const spec = {
+      layers: [{ id: 'Core', name: 'Core Layer', order: 1 }],
+      components: [{ id: 'Engine', name: 'Engine', layerId: 'Core', paths: ['src/**'] }],
+      allowDependencies: [],
+    };
+    fs.writeFileSync(path.join(tmpDir, 'sextant.json'), JSON.stringify(spec));
+
+    const agentsMd = `# Rules
+\`\`\`yaml
+invariants:
+  - id: rule-from-agents
+    severity: warning
+    desc: Forbid axios
+    pattern:
+      forbid_import:
+        - axios
+\`\`\`
+`;
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), agentsMd);
+
+    const arch = resolveTargetArchitecture(tmpDir);
+    expect(arch.layers[0].id).toBe('Core');
+    expect(arch.invariants).toHaveLength(1);
+    expect(arch.invariants?.[0].id).toBe('rule-from-agents');
+  });
 });

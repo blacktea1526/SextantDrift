@@ -36,5 +36,17 @@
   "allowDependencies": [
     { "from": "Controller", "to": "ServiceA" },
     { "from": "ServiceA", "to": "Repo" }
+  ],
+  "invariants": [
+    {
+      "id": "AUTH_BEFORE_REPO_ACCESS",
+      "severity": "critical",
+      "desc": "Authentication verification must precede repository calls in controller handlers",
+      "pattern": {
+        "must_precede": ["auth.verify"],
+        "target": ["this.repo.findUser"],
+        "scope": "src/controllers/**"
+      }
+    }
   ]
 }

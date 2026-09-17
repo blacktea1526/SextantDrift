@@ -53,6 +53,11 @@ describe('Performance Benchmarks (The 5s Rule SLO)', () => {
     // Add cycle
     graph.addEdge(`Node_${nodeCount - 1}`, `Node_${nodeCount - 2}`);
 
+    // Warm-up JIT
+    for (let i = 0; i < 3; i++) {
+      detectCycles(graph);
+    }
+
     const start = performance.now();
     const cycles = detectCycles(graph);
     const elapsed = performance.now() - start;

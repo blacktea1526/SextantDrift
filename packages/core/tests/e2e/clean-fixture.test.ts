@@ -22,6 +22,11 @@ describe('E2E: Clean Layered App Fixture (Positive Test)', () => {
     expect(report.summary.inversionCount).toBe(0);
     expect(report.summary.cycleCount).toBe(0);
     expect(report.summary.forbiddenImportCount).toBe(0);
+    expect(report.summary.invariantViolationCount).toBe(0);
+
+    // Verify invariants were loaded and checked
+    expect(report.targetArchitecture.invariants).toBeDefined();
+    expect(report.targetArchitecture.invariants?.length).toBeGreaterThan(0);
 
     // Actual Mermaid should have no DRIFT! annotations
     expect(report.actualMermaid).not.toContain('DRIFT!');

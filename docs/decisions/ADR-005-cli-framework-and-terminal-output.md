@@ -30,8 +30,9 @@ SextantDrift 的第一核心交付形态是命令行门禁工具（`packages/cli
    - **`Exit Code 0`（Pass）**：架构完全合规，或历史违规全部在基线（`baseline.json`）中豁免；
    - **`Exit Code 1`（Drift Detected）**：检测到新增架构偏航，阻断提交；
    - **`Exit Code 2`（Fatal Error）**：配置错误（如 `sextant.json` 损坏或未找到）。
-4. **按需输出产物**：
-   - 仅在显式传入 `--report` 参数或执行 `report` 命令时，才输出独立自包含审查报告 `drift-report.html`；
+4. **按需输出产物与分包解耦**：
+   - `@sextant/cli` 自身编译产物体积严格维持 **< 50KB**，仅负责命令行解析与门禁判定，坚决不内置大型离线渲染库；
+   - 离线报告模板与 Mermaid.js 资源由独立子包 `@sextant/web-report` 管理；仅在显式传入 `--report` 参数或执行 `report` 命令时，才按需加载渲染并输出独立自包含审查报告 `drift-report.html`；
    - 支持 `--github-summary`：在 CI 中将红绿诊断表格直接输出至 `$GITHUB_STEP_SUMMARY`，零额外权限与 API Token 开销。
 
 ## Alternatives Considered

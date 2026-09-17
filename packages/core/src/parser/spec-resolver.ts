@@ -3,7 +3,44 @@ import path from 'node:path';
 import { TargetArchitecture } from '../types/architecture.js';
 import { parseJsonSpec } from './json-spec-parser.js';
 import { extractMermaidFromMarkdown, parseMermaidArchitecture } from './mermaid-adapter.js';
+import { extractInvariantsFromMarkdown } from '../invariants/parser.js';
 import { ConfigValidationError } from '../errors/config-error.js';
+
+function attachMarkdownInvariants(arch: TargetArchitecture, ...markdownContents: string[]): void {
+  const invariants = arch.invariants ? [...arch.invariants] : [];
+  const seenIds = new Set(invariants.map((r) => r.id));
+
+  for (const md of markdownContents) {
+    if (!md) continue;
+    const extracted = extractInvariantsFromMarkdown(md);
+    for (const rule of extracted) {
+      if (!seenIds.has(rule.id)) {
+        invariants.push(rule);
+        seenIds.add(rule.id);
+      }
+    }
+  }
+
+  arch.invariants = invariants;
+}
+
+function getRootDirMarkdownContents(rootDir: string): string[] {
+  const mdPaths = [
+    path.resolve(rootDir, 'ARCHITECTURE.md'),
+    path.resolve(rootDir, 'AGENTS.md'),
+  ];
+  const contents: string[] = [];
+  for (const p of mdPaths) {
+    if (fs.existsSync(p)) {
+      try {
+        contents.push(fs.readFileSync(p, 'utf-8'));
+      } catch {
+        // ignore read errors
+      }
+    }
+  }
+  return contents;
+}
 
 export function resolveTargetArchitecture(
   rootDir: string,
@@ -21,11 +58,15 @@ export function resolveTargetArchitecture(
 
     const content = fs.readFileSync(fullPath, 'utf-8');
     if (fullPath.endsWith('.json')) {
-      return parseJsonSpec(content);
+      const arch = parseJsonSpec(content);
+      attachMarkdownInvariants(arch, ...getRootDirMarkdownContents(rootDir));
+      return arch;
     }
     const mermaid = extractMermaidFromMarkdown(content);
     if (mermaid) {
-      return parseMermaidArchitecture(mermaid);
+      const arch = parseMermaidArchitecture(mermaid);
+      attachMarkdownInvariants(arch, content, ...getRootDirMarkdownContents(rootDir));
+      return arch;
     }
     throw new ConfigValidationError(
       `File ${fullPath} is neither valid JSON nor contains a Mermaid diagram`
@@ -41,7 +82,9 @@ export function resolveTargetArchitecture(
   for (const jsonPath of defaultJsonPaths) {
     if (fs.existsSync(jsonPath)) {
       const content = fs.readFileSync(jsonPath, 'utf-8');
-      return parseJsonSpec(content);
+      const arch = parseJsonSpec(content);
+      attachMarkdownInvariants(arch, ...getRootDirMarkdownContents(rootDir));
+      return arch;
     }
   }
 
@@ -57,7 +100,9 @@ export function resolveTargetArchitecture(
       const mermaid = extractMermaidFromMarkdown(content);
       if (mermaid) {
         try {
-          return parseMermaidArchitecture(mermaid);
+          const arch = parseMermaidArchitecture(mermaid);
+          attachMarkdownInvariants(arch, content, ...getRootDirMarkdownContents(rootDir));
+          return arch;
         } catch {
           // If markdown contains an unrelated mermaid diagram, continue to next fallback
           continue;

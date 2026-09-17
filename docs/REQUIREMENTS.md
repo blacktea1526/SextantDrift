@@ -101,19 +101,19 @@
     - `2`：配置或解析致命错误（如找不到架构文件、Mermaid 语法损坏）。
 - **FR-4.2 (`init` 命令)**：
   - 用法：`npx sextant-drift init`
-  - 功能：反向扫描现有源码的目录与依赖拓扑，在根目录自动生成初始 `ARCHITECTURE.md` 模板。
+  - 功能：反向扫描现有源码的目录与依赖拓扑，在根目录生成 `sextant.json`（单源事实，支持 `$schema` 智能校验）并自动同步导出只读预览文档 `ARCHITECTURE.md`（内嵌标准 Mermaid 架构图供 GitHub 预览）。
 - **FR-4.3 (`baseline` 命令)**：
   - 用法：`npx sextant-drift baseline`
-  - 功能：将当前代码中存在的所有违规导出为 `.sextant/baseline.json`，完成历史债务封存。
+  - 功能：将当前代码中存在的所有模块跨层违规及函数级语义不变量违规导出为 `.sextant/baseline.json`（基于 AST 双模语义指纹，不依赖脆弱物理行号），完成历史债务封存。
 
 ### FR-5：高信噪比输出规范 (High Signal Output Standard)
 - **FR-5.1 (纯文本终端设计)**：
   - 默认状态下**严禁在工作区生成临时 HTML 或图片文件**；
   - 终端输出必须彩色（ANSI）、紧凑、高信噪比，严格包含四大要素：
-    1. **违规类型与严重级别**（如 `[CRITICAL BYPASS]`）；
+    1. **违规类型与严重级别**（如 `[CRITICAL BYPASS]` 或 `[INVARIANT BROKEN]`）；
     2. **物理文件与行号精准定位**（如 `src/controllers/OrderController.ts:24`）；
-    3. **确凿事实证据**（如 `直接 import 了 src/repositories/OrderRepo.ts`）；
-    4. **违反的架构规则条款**（如 `违反 ARCHITECTURE.md 第 12 行规则: Controllers 不能直连 Repositories`）。
+    3. **确凿事实证据**（如 `直接 import 了 src/repositories/OrderRepo.ts` 或 `调外部 payment.charge() 前未调用 db.save()`）；
+    4. **违反的架构规则条款**（如 `违反 sextant.json 规则: Controllers 不能直连 Repositories`）。
 - **FR-5.2 (机器可读输出)**：支持 `--json` 参数，将完整的检测结果以结构化 JSON 输出到 stdout，供外部脚本或 CI 消费。
 
 ---
@@ -125,7 +125,7 @@
 - **内存占用**：执行期间峰值内存占用不得超过 256MB。
 
 ### NFR-2：准确度与零幻觉底线 (Zero False Positives)
-- **假阳性（误报）率必须为 0%**：任何给出的违规警告，必须对应源码中确凿存在的实际 import 语句与图规则矛盾。严禁出现猜疑式、概率式报错。
+- **假阳性（误报）率必须为 0%**：任何给出的违规警告，必须对应源码中确凿存在的实际 AST 语句与规则矛盾。严禁出现猜疑式、概率式报错。
 
 ### NFR-3：Token 经济学与环境纯净 (Token Economics & Zero Footprint)
 - **单次检查 Token 占用控制**：CLI 终端输出的总 Token 数量控制在 **50 ~ 200 tokens** 以内，确保 Agent 读取错误信息时消耗极低；
@@ -151,9 +151,12 @@
 
 ## 6. 验收基准 (Definition of Done / DoD)
 
-对于 MVP（第一阶段交付），必须满足以下全部条件方可视为合格：
-1. [ ] 能够解析标准 Mermaid `flowchart` 与 `subgraph` 架构图；
-2. [ ] 在含跨层旁路、逆向引用的真实 TypeScript 项目中运行，能以 100% 准确率拦截并输出行号；
-3. [ ] 终端彩色输出紧凑，不向项目目录写入多余 HTML 文件；
-4. [ ] `npx sextant-drift baseline` 能正确生成基线并在后续扫描中豁免历史违规；
-5. [ ] 扫描全套典型测试用例耗时不超过 2 秒。
+对于 MVP（Phase 1 + Phase 2 + Phase 4 核心自用闭环交付），必须满足以下全部条件方可视为合格：
+1. [x] **规范解析**：能够微秒级解析 `sextant.json` 并自动回退解析 `ARCHITECTURE.md` 内嵌的 Mermaid 与 YAML 规则；
+2. [x] **拓扑偏航检测**：在真实 TypeScript 项目中以 100% 确定性拦截跨层旁路（Bypass）、逆向依赖（Inversion）与循环闭环（Cycles），准确定位代码行；
+3. [ ] **语义不变量拦截**：能够在同一同步作用域内基于 AST 精确拦截时序先验违规（`must_precede`）、违禁导入（`forbid_import`）与参数配置缺陷（`require_config`）；
+4. [ ] **紧凑终端门禁**：`npx sextant-drift check` ANSI 彩色输出紧凑（50~200 tokens），遵循 0/1/2 标准 Unix 退出码，默认 0 垃圾文件；
+5. [ ] **逆向 X 光**：`npx sextant-drift init` 能一键扫描目录拓扑并生成规范 `sextant.json` 与 `ARCHITECTURE.md` 预览视图；
+6. [ ] **双模基线豁免**：`npx sextant-drift baseline` 基于 AST 语义指纹固化债务，无论空行增删或格式化，旧债务均准确豁免，新增违规 100% 阻断；
+7. [ ] **按需独立审查报告**：显式传参 `--report` 时由 `@sextant/web-report` 渲染并导出单文件自包含双图红绿审查报告 `drift-report.html`；
+8. [x] **极限性能指标**：全套单测在毫秒级内跑绿，端到端分析扫描满足 5 秒原则。

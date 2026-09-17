@@ -70,4 +70,45 @@ describe('JSON Spec Parser', () => {
 
     expect(() => parseJsonSpec(duplicateComp)).toThrow(ConfigValidationError);
   });
+
+  it('should parse valid invariants from JSON spec', () => {
+    const jsonWithInvariants = JSON.stringify({
+      layers: [{ id: 'UI', name: 'UI', order: 1 }],
+      components: [{ id: 'CompA', name: 'CompA', layerId: 'UI', paths: ['src/**'] }],
+      allowDependencies: [],
+      invariants: [
+        {
+          id: 'rule-ui-no-db',
+          severity: 'critical',
+          desc: 'UI cannot import db directly',
+          pattern: {
+            forbid_import: ['@prisma/client'],
+          },
+        },
+      ],
+    });
+
+    const arch = parseJsonSpec(jsonWithInvariants);
+    expect(arch.invariants).toHaveLength(1);
+    expect(arch.invariants?.[0].id).toBe('rule-ui-no-db');
+    expect(arch.invariants?.[0].pattern.forbid_import).toEqual(['@prisma/client']);
+  });
+
+  it('should throw ConfigValidationError when invariants in JSON spec is invalid', () => {
+    const jsonWithInvalidInvariants = JSON.stringify({
+      layers: [{ id: 'UI', name: 'UI', order: 1 }],
+      components: [{ id: 'CompA', name: 'CompA', layerId: 'UI', paths: ['src/**'] }],
+      allowDependencies: [],
+      invariants: [
+        {
+          id: 'rule-missing-pattern',
+          severity: 'critical',
+          desc: 'No pattern key',
+          pattern: {},
+        },
+      ],
+    });
+
+    expect(() => parseJsonSpec(jsonWithInvalidInvariants)).toThrow(ConfigValidationError);
+  });
 });

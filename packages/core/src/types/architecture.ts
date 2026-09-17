@@ -19,11 +19,20 @@ export interface AllowedDependency {
   to: string;
 }
 
+export interface InvariantPattern {
+  must_precede?: string[];
+  target?: string[];
+  scope?: string;
+  forbid_import?: string[];
+  in_path?: string;
+  require_config?: string[];
+}
+
 export interface InvariantRule {
   id: string;
   severity: 'critical' | 'warning' | 'info';
   desc: string;
-  pattern: Record<string, unknown>;
+  pattern: InvariantPattern;
 }
 
 export interface TargetArchitecture {

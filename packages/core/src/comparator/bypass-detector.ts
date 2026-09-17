@@ -2,20 +2,9 @@ import { TargetArchitecture, Component, Layer } from '../types/architecture.js';
 import { ImportEvidence } from '../analyzer/ast-extractor.js';
 import { ResolvedTarget } from '../analyzer/path-resolver.js';
 import { findComponentForFile } from '../analyzer/noise-filter.js';
+import { ViolationEvidence } from '../types/report.js';
 
-export interface ViolationEvidence {
-  id: string;
-  type: 'CRITICAL_BYPASS' | 'CRITICAL_INVERSION' | 'CRITICAL_CYCLE' | 'CRITICAL_FORBIDDEN_IMPORT';
-  severity: 'critical' | 'warning' | 'info';
-  message: string;
-  sourceFile: string;
-  line: number;
-  column: number;
-  snippet: string;
-  sourceComponent?: string;
-  targetComponent?: string;
-  cycle?: string[];
-}
+export type { ViolationEvidence };
 
 export interface DependencyReference {
   evidence: ImportEvidence;

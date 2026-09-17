@@ -14,5 +14,36 @@
   "allowDependencies": [
     { "from": "Controller", "to": "Service" },
     { "from": "Service", "to": "Repo" }
+  ],
+  "invariants": [
+    {
+      "id": "VALIDATE_BEFORE_SAVE",
+      "severity": "critical",
+      "desc": "Validation must precede save calls",
+      "pattern": {
+        "must_precede": ["validate"],
+        "target": ["save"],
+        "scope": "src/controllers/**"
+      }
+    },
+    {
+      "id": "FORBID_RAW_SQL_IN_CONTROLLERS",
+      "severity": "critical",
+      "desc": "Controllers must never import raw SQL drivers",
+      "pattern": {
+        "forbid_import": ["pg", "mysql2", "sqlite3"],
+        "in_path": "src/controllers/**"
+      }
+    },
+    {
+      "id": "REQUIRE_FETCH_TIMEOUT",
+      "severity": "warning",
+      "desc": "HTTP fetch calls must configure timeout",
+      "pattern": {
+        "target": ["fetch"],
+        "require_config": ["timeout"],
+        "scope": "src/controllers/**"
+      }
+    }
   ]
 }

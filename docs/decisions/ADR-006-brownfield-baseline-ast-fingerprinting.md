@@ -24,10 +24,14 @@ SextantDrift 的目标受众不仅包括从零开始的新项目（Greenfield）
 我们决定采用 **AST 语义指纹算法（AST Semantic Fingerprinting）** 识别历史债务，并将 `.sextant/baseline.json` **强制纳入 Git 版本纳管**。
 
 具体实施规范：
-1. **AST 语义指纹生成算法**：
-   - 违规条目的指纹（Fingerprint）不依赖物理行号，而是由纯 AST 语法特征计算：
-     $$\text{Fingerprint} = \text{SHA256}(\text{CallerComponent} + \text{CalleeComponent} + \text{ImportedSymbol} + \text{RuleId})$$
-   - 例如：`OrderController` 组件导入 `OrderRepository` 的 `OrderRepo` 符号，无论其在文件中处于第 47 行还是第 89 行，只要 AST 结构特征未变，其语义指纹保持完全恒定。
+1. **双模 AST 语义指纹生成算法**：
+   - 违规条目的指纹（Fingerprint）坚决不依赖物理行号，而是由纯 AST 语法上下文特征计算：
+   - **A. 模块/组件级违规指纹 (Bypass / Inversion / Forbid Import)**：
+     $$\text{Fingerprint}_{\text{module}} = \text{SHA256}(\text{CallerComponent} + \text{CalleeComponent} + \text{ImportedSymbol} + \text{RuleId})$$
+     *例*：`OrderController` 组件导入 `OrderRepository` 的 `OrderRepo` 符号，无论其在文件中处于第 47 行还是第 89 行，只要 AST 结构特征未变，其语义指纹保持完全恒定。
+   - **B. 函数级语义不变量违规指纹 (Invariants / must_precede / require_config)**：
+     $$\text{Fingerprint}_{\text{invariants}} = \text{SHA256}(\text{RelativeFilePath} + \text{EnclosingFunction} + \text{TargetCallExpression} + \text{RuleId})$$
+     *例*：在 `src/controllers/order.ts` 内函数 `checkout()` 中直接调用了 `payment.charge()` 且前置未落库，无论函数上下新增了多少空行或注释，该时序债务的语义指纹保持完全恒定，格式化代码绝不触发误报。
 2. **基线账本 Git 强纳管**：
    - `.sextant/baseline.json` **严禁**加入 `.gitignore`，必须作为代码仓库的一部分与架构规范一同提交；
    - 确保全团队所有开发者与 CI 门禁共享完全一致的架构债务账本。

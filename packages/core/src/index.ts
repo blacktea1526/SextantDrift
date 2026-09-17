@@ -20,6 +20,7 @@ import {
   detectForbiddenImports,
   RawFileDependency,
 } from './comparator/inversion-detector.js';
+import { executeInvariantsEngine } from './invariants/engine.js';
 
 export const VERSION = '0.1.0';
 
@@ -36,6 +37,11 @@ export * from './graph/directed-graph.js';
 export * from './graph/tarjan.js';
 export * from './comparator/bypass-detector.js';
 export * from './comparator/inversion-detector.js';
+export * from './invariants/parser.js';
+export * from './invariants/sequence-matcher.js';
+export * from './invariants/import-matcher.js';
+export * from './invariants/config-matcher.js';
+export * from './invariants/engine.js';
 
 /**
  * Builds Mermaid flowchart representing the actual detected component dependencies,
@@ -206,12 +212,23 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
   // D. Forbidden imports
   const forbiddenImportViolations = detectForbiddenImports(rawFileDependencies, arch);
 
+  // E. Invariant violations
+  const invariantViolations =
+    arch.invariants && arch.invariants.length > 0
+      ? executeInvariantsEngine({
+          rootDir,
+          filePaths,
+          rules: arch.invariants,
+        })
+      : [];
+
   // 6. Aggregate violations
   const allViolations: DriftViolation[] = [
     ...bypassViolations,
     ...inversionViolations,
     ...cycleViolations,
     ...forbiddenImportViolations,
+    ...invariantViolations,
   ];
 
   const summary: DriftSummary = {
@@ -222,6 +239,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     inversionCount: inversionViolations.length,
     cycleCount: cycleViolations.length,
     forbiddenImportCount: forbiddenImportViolations.length,
+    invariantViolationCount: invariantViolations.length,
   };
 
   const actualMermaid = generateActualMermaid(arch, componentGraph, allViolations);

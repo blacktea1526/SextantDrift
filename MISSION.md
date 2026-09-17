@@ -97,24 +97,27 @@ SextantDrift 极度克制，整个产品生命周期只死磕两大核心任务�
 
 ## 6. 演进路线与交付梯子 (Phased Delivery Ladder)
 
-技术实施全面与工程总路线图保持完全自洽，按 6 阶段稳步推进：
+技术实施全面与工程总路线图保持完全自洽，按阶段敏捷推进与交付：
 
 ```mermaid
 graph LR
     P0["P0: Clean Slate<br/>纯净基线"] --> P1["P1: Module Drift<br/>确定性模块拓扑"] --> P2["P2: Invariants<br/>语义不变量引擎"]
-    P2 --> P3["P3: State Verifier<br/>状态机死锁检测"] --> P4["P4: CLI & Report<br/>门禁/基线与报告"] --> P5["P5: Dynamic Trace<br/>运行时因果差分"]
+    P2 --> P4["P4: CLI & Baseline (MVP)<br/>门禁/基线与报告闭环"]
+    P4 --> P3["P3: State Verifier (Post-MVP)<br/>状态机死锁检测插件"]
+    P4 --> P5["P5: Dynamic Trace<br/>运行时因果差分"]
 
     style P0 fill:#2B6E3F,stroke:#141416,stroke-width:2px,color:#FFFFFF
-    style P1 fill:#BA7517,stroke:#141416,stroke-width:2px,color:#FFFFFF
-    style P2 fill:#525257,stroke:#141416,stroke-width:2px,color:#FFFFFF
-    style P3 fill:#525257,stroke:#141416,stroke-width:2px,color:#FFFFFF
+    style P1 fill:#2B6E3F,stroke:#141416,stroke-width:2px,color:#FFFFFF
+    style P2 fill:#BA7517,stroke:#141416,stroke-width:2px,color:#FFFFFF
     style P4 fill:#525257,stroke:#141416,stroke-width:2px,color:#FFFFFF
+    style P3 fill:#38383C,stroke:#141416,stroke-width:2px,color:#B8B8C0
     style P5 fill:#38383C,stroke:#141416,stroke-width:2px,color:#B8B8C0
 ```
 
-- **Phase 0 (Clean Slate - 纯净基线)**：清理桌面包袱，确立 pnpm Monorepo、TypeScript 严格编译与 Vitest 毫秒级单测基线。
-- **Phase 1 (Module Drift Engine - 模块拓扑与层级漂移引擎)**：纯 TypeScript AST 依赖抽取，Tarjan 算法循环依赖检测，分层旁路 (Bypass) 与逆向 (Inversion) 确定性拦截。
-- **Phase 2 (Invariants Engine - 语义不变量规则引擎)**：同一同步作用域下的确定性调用时序匹配（如“落库必须在外部调用前”）与文件级违禁导入拦截。
-- **Phase 3 (State Verifier - 状态机完整性检测)**：静态分析 Mermaid 状态机的黑洞状态（Deadlock）、孤岛状态与缺失降级链路。
-- **Phase 4 (CLI & Visual Report - 极速门禁与自包含审查报告)**：推出 `@sextant/cli`（`check` 退出码 0/1/2）、逆向工程 (`init`)、存量债务封存 (`baseline`，践行 No New Drift) 及按需导出的自包含双图审查报告 `drift-report.html`。
-- **Phase 5 (Dynamic Causality v2 - 运行时 Trace 因果差分)**：基于真实测试运行 Trace 录制器提取异步执行因果，攻克时序差分。
+- **Phase 0 (Clean Slate - 纯净基线)**：清理桌面包袱，确立 pnpm Monorepo、TypeScript 严格编译与 Vitest 毫秒级单测基线。（已完成 100%）
+- **Phase 1 (Module Drift Engine - 模块拓扑与层级漂移引擎)**：纯 TypeScript AST 依赖抽取，Tarjan 算法循环依赖检测，分层旁路 (Bypass) 与逆向 (Inversion) 确定性拦截。（已完成 100%）
+- **Phase 2 (Invariants Engine - 语义不变量规则引擎)**：同一同步作用域下的确定性调用时序匹配（如“落库必须在外部调用前”）与文件级违禁导入拦截。（当前攻坚冲刺）
+- **Phase 4 (CLI & Visual Report - 极速门禁与自包含审查报告)**：提前落地 `@sextant/cli`（`check` 退出码 0/1/2）、逆向工程 (`init`，生成 `sextant.json` 与 `ARCHITECTURE.md` 视图)、存量债务双模封存 (`baseline`，践行 No New Drift) 及按需导出的自包含双图审查报告 `drift-report.html`，正式达成团队深度自用 MVP。（紧随 P2 启动）
+- **Phase 3 (State Verifier - 状态机完整性检测)**：静态分析 Mermaid 状态机的黑洞状态（Deadlock）、孤岛状态与缺失降级链路。（作为 Post-MVP 扩展插件并入）
+- **Phase 5 (Dynamic Causality v2 - 运行时 Trace 因果差分)**：基于真实测试运行 Trace 录制器提取异步执行因果，攻克时序差分。（远期探索）
+

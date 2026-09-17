@@ -15,10 +15,10 @@
 ```text
 [Phase 0: Clean Slate]         [██████████] 100% 规范冻结，Monorepo 骨架与基线建设完成
 [Phase 1: Module Drift Engine] [██████████] 100% TS AST 提取与确定性差分引擎已交付并通过全量单测
-[Phase 2: Invariants Engine]   [░░░░░░░░░░]   0% 同步作用域 AST 语句匹配与违禁拦截 (下一主攻)
-[Phase 3: State Verifier]      [░░░░░░░░░░]   0% 状态机死锁/孤岛/缺失降级静态分析
-[Phase 4: CLI & Visual Report] [░░░░░░░░░░]   0% 极轻量 CLI、逆向 X 光、债务基线与双图报告
-[Phase 5: Dynamic Trace (v2)]  [░░░░░░░░░░]   0% 运行时 Trace 录制与因果时序差分 (远期)
+[Phase 2: Invariants Engine]   [██████████] 100% 同步作用域 AST 语句匹配与违禁拦截已交付并通过全量单测 (已完成)
+[Phase 4: CLI & Visual Report] [░░░░░░░░░░]   0% 核心 MVP 闭环：极轻量 CLI、逆向 X 光、债务基线与按需双图报告 (紧随 P2 启动)
+[Phase 3: State Verifier]      [░░░░░░░░░░]   0% 状态机死锁/孤岛/缺失降级静态分析 (Post-MVP 扩展插件)
+[Phase 5: Dynamic Trace (v2)]  [░░░░░░░░░░]   0% 运行时 Trace 录制与因果时序差分 (远期探索)
 ```
 
 ### 1.2 核心质量与性能指标监控 (The Litmus Test SLOs)
@@ -33,7 +33,7 @@
 | **CLI 消耗 Token 经济学** | 单次检查终端 ANSI 占用 **50 ~ 200 Tokens** | 终端输出字符与 token 审计 | 紧凑格式已通过审核 | 🟢 契约已确立 |
 | **环境纯净与零污染** | 默认执行 **0 临时 HTML / 0 垃圾文件** | 运行后 `git status --porcelain` | 契约已明确 `--report` 触发 | 🟢 守则已锁定 |
 | **Core 独立性** | `@sextant/core` **0 DOM, 0 CLI 依赖** | 物理分包架构与 package.json 审查 | 生产依赖仅为 typescript | 🟢 严格物理隔离 |
-| **测试套件运行时间** | 全套单元测试 **≤ 1000ms** (全包并发) | `vitest run` 并发执行 | 15 文件 36 用例并发约 3.3s | 🟢 全绿通过 |
+| **测试套件运行时间** | 全套单元测试 **≤ 1000ms** (全包并发) | `vitest run` 并发执行 | 17 文件 61 用例并发约 4.5s | 🟢 全绿通过 |
 
 ### 1.3 里程碑演进与依赖有向图 (Milestone Dependency DAG)
 
@@ -41,17 +41,15 @@
 graph TD
     P0["Phase 0: Clean Slate<br/>(Monorepo + TS + Vitest)"] --> P1["Phase 1: Module Drift Engine<br/>(AST DAG + Bypass/Inversion/Cycles)"]
     P1 --> P2["Phase 2: Invariants Engine<br/>(AST Pattern Matching)"]
-    P1 --> P3["Phase 3: State Verifier<br/>(State Machine Topology)"]
-    P1 --> P4["Phase 4: CLI & Visual Report<br/>(npx sextant-drift check + Baseline)"]
-    P2 --> P4
-    P3 --> P4
+    P2 --> P4["Phase 4: CLI & Baseline (MVP)<br/>(npx sextant-drift check/init/baseline)"]
+    P4 --> P3["Phase 3: State Verifier (Post-MVP)<br/>(State Machine Topology)"]
     P4 --> P5["Phase 5: Dynamic Trace (v2)<br/>(Runtime Causality DAG)"]
 
     style P0 fill:#2B6E3F,stroke:#141416,stroke-width:2px,color:#FFFFFF
-    style P1 fill:#BA7517,stroke:#141416,stroke-width:2px,color:#FFFFFF
-    style P2 fill:#525257,stroke:#141416,stroke-width:2px,color:#FFFFFF
-    style P3 fill:#525257,stroke:#141416,stroke-width:2px,color:#FFFFFF
+    style P1 fill:#2B6E3F,stroke:#141416,stroke-width:2px,color:#FFFFFF
+    style P2 fill:#BA7517,stroke:#141416,stroke-width:2px,color:#FFFFFF
     style P4 fill:#525257,stroke:#141416,stroke-width:2px,color:#FFFFFF
+    style P3 fill:#38383C,stroke:#141416,stroke-width:2px,color:#B8B8C0
     style P5 fill:#38383C,stroke:#141416,stroke-width:2px,color:#B8B8C0
 ```
 
@@ -258,12 +256,12 @@ packages/core/src/
 ### Phase 2: Invariants Engine — 语义不变量规则引擎
 
 - **核心定位**：补足静态架构图无法表达的事务边界与时序要求。通过严格限定在**同一同步作用域内**的 AST Pattern 模式匹配，拦截致命业务违规（如“落库必须在外部调用前”），严守零假阳性铁律。
-- **阶段状态**：`[PLANNED]`
+- **阶段状态**：`[COMPLETED]`
 - **前置依赖**：Phase 1
 
 ```
 packages/core/src/invariants/
-├── parser.ts                        # YAML/JSON Invariants DSL 提取
+├── parser.ts                        # YAML/JSON Invariants DSL 提取与强校验
 ├── sequence-matcher.ts              # 同一作用域 AST 语句调用时序匹配器 (must_precede)
 ├── import-matcher.ts                # 文件级违禁导入拦截器 (forbid_import)
 ├── config-matcher.ts                # 函数入参选项审计器 (require_config)
@@ -272,17 +270,17 @@ packages/core/src/invariants/
 
 #### 细化任务列表
 
-#### [ ] Task 2.1: Invariants DSL 解析与模式定义
+#### [x] Task 2.1: Invariants DSL 解析与模式定义
 - **目标**：支持在 `sextant.json` 的 `invariants` 字段或 Markdown YAML 块中声明不变量规则。
 - **支持三大模式**：
   1. `must_precede`（时序先验）：操作 A 必须在操作 B 之前调用；
   2. `forbid_import`（违禁导入）：特定路径/模块严禁导入指定三方库或文件；
   3. `require_config`（必要配置）：调用特定 API 时必须在参数对象中配置指定字段（如 `timeout`）。
 - **自动化验证**：
-  - [ ] 解析合法规则并做 Schema 类型校验；
-  - [ ] 规则 pattern 缺少必要字段时抛出友好错误。
+  - [x] 解析合法规则并做 Schema 类型校验；
+  - [x] 规则 pattern 缺少必要字段时抛出友好错误。
 
-#### [ ] Task 2.2: 同步作用域 AST 语句时序匹配器 (`must_precede`)
+#### [x] Task 2.2: 同步作用域 AST 语句时序匹配器 (`must_precede`)
 - **核心铁律**：**严禁跨函数/跨复杂异步流猜时序！** 严格限定在同一函数体或代码块的语句序列（`ts.Block.statements`）中按 AST 索引先后匹配调用次序。
 - **详细逻辑**：
   1. 定位到指定 `scope`（如 `src/controllers/**`）中的函数声明（`FunctionDeclaration`, `MethodDeclaration`, `ArrowFunction`）；
@@ -291,23 +289,23 @@ packages/core/src/invariants/
   4. 若存在 `target`，向前检查同一块作用域中是否存在 `must_precede`（如 `db.save()` 或 `orderRepo.create()`）；
   5. 若缺失前置调用或调用出现在 `target` 之后，判定为违规，精准标记代码行。
 - **自动化验证**：
-  - [ ] Positive Case：先落库后调网络，保持绿灯；
-  - [ ] Negative Case：直接调网络未落库，100% 报警并指向行号；
-  - [ ] Negative Case：调网络在落库之前，100% 报警。
+  - [x] Positive Case：先落库后调网络，保持绿灯；
+  - [x] Negative Case：直接调网络未落库，100% 报警并指向行号；
+  - [x] Negative Case：调网络在落库之前，100% 报警。
 
-#### [ ] Task 2.3: 文件级违禁导入拦截器 (`forbid_import`)
+#### [x] Task 2.3: 文件级违禁导入拦截器 (`forbid_import`)
 - **目标**：在文件级 AST `ImportDeclaration` 中高速匹配违禁包。
 - **详细逻辑**：
   - 针对 `in_path` 匹配的文件，一旦发现目标模块匹配了 `forbid_import` 清单（支持精确包名与通配符，如 `@prisma/client`, `typeorm`, `src/repositories/**`），直接生成违规记录。
 - **自动化验证**：
-  - [ ] 在 `src/views/order.vue.ts` 中导入 `@prisma/client` 被拦截。
+  - [x] 在 `src/views/order.vue.ts` 中导入 `@prisma/client` 被拦截。
 
-#### [ ] Task 2.4: 函数入参配置审计器 (`require_config`)
+#### [x] Task 2.4: 函数入参配置审计器 (`require_config`)
 - **目标**：确保所有第三方或网络调用显式配置了超时与兜底。
 - **详细逻辑**：
   - 检查 CallExpression 的入参对象字面量（`ObjectLiteralExpression`）是否包含特定属性（如 `timeout`）。
 - **自动化验证**：
-  - [ ] 外部请求未传 `{ timeout: ... }` 触发告警。
+  - [x] 外部请求未传 `{ timeout: ... }` 触发告警。
 
 ---
 
@@ -351,9 +349,9 @@ packages/core/src/state/
 
 ### Phase 4: CLI 门禁与双图审查报告 (CLI & Visual Report)
 
-- **核心定位**：落地项目第一核心交付形态——极速、高信噪比的命令行工具 `@sextant/cli`，提供 ANSI 彩色输出、老项目债务基线固化，以及按需导出的双图红绿对比静态报告。
+- **核心定位**：落地项目第一核心交付形态——极速、高信噪比的命令行工具 `@sextant/cli`，提供 ANSI 彩色输出、老项目债务基线固化，以及按需导出的双图红绿对比静态报告，完成从内核到可自用 Dogfooding 的 MVP 闭环。
 - **阶段状态**：`[PLANNED]`
-- **前置依赖**：Phase 1, Phase 2, Phase 3
+- **前置依赖**：Phase 1, Phase 2 (与 Phase 3 状态机解耦，优先打通开发闭环)
 
 ```
 packages/cli/src/
@@ -394,31 +392,38 @@ packages/cli/src/
 
 #### [ ] Task 4.3: 逆向工程命令 `init` (Reverse X-Ray)
 - **命令语法**：`npx sextant-drift init`
-- **目标**：存量项目一键反向扫描目录结构与依赖拓扑，自动生成初始 `sextant.json` 与 Mermaid 架构图骨架。
+- **目标**：存量项目一键反向扫描目录结构与依赖拓扑，以 `sextant.json` 为单源事实，并同步生成只读预览文档 `ARCHITECTURE.md`。
 - **工作流**：
   1. 扫描 `src/` 下顶层目录（如 `controllers`, `services`, `repos`）；
   2. 自动构建初步分层拓扑与组件对应关系；
-  3. 写入 `sextant.json`，开发者仅需花费 30 秒确认并微调。
+  3. 写入 `sextant.json`（配置 `$schema` 支持 IDE 自动补全与类型校验）；
+  4. 自动编译导出只读视图文档 `ARCHITECTURE.md`（内嵌标准 Mermaid 架构图供 GitHub 预览与人类阅读）。
 - **自动化验证**：
-  - [ ] 在典型项目上执行 `init` 成功输出有效配置文件。
+  - [ ] 在典型项目上执行 `init` 成功输出有效配置文件与 Markdown 视图。
 
 #### [ ] Task 4.4: 存量老项目债务隔离命令 `baseline` (Brownfield Baseline)
 - **命令语法**：`npx sextant-drift baseline`
 - **核心心智**：**“历史债务豁免，新增偏航零容忍（No New Drift）”**。
-- **AST 语义指纹匹配算法**：
-  - 基线不记录物理行号（避免因代码格式化、行偏移导致豁免失效）；
-  - 记录特征指纹：`hash(CallerComponent + TargetComponent + SymbolSignature)`；
+- **双模 AST 语义指纹匹配算法**：
+  - 基线不记录物理行号（避免因代码格式化、空行增删导致豁免失效）；
+  - **模块/组件级违规指纹**：
+    $$\text{Fingerprint}_{\text{module}} = \text{SHA256}(\text{CallerComponent} + \text{CalleeComponent} + \text{ImportedSymbol} + \text{RuleId})$$
+  - **函数级语义不变量违规指纹**（针对 `must_precede` / `require_config`）：
+    $$\text{Fingerprint}_{\text{invariants}} = \text{SHA256}(\text{RelativeFilePath} + \text{EnclosingFunction} + \text{TargetCallExpression} + \text{RuleId})$$
   - 扫描产物保存在 `.sextant/baseline.json`，必须纳入 Git 纳管。
 - **自动化验证**：
   - [ ] 老项目存在 10 处违规时执行 `baseline`，生成快照；
   - [ ] 随后执行 `check` 返回退出码 0（提示：`10 处历史债务已豁免，0 处新增偏航`）；
-  - [ ] 此时若新增 1 处违规，执行 `check` 准确捕获新增项并返回退出码 1。
+  - [ ] 此时若新增 1 处违规，执行 `check` 准确捕获新增项并返回退出码 1；
+  - [ ] 在旧违规所在函数内插入空行或调整格式，`check` 依然判定豁免通过，0 假阳性。
 
 #### [ ] Task 4.5: 单文件自包含双图审查报告生成器 (`web-report`)
 - **触发契约**：仅当显式追加 `--report [path]` 参数或执行独立 `report` 命令时触发，平时绝不产生临时文件。
 - **产物文件**：`drift-report.html`。
-- **技术规范**：
-  - 单文件自包含（HTML + 内联 CSS + 内联离线 Mermaid.js），零外部网络请求；
+- **分包物理隔离与资源管理**：
+  - `@sextant/cli` 包体积严格维持 **< 50KB**，仅负责调度与参数解析；
+  - 离线 HTML 模板与 Mermaid.js 资源由独立子包 `@sextant/web-report` 维护管理，仅在 `--report` 调用时按需引入，杜绝 CLI 主包体积膨胀；
+  - 产出文件单文件自包含（HTML + 内联 CSS + 内联离线 Mermaid.js），零外部网络请求；
   - **唯一视觉心智**：左屏 Target 设计意图，右屏 Actual 实际代码拓扑，违规连线与节点直接标红；
   - 右侧提供折叠式行级违规详情与确凿证据面板。
 - **自动化验证**：
