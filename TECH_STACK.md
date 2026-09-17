@@ -56,8 +56,9 @@ SextantDrift 重启版本践行 **“彻底弃绝旧版遗传，深度吸纳踩�
 | **图论与拓扑算法** | **自研轻量 DAG 算法引擎** | 纯 TypeScript 实现 | 基于 Tarjan 算法检测闭环 (Cycles)，DFS 验证分层旁路 (Bypass) 与逆向 (Inversion) | 高度内聚，执行时间 < 5ms |
 | **规范与规则解析** | **结构化 JSON + Markdown 适配器** | 原生 `JSON.parse` + 轻量校验器 + 纯文本提取器 | 首选 JSON 校验，向下兼容 Mermaid 文本回退，支持自动导出 Mermaid，0 DOM 依赖 | 废弃私有孤岛格式与重型外部解析器 |
 | **命令行门禁工具** | **cac + picocolors** | `cac >= 6.7`, `picocolors >= 1.0` | 极轻量组合（体积 < 50KB，冷启动 < 10ms），高信噪比紧凑彩色输出 | 废弃重型终端库与交互繁琐的界面 |
-| **独立审查报告** | **纯静态 HTML 模板** | 单文件自包含 (`drift-report.html`) | 纯展示层，仅消费 Core 输出的标准 JSON，内置 Mermaid.js 离线渲染 | 废弃桌面端 Electron / Tauri 宿主 |
-| **测试与质量验证** | **Vitest** | `>= 1.5.0` | 原生 ESM/TS 支持，毫秒级多线程并发测试，100% 正反规则断言覆盖 | 建立秒级自动化守护基线 |
+| **独立审查报告** | **纯静态 HTML 模板** | 单文件自包含 (`drift-report.html`, `index.html`) | 纯展示层，仅消费 Core 输出的标准 JSON，内置 Mermaid.js 离线渲染 | 废弃桌面端 Electron / Tauri 宿主 |
+| **测试框架体系** | **Vitest + Vitest UI** | `vitest >= 2.1.8`, `@vitest/ui >= 2.1.8` | 原生 ESM/TS 支持，毫秒级多线程并发测试，100% 正反规则断言，配有 Web UI 交互式测试看板与 V8 覆盖率 | 建立秒级自动化与可视化双重质量基线 |
+| **本地服务与启动控制** | **start.sh + Node ESM Server** | 纯 Node.js 内置 HTTP 模块 | 0 外部重型依赖，自动端口避让，秒级拉起审查工作台与全功能启动中枢 | 告别繁杂启动链路，一键开启本地审查 |
 
 ---
 
@@ -240,13 +241,57 @@ CHECK FAILED: 1 critical drift found. Run with --json for machine output.
 
 ## 7. 统一测试与质量守则 (Testing Invariants & TDD)
 
-为确保“零误报”铁律，所有规则和解析器均采用严格的测试驱动开发（TDD）：
+为确保“零误报”铁律，所有规则、分析器与门禁工具均采用严格的测试驱动开发（TDD）与多维度验证机制：
 
-1. **测试框架**：统一采用 `vitest`，全套单测执行时间必须控制在 **1 秒以内**；
-2. **成对用例守则 (Pairwise Testing)**：每新增一条架构规则或 AST 匹配器，**必须同时提交两个对立测试用例**：
-   - **Positive Case（合规代码）**：确认在完全遵循规范的代码上严格保持绿灯，断言**零假阳性**；
-   - **Negative Case（违规代码）**：确认精准捕获违规行为，断言捕获的文件相对路径、行号以及规则 ID **100% 精确**。
-3. **隔离性原则**：所有 AST 分析单测均在内存虚拟文件系统（或测试 fixtures 目录）中执行，严禁依赖真实外部网络或外部持久化状态。
+### 7.1 Vitest 核心验证机制与架构 (Vitest Verification Architecture)
+
+项目以 **Vitest** 为统一测试基石，依托其现代编译器与运行时优势构建五大自动化验证防线：
+
+1. **线程隔离与极速并行 (Worker Thread Isolation)**：
+   - 默认启用轻量多线程并发执行（`threads: true`），每个测试套件在独立的 Node.js VM / Worker 上下文中运行；
+   - 彻底杜绝全局状态污染、AST 缓存穿透以及单测间的执行顺序依赖。
+2. **原生 ESM 与零中间打包 (Zero Bundle Overhead)**：
+   - 直接基于 Vite 模块图与 esbuild 原生编译 TypeScript 源码，无需经过 Webpack 或 Babel 繁重的中间打包转译；
+   - 代码变更到用例执行反馈时间控制在毫秒级，为开发者提供沉浸式即时红绿灯反馈。
+3. **V8 原生指令与分支覆盖率 (V8 AST Native Coverage)**：
+   - 集成 `@vitest/coverage-v8`，直接读取 Node.js V8 引擎底层的代码执行计数器，而非在源码中强行插入追踪代码（AST Instrumentation）；
+   - 保证覆盖率统计既精确无偏差，又不会干扰 AST 节点的原始行号与列号定位。
+4. **交互式可视化审查看板 (Vitest UI Inspection)**：
+   - 集成 `@vitest/ui`，开发者执行 `pnpm test:ui` 或 `./start.sh --ui` 即可在浏览器实时审查：
+     - 测试套件树状分层与各个 AST 节点的匹配轨迹；
+     - 用例执行耗时火焰图与微秒级时延追踪；
+     - 失败用例的完整调用栈与差异断言（Diff View）。
+5. **基线性能基准压测自动化 (Continuous Benchmark Automation)**：
+   - 基于 Tinybench 与 Vitest Bench，对核心热点逻辑实施持续性能监控：
+     - 单文件 AST 遍历与依赖抽取：**< 1.0ms**；
+     - Tarjan 算法成环检测（5000 节点大图）：**< 15ms**；
+   - 任何提交若导致基准耗时出现显著劣化，均视为性能倒退并阻断合入。
+
+---
+
+### 7.2 分模块验证要求与指标矩阵 (Per-Module Verification Requirements)
+
+各子包根据其架构定位，必须严格满足以下针对性验证契约：
+
+| 模块名称 | 验证重点与测试范围 | 核心验证要求与硬性指标 | 失败判定标准 (Fail Criteria) |
+| :--- | :--- | :--- | :--- |
+| **`@sextant/core`**<br>*(核心无头分析引擎)* | • TS AST 导入/导出抽取器<br>• Path 别名还原器与噪音过滤器<br>• Tarjan 强连通分量成环检测<br>• DFS 分层旁路与逆向比对器<br>• JSON/Mermaid 规范解析器 | 1. **纯函数契约**：入参为规范与源码路径，输出为标准 `DriftReport`，0 副作用，100% 支持 JSON 序列化；<br>2. **零假阳性**：在 `clean-layered-app` 标准工程上必须断言 0 违规；<br>3. **零外部 IO 污染**：单测全量基于虚拟内存或 fixtures，严禁外部网络与真实磁盘写入；<br>4. **100% 成对用例覆盖**：每条规则必须配对合规与违规双向工程。 | • 出现任何虚假报警（假阳性）；<br>• 缺少配对测试用例；<br>• 引入 CLI 或 DOM 相关外部依赖；<br>• 单测运行耗时 > 1000ms。 |
+| **`@sextant/cli`**<br>*(终端与 CI 门禁工具)* | • 命令行参数与 flags 解析<br>• 终端高信噪比彩色格式化<br>• Unix 退出码协议标准<br>• JSON 机器格式序列化<br>• 逆向 init 与 baseline 债务封存 | 1. **退出码契约**：合规输出 0，检测到漂移输出 1，配置/语法损坏输出 2；<br>2. **Token 经济学**：默认 ANSI 紧凑输出控制在 50~200 tokens，零垃圾文件生成；<br>3. **终端兼容性**：在 CI 哑终端（`CI=true`, `TERM=dumb`）下正常降级无 ANSI 乱码；<br>4. **集成冒烟测试**：测试 CLI 对 core 纯函数的正确调度与异常捕获。 | • 偏航情况下退出码非 1；<br>• 默认命令生成未授权的临时 HTML；<br>• 控制台输出超过 500 tokens 的冗长冗余日志。 |
+| **`@sextant/web-report`**<br>*(双图审查报告)* | • 自包含单文件静态 HTML 模板<br>• 离线内联 Mermaid.js 渲染<br>• 双屏左右对照与卷帘滑尺<br>• 红笔批注与违规代码详情面板 | 1. **断网自包含验证**：离线无网络状态下完整渲染双图与红绿标注，0 外部 CDN 阻断；<br>2. **数据单向消费**：仅消费 Core 标准 JSON 报表，0 逆向侵入 Core 逻辑；<br>3. **红线标红契约**：违规连线必须高亮为红色虚线并附带 `DRIFT!` 标签。 | • 离线打开报告页面空白或图表崩溃；<br>• 存在任何外部样式或 JS 文件的外链请求。 |
+| **`start.sh` & 本地服务**<br>*(工程启动与开发中枢)* | • 跨平台启动控制脚本<br>• Node.js ESM 极轻量静态服务器<br>• 端口冲突自动探测避让<br>• 进程生命周期与优雅退出 | 1. **环境自检**：自动化检查 Node >= 18 并给出明确版本指引；<br>2. **端口弹性避让**：遇 3000 端口占用（`EADDRINUSE`）自动平滑递增探测并成功监听；<br>3. **命令全量分发**：支持 `--test`, `--ui`, `--coverage`, `--bench`, `--build`, `--check` 全量路由。 | • 端口冲突导致服务 crash 崩溃退出；<br>• 接收 `SIGINT` (Ctrl+C) 僵尸进程残留。 |
+
+---
+
+### 7.3 成对用例与零假阳性守则 (Pairwise TDD & Zero False Positives)
+
+每新增一条架构规则或 AST 匹配器，**必须同时提交两个对立测试用例**：
+1. **Positive Case（合规代码）**：确认在完全遵循规范的代码上严格保持绿灯，断言**零假阳性**；
+2. **Negative Case（违规代码）**：确认精准捕获违规行为，断言捕获的文件相对路径、行号以及规则 ID **100% 精确**。
+
+### 7.4 测试隔离与性能基准守则 (Isolation & Benchmark Rules)
+
+1. 所有 AST 分析单测均在内存虚拟文件系统（或测试 fixtures 目录）中执行，严禁依赖真实外部网络或外部持久化状态；
+2. 任何代码改动合入前，全套单测必须在秒级以内完成全量验证。
 
 ---
 
@@ -289,3 +334,52 @@ jobs:
 2. **强制纳入 Git 版本纳管**：`.sextant/baseline.json` 必须作为团队唯一的架构债务事实凭据提交至 Git 仓库，确保 CI 门禁与全体团队成员在完全一致的基准下协同；
 3. **AST 语义指纹匹配算法**：基线记录的违规特征基于 **[调用方组件 + 被调用方组件 + 引用符号签名]** 的 AST 语义指纹，而非易变的物理行号。存量代码发生重构、行号偏移或代码格式化时，历史债务豁免依然有效，精准落实 No New Drift；
 4. 后续 CI 门禁遵循 **“历史债务豁免，新增偏航零容忍（No New Drift）”**，只要 PR 没有引入新的架构违规，即可安全通过。
+
+---
+
+## 9. 本地开发与一键启动工作流 (Local Development & Startup Workflow)
+
+为了提供极简、高效的工程体验，项目提供统一的工程启动控制脚本 `start.sh` 与 Node.js 零外部依赖开发服务器：
+
+### 9.1 根目录统一启动控制脚本 (`./start.sh`)
+
+位于项目根目录的 `./start.sh`（`chmod +x`）是团队与 Agent 协同的标准操作入口：
+
+```bash
+# 1. 默认模式：自动预构建并拉起本地可视化审查工作台 (Workbench Web Server @ 3000)
+$ ./start.sh
+
+# 2. 启动 Vitest UI 交互式测试仪表盘 (在浏览器查看所有用例树与耗时)
+$ ./start.sh --ui
+
+# 3. 执行全套单元测试 (16 个套件, 38 个用例并发全绿通过)
+$ ./start.sh --test
+
+# 4. 执行测试并生成 V8 代码覆盖率报告
+$ ./start.sh --coverage
+
+# 5. 执行核心 AST 与 Tarjan 图算法性能基准压测
+$ ./start.sh --bench
+
+# 6. 全量编译 Monorepo 所有子包 (@sextant/core, @sextant/cli)
+$ ./start.sh --build
+
+# 7. 执行 Phase 1 架构偏航实测 (跑通 Clean 与 Drifted 双向工程 fixtures)
+$ ./start.sh --check
+```
+
+### 9.2 package.json 标准脚本对照表
+
+所有底层操作与根目录 `package.json` 中的标准 npm/pnpm scripts 完全对齐：
+
+| 命令 | 对应底层脚本 | 说明 |
+| :--- | :--- | :--- |
+| `pnpm start` | `./start.sh` | 调用启动控制器，启动本地审查服务 |
+| `pnpm dev` | `node scripts/dev-server.mjs` | 直接启动零依赖 Node.js 本地开发预览服务器 (默认端口 3000) |
+| `pnpm test` | `vitest run` | 全套单元测试并发秒级执行 |
+| `pnpm test:ui` | `vitest --ui` | 拉起交互式 Web UI 测试面板 |
+| `pnpm test:coverage` | `vitest run --coverage` | 输出 V8 覆盖率统计表与 HTML 详情 |
+| `pnpm test:watch` | `vitest` | 监听模式热测试 |
+| `pnpm build` | `pnpm -r run build` | 递归全量构建所有子包产物 |
+| `pnpm bench` | `pnpm --filter @sextant/core bench` | 执行性能 Benchmark 压测 |
+

@@ -5,14 +5,19 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "start": "./start.sh",
     "build": "pnpm -r run build",
     "test": "vitest run",
+    "test:ui": "vitest --ui",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "bench": "pnpm --filter @sextant/core bench"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",
     "@vitest/coverage-v8": "2.1.9",
+    "@vitest/ui": "^2.1.9",
     "pnpm": "^9.15.0",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
