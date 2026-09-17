@@ -1,11 +1,22 @@
 {
-  "name": "sextant-drift-web",
+  "name": "sextant-drift",
   "version": "2.0.0",
   "description": "SextantDrift — 架构 X 光机与偏航检测罗盘 (Architecture X-Ray & Drift Compass)",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 3333",
-    "preview": "python3 -m http.server 3333"
+    "build": "pnpm -r run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bench": "pnpm --filter @sextant/core bench"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "@vitest/coverage-v8": "2.1.9",
+    "pnpm": "^9.15.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
   },
   "keywords": [
     "architecture-x-ray",

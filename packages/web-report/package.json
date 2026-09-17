@@ -1,0 +1,10 @@
+{
+  "name": "@sextant/web-report",
+  "version": "0.1.0",
+  "description": "SextantDrift Web Report — Self-contained dual-diagram HTML visual inspection report",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'web-report build ready'"
+  },
+  "license": "MIT"
+}

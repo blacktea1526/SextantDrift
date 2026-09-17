@@ -1,0 +1,40 @@
+{
+  "$schema": "https://sextant-drift.dev/schema/v2.json",
+  "name": "drifted-bypass-app",
+  "layers": [
+    { "id": "UI", "name": "Presentation Layer", "order": 1 },
+    { "id": "Domain", "name": "Business Domain Layer", "order": 2 },
+    { "id": "Infra", "name": "Infrastructure Layer", "order": 3 }
+  ],
+  "components": [
+    {
+      "id": "Controller",
+      "name": "Controllers",
+      "layerId": "UI",
+      "paths": ["src/controllers/**"],
+      "forbiddenImports": ["@prisma/client"]
+    },
+    {
+      "id": "ServiceA",
+      "name": "Service A",
+      "layerId": "Domain",
+      "paths": ["src/services/service-a/**"]
+    },
+    {
+      "id": "ServiceB",
+      "name": "Service B",
+      "layerId": "Domain",
+      "paths": ["src/services/service-b/**"]
+    },
+    {
+      "id": "Repo",
+      "name": "Repositories",
+      "layerId": "Infra",
+      "paths": ["src/repos/**"]
+    }
+  ],
+  "allowDependencies": [
+    { "from": "Controller", "to": "ServiceA" },
+    { "from": "ServiceA", "to": "Repo" }
+  ]
+}

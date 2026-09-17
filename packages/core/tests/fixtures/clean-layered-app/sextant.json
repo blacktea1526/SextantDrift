@@ -1,0 +1,18 @@
+{
+  "$schema": "https://sextant-drift.dev/schema/v2.json",
+  "name": "clean-layered-app",
+  "layers": [
+    { "id": "UI", "name": "Presentation Layer", "order": 1 },
+    { "id": "Domain", "name": "Business Domain Layer", "order": 2 },
+    { "id": "Infra", "name": "Infrastructure Layer", "order": 3 }
+  ],
+  "components": [
+    { "id": "Controller", "name": "Controllers", "layerId": "UI", "paths": ["src/controllers/**"] },
+    { "id": "Service", "name": "Services", "layerId": "Domain", "paths": ["src/services/**"] },
+    { "id": "Repo", "name": "Repositories", "layerId": "Infra", "paths": ["src/repos/**"] }
+  ],
+  "allowDependencies": [
+    { "from": "Controller", "to": "Service" },
+    { "from": "Service", "to": "Repo" }
+  ]
+}
