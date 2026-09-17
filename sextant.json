@@ -1,0 +1,186 @@
+{
+  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "name": "SextantDrift",
+  "version": "2.0.0",
+  "description": "Architecture X-Ray & Drift Compass Monorepo Self-Dogfooding Specification",
+  "layers": [
+    {
+      "id": "cli",
+      "name": "CLI Presentation Layer",
+      "order": 1
+    },
+    {
+      "id": "reporting",
+      "name": "Visual Reporting Layer",
+      "order": 2
+    },
+    {
+      "id": "engine",
+      "name": "Core Engine & Parsing Layer",
+      "order": 3
+    },
+    {
+      "id": "infrastructure",
+      "name": "AST & Graph Infrastructure Layer",
+      "order": 4
+    },
+    {
+      "id": "contracts",
+      "name": "Types & Foundations Layer",
+      "order": 5
+    }
+  ],
+  "components": [
+    {
+      "id": "CliGate",
+      "name": "CLI Gate & Commands",
+      "layerId": "cli",
+      "paths": [
+        "packages/cli/src/**"
+      ]
+    },
+    {
+      "id": "WebReport",
+      "name": "Visual Report Generator",
+      "layerId": "reporting",
+      "paths": [
+        "packages/web-report/src/**"
+      ]
+    },
+    {
+      "id": "CoreFacade",
+      "name": "Core Facade API",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/index.ts"
+      ]
+    },
+    {
+      "id": "SpecParser",
+      "name": "Spec & DSL Parser",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/parser/**"
+      ]
+    },
+    {
+      "id": "InvariantsEngine",
+      "name": "Invariants Rule Engine",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/invariants/**"
+      ]
+    },
+    {
+      "id": "ComparatorEngine",
+      "name": "Topology Comparator Engine",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/comparator/**"
+      ]
+    },
+    {
+      "id": "BaselineEngine",
+      "name": "Baseline & Fingerprint Engine",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/baseline/**"
+      ]
+    },
+    {
+      "id": "AstAnalyzer",
+      "name": "AST Extractor & Path Resolver",
+      "layerId": "infrastructure",
+      "paths": [
+        "packages/core/src/analyzer/**"
+      ]
+    },
+    {
+      "id": "GraphAlgorithms",
+      "name": "Directed Graph & Tarjan SCC",
+      "layerId": "infrastructure",
+      "paths": [
+        "packages/core/src/graph/**"
+      ]
+    },
+    {
+      "id": "CoreContracts",
+      "name": "Core Architecture & Report Types",
+      "layerId": "contracts",
+      "paths": [
+        "packages/core/src/types/**"
+      ]
+    },
+    {
+      "id": "CoreErrors",
+      "name": "Core Configuration Errors",
+      "layerId": "contracts",
+      "paths": [
+        "packages/core/src/errors/**"
+      ]
+    }
+  ],
+  "allowDependencies": [
+    {
+      "from": "cli",
+      "to": "reporting"
+    },
+    {
+      "from": "cli",
+      "to": "engine"
+    },
+    {
+      "from": "reporting",
+      "to": "engine"
+    },
+    {
+      "from": "reporting",
+      "to": "contracts"
+    },
+    {
+      "from": "engine",
+      "to": "infrastructure"
+    },
+    {
+      "from": "engine",
+      "to": "contracts"
+    },
+    {
+      "from": "infrastructure",
+      "to": "contracts"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "CORE_ZERO_CLI_DOM",
+      "severity": "critical",
+      "desc": "Core analysis engine must maintain 0 CLI and 0 DOM dependencies (戒律 3)",
+      "pattern": {
+        "forbid_import": [
+          "cac",
+          "picocolors",
+          "commander",
+          "chalk",
+          "@sextant/cli",
+          "@sextant/web-report"
+        ],
+        "in_path": "packages/core/src/**"
+      }
+    },
+    {
+      "id": "REPORT_ZERO_CLI",
+      "severity": "critical",
+      "desc": "Web report package must not depend on CLI or command parsing libraries",
+      "pattern": {
+        "forbid_import": [
+          "cac",
+          "picocolors",
+          "commander",
+          "chalk",
+          "@sextant/cli"
+        ],
+        "in_path": "packages/web-report/src/**"
+      }
+    }
+  ]
+}

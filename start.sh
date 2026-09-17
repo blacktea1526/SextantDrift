@@ -142,16 +142,19 @@ case $ACTION in
       echo -e "${COLOR_YELLOW}[提示] 未发现 CLI 构建产物，正在自动构建...${COLOR_RESET}"
       $PNPM_BIN -r run build
     fi
-    echo -e "${COLOR_GREEN}==>${COLOR_RESET} 正在执行 ${COLOR_BOLD}@sextant/cli 架构门禁实测 (Clean & Drifted 双向核验)${COLOR_RESET}..."
-    echo -e "\n${COLOR_CYAN}[1/2] 正在校验合规架构工程 (Clean Layered App)...${COLOR_RESET}"
+    echo -e "${COLOR_GREEN}==>${COLOR_RESET} 正在执行 ${COLOR_BOLD}@sextant/cli 架构门禁实测 (包含项目自举与双向核验)${COLOR_RESET}..."
+    echo -e "\n${COLOR_CYAN}[1/3] 正在对 SextantDrift 项目自身执行自举架构核验 (Self-Dogfooding)...${COLOR_RESET}"
+    node packages/cli/dist/bin/sextant-drift.js check .
+    echo -e "\n${COLOR_CYAN}[2/3] 正在校验合规架构工程 (Clean Layered App)...${COLOR_RESET}"
     node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/clean-layered-app
-    echo -e "\n${COLOR_CYAN}[2/2] 正在校验偏航架构工程 (Drifted App，预期退出码 1 拦截)...${COLOR_RESET}"
+    echo -e "\n${COLOR_CYAN}[3/3] 正在校验偏航架构工程 (Drifted App，预期退出码 1 拦截)...${COLOR_RESET}"
     if node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/drifted-bypass-app; then
       echo -e "${COLOR_RED}✖ 错误：违规工程未被拦截！${COLOR_RESET}"
       exit 1
     else
       echo -e "\n${COLOR_GREEN}✔ 成功：@sextant/cli 架构门禁成功阻断偏航工程！${COLOR_RESET}"
     fi
+    echo -e "\n${COLOR_GREEN}✔ 全部门禁验证通过：SextantDrift 自身与测试工程均完全符合架构规范！${COLOR_RESET}"
     ;;
   dev)
     print_banner
