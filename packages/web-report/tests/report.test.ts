@@ -34,6 +34,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
         snippet: "import { OrderRepo } from '../repos/order';",
         sourceComponent: 'OrderCtrl',
         targetComponent: 'OrderRepo',
+        suggestion: 'Inject and call OrderService instead of OrderRepo.',
       },
     ],
     exemptions: [
@@ -75,6 +76,30 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
     expect(html).toContain("import { OrderRepo } from &#039;../repos/order&#039;;");
     expect(html).toContain('Historical Exemptions (1 debts snapshot in baseline)');
     expect(html).toContain('src/controllers/legacy.ts:12');
+  });
+
+  it('should generate interactive toolbar, filter controls, and diagram cross-linking hooks', () => {
+    const html = generateHtmlReport(baseReport);
+
+    // Filter controls and search input
+    expect(html).toContain('id="violationSearch"');
+    expect(html).toContain('data-filter="all"');
+    expect(html).toContain('data-filter="critical"');
+    expect(html).toContain('Critical (1)');
+    expect(html).toContain('Warning (0)');
+
+    // AI Fix Prompt button and functionality
+    expect(html).toContain('🤖 Copy AI Fix Prompt');
+    expect(html).toContain('copyAiFixPrompt(');
+    expect(html).toContain('showToast');
+    expect(html).toContain('id="toast"');
+
+    // Diagram cross-linking
+    expect(html).toContain('locateInDiagram(');
+    expect(html).toContain('data-source-component="OrderCtrl"');
+    expect(html).toContain('data-target-component="OrderRepo"');
+    expect(html).toContain('OrderCtrl ➔ OrderRepo');
+    expect(html).toContain('Inject and call OrderService instead of OrderRepo.');
   });
 
   it('should generate clean verified badge when report has 0 violations', () => {

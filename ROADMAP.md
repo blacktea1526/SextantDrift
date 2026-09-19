@@ -33,7 +33,7 @@
 | **CLI 消耗 Token 经济学** | 单次检查终端 ANSI 占用 **50 ~ 200 Tokens** | 终端输出字符与 token 审计 | 紧凑格式已通过审核 | 🟢 契约已确立 |
 | **环境纯净与零污染** | 默认执行 **0 临时 HTML / 0 垃圾文件** | 运行后 `git status --porcelain` | 契约已明确 `--report` 触发 | 🟢 守则已锁定 |
 | **Core 独立性** | `@sextant/core` **0 DOM, 0 CLI 依赖** | 物理分包架构与 package.json 审查 | 生产依赖仅为 typescript | 🟢 严格物理隔离 |
-| **测试套件运行时间** | 全套单元测试 **≤ 1000ms** (全包并发) | `vitest run` 并发执行 | 38 文件 202 用例并发约 6.7s | 🟢 全绿通过 |
+| **测试套件运行时间** | 全套单元测试 **≤ 1000ms** (全包并发) | `vitest run` 并发执行 | 39 文件 208 用例并发约 6.0s | 🟢 全绿通过 |
 
 ### 1.3 里程碑演进与依赖有向图 (Milestone Dependency DAG)
 
@@ -645,7 +645,9 @@ Roadmap 中的任务状态仅允许在以下四个状态之间流转：
 
 当前阶段的核心交付已全面完成（Phase 0 ~ Phase 5），工程即刻与后续演进的动作依序如下：
 
-1. **[STEP 1 - 工程化与门户完备性]**：交付顶级根目录 `README.md` 与 `.github/workflows/ci.yml` 自动化 CI 门禁；
-2. **[STEP 2 - 团队生态与自愈赋能]**：基于 `.agents/skills/sextant-drift` 在真实研发项目与主流 Agent（Claude Code, Cursor 等）中推广架构自愈机制；
-3. **[STEP 3 - npm 发版与分发]**：发布 `@sextant/core` 与 `@sextant/cli` 到 npm 镜像，支持开发者免克隆 `npx sextant-drift`；
-4. **[STEP 4 - IDE 与编辑器扩展 (v2.1+)]**：在 VS Code / JetBrains 中提供行内架构违规下划线警告与右键生成 Mermaid 架构图。
+1. **[STEP 1 - 工程化与门户完备性]**：交付顶级根目录 `README.md` 与 `.github/workflows/ci.yml` 自动化 CI 门禁； (已完成)
+2. **[STEP 2 - 双图交互打磨 (Option C)]**：交付 `@sextant/web-report` 交互式 SVG 探针、违规交叉高亮定位、过滤搜索抽屉与一键复制 AI Fix 提示词； (已完成)
+3. **[STEP 3 - 外部企业级大型应用实测 (Option B)]**：基于 `enterprise-shop` 完成真实企业级架构的逆向推导 (`init`)、0 假阳性验证、全量漂移注入精准拦截与 1000 模块压力基准； (已完成)
+4. **[STEP 4 - 团队生态与自愈赋能]**：基于 `.agents/skills/sextant-drift` 在真实研发项目与主流 Agent（Claude Code, Cursor 等）中推广架构自愈机制；
+5. **[STEP 5 - npm 发版与分发]**：发布 `@sextant/core` 与 `@sextant/cli` 到 npm 镜像，支持开发者免克隆 `npx sextant-drift`；
+6. **[STEP 6 - IDE 与编辑器扩展 (v2.1+)]**：在 VS Code / JetBrains 中提供行内架构违规下划线警告与右键生成 Mermaid 架构图。

@@ -29,6 +29,8 @@ interface AllowDependencyDefinition {
 
 const LAYER_MATCHERS: Record<string, { layerId: string; layerName: string; order: number }> = {
   // Presentation
+  presentation: { layerId: 'presentation', layerName: 'Presentation Layer', order: 1 },
+  ui: { layerId: 'presentation', layerName: 'Presentation Layer', order: 1 },
   controllers: { layerId: 'presentation', layerName: 'Presentation Layer', order: 1 },
   controller: { layerId: 'presentation', layerName: 'Presentation Layer', order: 1 },
   routes: { layerId: 'presentation', layerName: 'Presentation Layer', order: 1 },
