@@ -88,6 +88,14 @@
       ]
     },
     {
+      "id": "StateEngine",
+      "name": "State Machine Verifier Engine",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/state/**"
+      ]
+    },
+    {
       "id": "AstAnalyzer",
       "name": "AST Extractor & Path Resolver",
       "layerId": "infrastructure",

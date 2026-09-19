@@ -23,6 +23,10 @@ export function formatViolation(violation: DriftViolation): string {
 
   lines.push(`    ${pc.dim('Message:')}  ${violation.message}`);
 
+  if (violation.suggestion) {
+    lines.push(`    ${pc.dim('Hint:')}     ${violation.suggestion}`);
+  }
+
   return lines.join('\n');
 }
 
@@ -72,12 +76,19 @@ export function formatTerminalReport(
     lines.push(formatViolation(v));
   }
 
+  const summaryTokens = [
+    `${summary.bypassCount} bypass`,
+    `${summary.inversionCount} inversion`,
+    `${summary.cycleCount} cycle`,
+    `${summary.forbiddenImportCount} forbidden`,
+    `${summary.invariantViolationCount} invariant`,
+  ];
+  if (summary.stateViolationCount && summary.stateViolationCount > 0) {
+    summaryTokens.push(`${summary.stateViolationCount} state`);
+  }
+
   lines.push('');
-  lines.push(
-    pc.dim(
-      `  Summary: ${summary.bypassCount} bypass, ${summary.inversionCount} inversion, ${summary.cycleCount} cycle, ${summary.forbiddenImportCount} forbidden, ${summary.invariantViolationCount} invariant`
-    )
-  );
+  lines.push(pc.dim(`  Summary: ${summaryTokens.join(', ')}`));
   lines.push(
     pc.dim(
       `  Scanned ${summary.totalFiles} files in ${report.durationMs}ms. Run "npx sextant-drift baseline" to snapshot historical debts.`

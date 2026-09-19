@@ -22,6 +22,7 @@ flowchart TD
         InvariantsEngine["Invariants Rule Engine"]
         ComparatorEngine["Topology Comparator Engine"]
         BaselineEngine["Baseline & Fingerprint Engine"]
+        StateEngine["State Machine Verifier Engine"]
     end
     subgraph infrastructure ["AST & Graph Infrastructure Layer"]
         AstAnalyzer["AST Extractor & Path Resolver"]
@@ -40,6 +41,39 @@ flowchart TD
     engine --> contracts
     infrastructure --> contracts
 ```
+
+---
+
+## 2. 核心门禁执行生命周期状态机 (Gate Execution Lifecycle FSM)
+
+本项目自身门禁执行全流程通过有限状态机进行形式化定义：
+
+```mermaid
+stateDiagram-v2
+    [*] --> SpecResolution
+    SpecResolution --> FileScanning: spec_resolved
+    SpecResolution --> FatalError: config_error
+
+    FileScanning --> AstExtraction: files_found
+
+    AstExtraction --> TopologyAnalysis: ast_extracted
+    AstExtraction --> FatalError: parse_error
+
+    TopologyAnalysis --> InvariantVerification: topology_built
+    InvariantVerification --> StateMachineVerification: invariants_verified
+    InvariantVerification --> FatalError: invariant_rule_error
+
+    StateMachineVerification --> BaselineComparison: states_verified
+    StateMachineVerification --> FatalError: state_syntax_error
+
+    BaselineComparison --> GatePassed: 0_new_drifts
+    BaselineComparison --> DriftDetected: drifts_found
+
+    GatePassed --> [*]
+    DriftDetected --> [*]
+    FatalError --> [*]
+```
+
 
 ---
 

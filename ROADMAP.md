@@ -17,7 +17,7 @@
 [Phase 1: Module Drift Engine] [██████████] 100% TS AST 提取与确定性差分引擎已交付并通过全量单测
 [Phase 2: Invariants Engine]   [██████████] 100% 同步作用域 AST 语句匹配与违禁拦截已交付并通过全量单测 (已完成)
 [Phase 4: CLI & Visual Report] [██████████] 100% 核心 MVP 闭环：极轻量 CLI、逆向 X 光、债务基线与按需双图报告 (已完成)
-[Phase 3: State Verifier]      [░░░░░░░░░░]   0% 状态机死锁/孤岛/缺失降级静态分析 (Post-MVP 扩展插件)
+[Phase 3: State Verifier]      [██████████] 100% 状态机死锁/孤岛/缺失降级静态分析引擎已交付并通过全量单测 (已完成)
 [Phase 5: Dynamic Trace (v2)]  [░░░░░░░░░░]   0% 运行时 Trace 录制与因果时序差分 (远期探索)
 ```
 
@@ -312,7 +312,7 @@ packages/core/src/invariants/
 ### Phase 3: State Verifier — 状态机完整性静态分析
 
 - **核心定位**：解析 Mermaid `stateDiagram-v2` 状态图，静态分析业务状态机的黑洞状态、孤岛状态及缺失降级分支的缺陷。
-- **阶段状态**：`[PLANNED]`
+- **阶段状态**：`[COMPLETED / 100%]` (已全部交付并通过单测与门禁自举)
 - **前置依赖**：Phase 1
 
 ```
@@ -321,29 +321,31 @@ packages/core/src/state/
 ├── graph-builder.ts                 # 状态转移图与出入度统计
 ├── deadlock-detector.ts             # 黑洞状态 (Deadlock) 检测
 ├── island-detector.ts               # 不可达孤岛状态检测
-└── fallback-checker.ts              # 缺失降级跃迁检测
+├── fallback-checker.ts              # 缺失降级跃迁检测
+└── index.ts                         # 状态机验证统一入口与导出
 ```
 
 #### 细化任务列表
 
-#### [ ] Task 3.1: Mermaid `stateDiagram-v2` 语法解析与状态转移图构建
+#### [x] Task 3.1: Mermaid `stateDiagram-v2` 语法解析与状态转移图构建
 - **目标**：从 Markdown 提取 Mermaid 状态图并构建状态转移有向图。
 - **提取要素**：初始态 `[*]`、状态节点、跃迁箭头 `-->`、转移事件与条件描述、终止态 `[*]`。
 - **自动化验证**：
-  - [ ] 正确解析多分支状态跃迁网络。
+  - [x] 正确解析多分支状态跃迁网络与选项伪状态。
 
-#### [ ] Task 3.2: 黑洞状态与孤岛状态检测
+#### [x] Task 3.2: 黑洞状态与孤岛状态检测
 - **黑洞状态 (Deadlock / Black Hole)**：
   - 判定条件：节点入度 $\ge 1$ 且出度 $= 0$，且该节点不是显式终止态 `[*]`。
 - **孤岛状态 (Unreachable Island)**：
   - 判定条件：从初始状态 `[*]` 出发，通过 DFS 遍历无法到达的状态节点。
 - **自动化验证**：
-  - [ ] 精确输出存在死锁的状态节点 ID。
+  - [x] 精确输出存在死锁的状态节点 ID 与修复提示；
+  - [x] 精确输出不可达孤岛状态节点。
 
-#### [ ] Task 3.3: 缺失降级与超时跃迁检测
+#### [x] Task 3.3: 缺失降级与超时跃迁检测
 - **判定条件**：对命名包含 `Processing`, `Submitting`, `Pending`, `Waiting` 等异步中间态，检测其出度转移中是否存在包含 `fail`, `timeout`, `retry`, `error` 语义的跃迁分支。
 - **自动化验证**：
-  - [ ] 对缺失超时的中间状态触发 Warning 提示。
+  - [x] 对缺失超时的中间状态触发 Warning 提示并输出行号切片。
 
 ---
 

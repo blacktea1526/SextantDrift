@@ -7,7 +7,10 @@ export interface ViolationEvidence {
     | 'CRITICAL_INVERSION'
     | 'CRITICAL_CYCLE'
     | 'CRITICAL_FORBIDDEN_IMPORT'
-    | 'INVARIANT_BROKEN';
+    | 'INVARIANT_BROKEN'
+    | 'STATE_DEADLOCK'
+    | 'STATE_UNREACHABLE'
+    | 'STATE_MISSING_FALLBACK';
   severity: 'critical' | 'warning' | 'info';
   message: string;
   sourceFile: string;
@@ -21,6 +24,9 @@ export interface ViolationEvidence {
   ruleDesc?: string;
   enclosingFunction?: string;
   targetCall?: string;
+  stateId?: string;
+  diagramTitle?: string;
+  suggestion?: string;
   fingerprint?: string;
 }
 
@@ -35,6 +41,8 @@ export interface BaselineFingerprint {
   enclosingFunction?: string;
   targetCall?: string;
   ruleId?: string;
+  stateId?: string;
+  diagramTitle?: string;
   description?: string;
 }
 
@@ -56,6 +64,7 @@ export interface DriftSummary {
   cycleCount: number;
   forbiddenImportCount: number;
   invariantViolationCount: number;
+  stateViolationCount?: number;
 }
 
 export interface DriftReport {

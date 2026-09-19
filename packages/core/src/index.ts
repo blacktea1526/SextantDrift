@@ -27,6 +27,7 @@ import {
   diffWithBaseline,
   DEFAULT_BASELINE_FILENAME,
 } from './baseline/manager.js';
+import { extractAndVerifyStateDiagrams } from './state/index.js';
 
 export const VERSION = '0.1.0';
 
@@ -50,6 +51,7 @@ export * from './invariants/config-matcher.js';
 export * from './invariants/engine.js';
 export * from './baseline/fingerprint.js';
 export * from './baseline/manager.js';
+export * from './state/index.js';
 
 /**
  * Builds Mermaid flowchart representing the actual detected component dependencies,
@@ -230,6 +232,48 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
         })
       : [];
 
+  // F. State machine verifier
+  const stateViolations: ViolationEvidence[] = [];
+  const candidateDocs: string[] = [];
+
+  if (options.specPath && options.specPath.endsWith('.md')) {
+    candidateDocs.push(options.specPath);
+  } else {
+    for (const doc of ['ARCHITECTURE.md', 'AGENTS.md']) {
+      const fullDoc = path.resolve(rootDir, doc);
+      if (fs.existsSync(fullDoc)) {
+        candidateDocs.push(doc);
+      }
+    }
+  }
+
+  for (const relDoc of candidateDocs) {
+    const fullDoc = path.resolve(rootDir, relDoc);
+    if (fs.existsSync(fullDoc)) {
+      const content = fs.readFileSync(fullDoc, 'utf-8');
+      if (content.includes('stateDiagram') || content.includes('stateDiagram-v2')) {
+        const results = extractAndVerifyStateDiagrams(content, relDoc);
+        for (const res of results) {
+          for (const v of res.violations) {
+            stateViolations.push({
+              id: v.id,
+              type: v.type,
+              severity: v.severity,
+              message: v.message,
+              sourceFile: v.sourceFile,
+              line: v.line,
+              column: v.column,
+              snippet: v.snippet,
+              stateId: v.stateId,
+              diagramTitle: v.diagramTitle,
+              suggestion: v.suggestion,
+            });
+          }
+        }
+      }
+    }
+  }
+
   // 6. Aggregate violations
   const allViolations: DriftViolation[] = [
     ...bypassViolations,
@@ -237,6 +281,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     ...cycleViolations,
     ...forbiddenImportViolations,
     ...invariantViolations,
+    ...stateViolations,
   ];
 
   // 7. Ensure every violation has a deterministic semantic fingerprint
@@ -265,11 +310,13 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     cycleCount: cycleViolations.length,
     forbiddenImportCount: forbiddenImportViolations.length,
     invariantViolationCount: invariantViolations.length,
+    stateViolationCount: stateViolations.length,
   };
 
   const actualMermaid = generateActualMermaid(arch, componentGraph, allViolations);
   const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
-  const passed = newViolations.length === 0;
+  const hasCritical = newViolations.some((v) => v.severity === 'critical');
+  const passed = !hasCritical && newViolations.length === 0;
 
   return {
     passed,
@@ -282,3 +329,4 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     durationMs,
   };
 }
+

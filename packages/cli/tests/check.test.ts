@@ -48,4 +48,46 @@ describe('CLI check Command (Task 4.2)', () => {
     expect(parsed.summary.totalFiles).toBeGreaterThanOrEqual(3);
     expect(parsed.violations).toHaveLength(0);
   });
+
+  it('should detect and report state machine deadlocks in ARCHITECTURE.md', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sextant-state-test-'));
+
+    try {
+      // Minimal valid architecture with a flawed state machine diagram
+      const mdContent = `
+# System Spec
+
+\`\`\`mermaid
+flowchart TD
+    subgraph Core ["Core Layer"]
+        MainComp["Main"]
+    end
+\`\`\`
+
+## Workflow State Diagram
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> Pending
+    Pending --> DeadlockedState: hang
+\`\`\`
+`;
+      fs.writeFileSync(path.join(tempDir, 'ARCHITECTURE.md'), mdContent, 'utf-8');
+      fs.mkdirSync(path.join(tempDir, 'src/core'), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, 'src/core/main.ts'), 'export const x = 1;', 'utf-8');
+
+      const code = await runCheck(tempDir);
+      expect(code).toBe(EXIT_CODE_DRIFT_DETECTED);
+
+      const logged = consoleLogSpy.mock.calls.map((c: any[]) => c.join(' ')).join('\n');
+      expect(logged).toContain('STATE_DEADLOCK');
+      expect(logged).toContain('STATE_MISSING_FALLBACK');
+      expect(logged).toContain('DeadlockedState');
+      expect(logged).toContain('2 state');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
+

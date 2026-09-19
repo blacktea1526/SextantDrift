@@ -55,6 +55,14 @@ export function computeViolationFingerprint(violation: ViolationEvidence): strin
     rawKey = `CRITICAL_CYCLE:${cycleNodes}`;
   } else if (violation.type === 'CRITICAL_FORBIDDEN_IMPORT') {
     rawKey = `CRITICAL_FORBIDDEN_IMPORT:${normFile}:${normSnippet}`;
+  } else if (
+    violation.type === 'STATE_DEADLOCK' ||
+    violation.type === 'STATE_UNREACHABLE' ||
+    violation.type === 'STATE_MISSING_FALLBACK'
+  ) {
+    const stateId = violation.stateId || 'UNKNOWN';
+    const diagram = violation.diagramTitle || '';
+    rawKey = `${violation.type}:${normFile}:${diagram}:${stateId}`;
   } else {
     rawKey = `${violation.type}:${normFile}:${normSnippet}`;
   }
@@ -76,6 +84,8 @@ export function createBaselineFingerprint(violation: ViolationEvidence): Baselin
     enclosingFunction: violation.enclosingFunction,
     targetCall: violation.targetCall,
     ruleId: violation.ruleId,
+    stateId: violation.stateId,
+    diagramTitle: violation.diagramTitle,
     description: violation.message,
   };
 }

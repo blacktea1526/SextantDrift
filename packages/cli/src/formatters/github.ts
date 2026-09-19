@@ -35,6 +35,9 @@ export function formatGitHubSummary(report: DriftReport): string {
   lines.push(`| Dependency Cycles | ${summary.cycleCount} |`);
   lines.push(`| Forbidden Imports | ${summary.forbiddenImportCount} |`);
   lines.push(`| Invariant Violations | ${summary.invariantViolationCount} |`);
+  if (summary.stateViolationCount !== undefined && summary.stateViolationCount > 0) {
+    lines.push(`| State Machine Violations | ${summary.stateViolationCount} |`);
+  }
   lines.push(`| Historical Exemptions | ${exemptedCount} |`);
   lines.push(`| Execution Time | ${report.durationMs}ms |`);
   lines.push('');
