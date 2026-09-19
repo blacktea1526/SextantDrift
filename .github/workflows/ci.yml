@@ -1,0 +1,58 @@
+name: SextantDrift CI & Architecture Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-and-verify:
+    name: Build, Test & Architecture Verification (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Monorepo Packages
+        run: pnpm -r run build
+
+      - name: Run Full Vitest Suite (38 suites, 202 tests)
+        run: pnpm test
+
+      - name: Self-Dogfooding Architectural Verification
+        run: node packages/cli/dist/bin/sextant-drift.js check . --github-summary
+
+      - name: Verify Clean Reference Project (Zero Drift Expected)
+        run: node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/clean-layered-app
+
+      - name: Verify Drifted Project Gate (Exit Code 1 Blocking Expected)
+        run: |
+          if node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/drifted-bypass-app; then
+            echo "::error::Drifted fixture was expected to fail but passed!"
+            exit 1
+          else
+            echo "::notice::Drifted fixture was correctly blocked with exit code 1."
+          fi

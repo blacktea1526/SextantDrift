@@ -1,8 +1,8 @@
 # ROADMAP.md — SextantDrift 动态演进路线图与执行大纲 (Living Roadmap & Detailed Spec)
 
 > **版本**：v2.0 Living Edition (2026 深度细化版)  
-> **状态**：动态追踪中 (Active & Living)  
-> **当前冲刺**：Sprint 1 (Phase 0 ──► Phase 1 核心攻坚)  
+> **状态**：全阶段交付完毕，进入发布与自举运营阶段 (Release Ready & Dogfooding)  
+> **当前冲刺**：v1.0.0 阶段收尾与生态集成 (Phase 0 ~ Phase 5 全量 100% 达成)  
 > **文档定位**：SextantDrift 项目的**可执行演进中枢与任务调度白皮书**。它不是写完即弃的静态排期表，而是与代码库状态、CI 门禁、Agent 行为和架构演进实时共振的「活文档（Living Document）」。  
 > **基准契约**：[`AGENTS.md`](file:///home/redtea/Mona_project/SextantDriftV03/AGENTS.md) | [`MISSION.md`](file:///home/redtea/Mona_project/SextantDriftV03/MISSION.md) | [`TECH_STACK.md`](file:///home/redtea/Mona_project/SextantDriftV03/TECH_STACK.md) | [`docs/REQUIREMENTS.md`](file:///home/redtea/Mona_project/SextantDriftV03/docs/REQUIREMENTS.md)
 
@@ -592,12 +592,13 @@ export interface DriftReport {
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            SextantDrift 冲刺路线表                          │
 ├───────────┬───────────────────────────────────┬─────────────────────────────┤
-│ Sprint 0  │ Monorepo 基线、TS 编译与 Vitest 套件 │ Task 0.2 ~ 0.4 (当前冲刺)   │
-│ Sprint 1  │ Spec 读取器与 TS AST 依赖提取器   │ Task 1.1 ~ 1.2              │
-│ Sprint 2  │ Tarjan 成环与分层 DFS 差分比对引擎 │ Task 1.3 ~ 1.6 (Phase 1 验收)│
-│ Sprint 3  │ 语义不变量规则引擎与状态机检测     │ Phase 2 & Phase 3           │
-│ Sprint 4  │ CLI 极轻量门禁、Baseline 与 HTML 报告│ Phase 4 (v1.0 正式发布)      │
-│ Sprint 5+ │ 动态 Trace 因果差分预研           │ Phase 5 (v2.0 探索)         │
+│ Sprint 0  │ Monorepo 基线、TS 编译与 Vitest 套件 │ Task 0.2 ~ 0.4 (已完成)     │
+│ Sprint 1  │ Spec 读取器与 TS AST 依赖提取器   │ Task 1.1 ~ 1.2 (已完成)     │
+│ Sprint 2  │ Tarjan 成环与分层 DFS 差分比对引擎 │ Task 1.3 ~ 1.6 (已完成)     │
+│ Sprint 3  │ 语义不变量规则引擎与状态机检测     │ Phase 2 & Phase 3 (已完成)  │
+│ Sprint 4  │ CLI 极轻量门禁、Baseline 与 HTML 报告│ Phase 4 (已完成)            │
+│ Sprint 5  │ 动态 Trace 因果差分与自举门禁     │ Phase 5 & Dogfood (已完成)  │
+│ Sprint 6  │ Agent Skill 赋能与 v1.0 发布就绪  │ 门户文档、CI/CD、发布 (当前)│
 └───────────┴───────────────────────────────────┴─────────────────────────────┘
 ```
 
@@ -640,10 +641,11 @@ Roadmap 中的任务状态仅允许在以下四个状态之间流转：
 
 ---
 
-## 7. 立即行动清单 (Immediate Next Steps)
+## 7. 立即行动清单与未来演进 (Immediate Next Steps & Future Horizons)
 
-当前工程即刻开展的动作依序如下：
+当前阶段的核心交付已全面完成（Phase 0 ~ Phase 5），工程即刻与后续演进的动作依序如下：
 
-1. **[STEP 1 - 搭建 Monorepo 物理结构]**：执行 Task 0.2，创建 `pnpm-workspace.yaml` 与 `packages/{core,cli,web-report}` 基础目录；
-2. **[STEP 2 - 接入 TypeScript 与 Vitest]**：执行 Task 0.3 与 Task 0.4，确立纯 ESM 构建与毫秒级单测运行基线；
-3. **[STEP 3 - 攻克 Spec 解析与 AST 依赖提取]**：正式启动 Phase 1，落地 Task 1.1 与 Task 1.2，实现首个 TypeScript AST 物理依赖提取器。
+1. **[STEP 1 - 工程化与门户完备性]**：交付顶级根目录 `README.md` 与 `.github/workflows/ci.yml` 自动化 CI 门禁；
+2. **[STEP 2 - 团队生态与自愈赋能]**：基于 `.agents/skills/sextant-drift` 在真实研发项目与主流 Agent（Claude Code, Cursor 等）中推广架构自愈机制；
+3. **[STEP 3 - npm 发版与分发]**：发布 `@sextant/core` 与 `@sextant/cli` 到 npm 镜像，支持开发者免克隆 `npx sextant-drift`；
+4. **[STEP 4 - IDE 与编辑器扩展 (v2.1+)]**：在 VS Code / JetBrains 中提供行内架构违规下划线警告与右键生成 Mermaid 架构图。
