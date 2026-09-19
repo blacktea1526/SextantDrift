@@ -1,120 +1,9 @@
-import { DriftReport, DriftViolation } from '@sextant/core';
-
-function buildTargetMermaid(arch: any): string {
-  if (arch.mermaid) return arch.mermaid;
-  const lines: string[] = ['flowchart TD'];
-  const sortedLayers = [...(arch.layers || [])].sort((a: any, b: any) => a.order - b.order);
-  for (const layer of sortedLayers) {
-    lines.push(`    subgraph ${layer.id} ["${layer.name}"]`);
-    const layerComps = (arch.components || []).filter((c: any) => c.layerId === layer.id);
-    for (const comp of layerComps) {
-      lines.push(`        ${comp.id}["${comp.name}"]`);
-    }
-    lines.push('    end');
-  }
-  for (const dep of (arch.allowDependencies || [])) {
-    lines.push(`    ${dep.from} --> ${dep.to}`);
-  }
-  return lines.join('\n');
-}
-
-export function renderHtmlTemplate(report: DriftReport): string {
-  const { summary, violations, exemptions, targetArchitecture, actualMermaid, passed, durationMs } = report;
-  const projectName = targetArchitecture.name || 'Architecture Target';
-  const targetMermaid = buildTargetMermaid(targetArchitecture);
-
-  const statusColor = passed ? '#2B6E3F' : '#C92A2A';
-  const statusBg = passed ? '#EEF7F1' : '#FDF2F2';
-  const statusBorder = passed ? '#A3D9B5' : '#F09595';
-  const statusText = passed ? 'ARCHITECTURE VERIFIED' : `${violations.length} ARCHITECTURAL DRIFT(S) DETECTED`;
-
-  const criticalCount = violations.filter(v => v.severity === 'critical').length;
-  const warningCount = violations.filter(v => v.severity === 'warning').length;
-
-  const violationsJsonData = JSON.stringify(violations.map((v, i) => ({
-    index: i + 1,
-    id: v.id || `V${i + 1}`,
-    type: v.type,
-    severity: v.severity,
-    sourceFile: v.sourceFile,
-    line: v.line,
-    column: v.column,
-    message: v.message,
-    snippet: v.snippet || '',
-    sourceComponent: v.sourceComponent || '',
-    targetComponent: v.targetComponent || '',
-    rule: v.ruleDesc || v.ruleId || '',
-    suggestion: v.suggestion || '',
-  })));
-
-  const violationsHtml = violations.length === 0
-    ? `<div style="padding: 28px; text-align: center; color: #2B6E3F; background: #EEF7F1; border: 1px solid #A3D9B5; border-radius: 6px; font-family: monospace; font-size: 14px;">
-         ✔ All modules and dependencies conform strictly to target topology and invariants.
-       </div>`
-    : violations.map((v, i) => {
-        const badgeColor = v.severity === 'critical' ? '#C92A2A' : '#D97706';
-        const badgeBg = v.severity === 'critical' ? '#FDF2F2' : '#FEF3C7';
-        const flowLabel = (v.sourceComponent || v.targetComponent)
-          ? `<span class="flow-pill">${escapeHtml(v.sourceComponent || '?')} ➔ ${escapeHtml(v.targetComponent || '?')}</span>`
-          : '';
-
-        return `
-        <div class="violation-card" id="violation-card-${i + 1}"
-             data-violation-id="${v.id || `V${i + 1}`}"
-             data-index="${i + 1}"
-             data-severity="${v.severity}"
-             data-type="${v.type}"
-             data-source-component="${escapeHtml(v.sourceComponent || '')}"
-             data-target-component="${escapeHtml(v.targetComponent || '')}"
-             data-file="${escapeHtml(v.sourceFile)}">
-          <div class="card-header">
-            <div class="card-title-group">
-              <span class="severity-pill" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}33;">
-                ${v.type}
-              </span>
-              ${flowLabel}
-              <strong class="file-loc">
-                ${escapeHtml(v.sourceFile)}:${v.line}:${v.column}
-              </strong>
-            </div>
-            <div class="card-actions">
-              <button type="button" class="btn-action" onclick="locateInDiagram('${escapeHtml(v.sourceComponent || '')}', '${escapeHtml(v.targetComponent || '')}')" title="Highlight in diagram">
-                🔍 Locate
-              </button>
-              <button type="button" class="btn-action btn-ai" onclick="copyAiFixPrompt(${i})" title="Copy AI prompt to clipboard">
-                🤖 Copy AI Fix Prompt
-              </button>
-              <span class="card-index">#${i + 1}</span>
-            </div>
-          </div>
-          <div class="card-message">${escapeHtml(v.message)}</div>
-          ${v.suggestion ? `<div class="card-suggestion">💡 <strong>Remediation:</strong> ${escapeHtml(v.suggestion)}</div>` : ''}
-          ${v.snippet ? `<pre class="code-snippet">${escapeHtml(v.snippet)}</pre>` : ''}
-        </div>
-      `;
-      }).join('\n');
-
-  const exemptionsHtml = exemptions && exemptions.length > 0
-    ? `<div style="margin-top: 32px;">
-         <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #717178; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-           <span>Historical Exemptions (${exemptions.length} debts snapshot in baseline)</span>
-         </h3>
-         ${exemptions.map((e) => `
-           <div class="exemption-card">
-             <span style="color: #2563EB; font-weight: 700;">[EXEMPTED]</span>
-             <strong>${escapeHtml(e.sourceFile)}:${e.line}</strong>
-             <span style="color: #525257;">— ${escapeHtml(e.message)}</span>
-           </div>
-         `).join('\n')}
-       </div>`
-    : '';
-
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SextantDrift — Architecture Drift Report: ${escapeHtml(projectName)}</title>
+  <title>SextantDrift — Architecture Drift Report: SextantDrift</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -151,9 +40,9 @@ export function renderHtmlTemplate(report: DriftReport): string {
     .stamp {
       display: inline-block;
       padding: 6px 14px;
-      border: 2px solid ${statusBorder};
-      background: ${statusBg};
-      color: ${statusColor};
+      border: 2px solid #A3D9B5;
+      background: #EEF7F1;
+      color: #2B6E3F;
       font-weight: 800;
       font-size: 13px;
       letter-spacing: 0.08em;
@@ -588,38 +477,38 @@ export function renderHtmlTemplate(report: DriftReport): string {
           🧭 SextantDrift Visual Inspection Report
         </h1>
         <div style="font-size: 13px; color: #717178; font-family: monospace;">
-          Target: <strong>${escapeHtml(projectName)}</strong> | Generated at: ${new Date().toISOString()} | Scan time: ${durationMs}ms
+          Target: <strong>SextantDrift</strong> | Generated at: 2026-09-19T07:52:03.486Z | Scan time: 645.16ms
         </div>
       </div>
-      <div class="stamp">${statusText}</div>
+      <div class="stamp">ARCHITECTURE VERIFIED</div>
     </div>
 
     <div class="stats-bar">
       <div class="stat-box">
         <div class="stat-label">Files Scanned</div>
-        <div class="stat-value">${summary.totalFiles}</div>
+        <div class="stat-value">133</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Dependencies</div>
-        <div class="stat-value">${summary.totalDependencies}</div>
+        <div class="stat-value">391</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">New Drifts</div>
-        <div class="stat-value" style="color: ${violations.length > 0 ? '#C92A2A' : '#2B6E3F'};">${violations.length}</div>
+        <div class="stat-value" style="color: #2B6E3F;">0</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Critical / Warning</div>
         <div class="stat-value" style="font-size: 18px;">
-          <span style="color: #C92A2A;">${criticalCount}</span> / <span style="color: #D97706;">${warningCount}</span>
+          <span style="color: #C92A2A;">0</span> / <span style="color: #D97706;">0</span>
         </div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Historical Exemptions</div>
-        <div class="stat-value">${summary.exemptedViolations || 0}</div>
+        <div class="stat-value">0</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Scan Latency</div>
-        <div class="stat-value">${durationMs}ms</div>
+        <div class="stat-value">645.16ms</div>
       </div>
     </div>
 
@@ -657,7 +546,38 @@ export function renderHtmlTemplate(report: DriftReport): string {
         <div class="diagram-viewport" id="target-viewport">
           <div class="panzoom-canvas" id="target-canvas">
             <pre class="mermaid" id="target-mermaid">
-${targetMermaid}
+flowchart TD
+    subgraph cli ["CLI Presentation Layer"]
+        CliGate["CLI Gate & Commands"]
+    end
+    subgraph reporting ["Visual Reporting Layer"]
+        WebReport["Visual Report Generator"]
+    end
+    subgraph engine ["Core Engine & Parsing Layer"]
+        CoreFacade["Core Facade API"]
+        SpecParser["Spec & DSL Parser"]
+        InvariantsEngine["Invariants Rule Engine"]
+        ComparatorEngine["Topology Comparator Engine"]
+        BaselineEngine["Baseline & Fingerprint Engine"]
+        StateEngine["State Machine Verifier Engine"]
+        TraceRecorder["Dynamic Trace Recorder"]
+        CausalityEngine["Dynamic Causality Differencer"]
+    end
+    subgraph infrastructure ["AST & Graph Infrastructure Layer"]
+        AstAnalyzer["AST Extractor & Path Resolver"]
+        GraphAlgorithms["Directed Graph & Tarjan SCC"]
+    end
+    subgraph contracts ["Types & Foundations Layer"]
+        CoreContracts["Core Architecture & Report Types"]
+        CoreErrors["Core Configuration Errors"]
+    end
+    cli --> reporting
+    cli --> engine
+    reporting --> engine
+    reporting --> contracts
+    engine --> infrastructure
+    engine --> contracts
+    infrastructure --> contracts
             </pre>
           </div>
           <div class="zoom-hud" id="target-hud">100%</div>
@@ -669,8 +589,8 @@ ${targetMermaid}
         <div class="diagram-header">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-weight: 700;">Actual Code Topology (AST Extracted)</span>
-            <span style="color: ${violations.length > 0 ? '#C92A2A' : '#2B6E3F'}; font-size: 11px; background: ${violations.length > 0 ? '#FDF2F2' : '#EEF7F1'}; padding: 2px 6px; border-radius: 3px; font-family: monospace;">
-              ${violations.length > 0 ? 'DRIFT HIGHLIGHTED' : 'IN COMPLIANCE'}
+            <span style="color: #2B6E3F; font-size: 11px; background: #EEF7F1; padding: 2px 6px; border-radius: 3px; font-family: monospace;">
+              IN COMPLIANCE
             </span>
           </div>
           <div class="diagram-toolbar">
@@ -685,7 +605,55 @@ ${targetMermaid}
         <div class="diagram-viewport" id="actual-viewport">
           <div class="panzoom-canvas" id="actual-canvas">
             <pre class="mermaid" id="actual-mermaid">
-${actualMermaid}
+flowchart TD
+    subgraph cli ["CLI Presentation Layer"]
+        CliGate["CLI Gate & Commands"]
+    end
+    subgraph reporting ["Visual Reporting Layer"]
+        WebReport["Visual Report Generator"]
+    end
+    subgraph engine ["Core Engine & Parsing Layer"]
+        CoreFacade["Core Facade API"]
+        SpecParser["Spec & DSL Parser"]
+        InvariantsEngine["Invariants Rule Engine"]
+        ComparatorEngine["Topology Comparator Engine"]
+        BaselineEngine["Baseline & Fingerprint Engine"]
+        StateEngine["State Machine Verifier Engine"]
+        TraceRecorder["Dynamic Trace Recorder"]
+        CausalityEngine["Dynamic Causality Differencer"]
+    end
+    subgraph infrastructure ["AST & Graph Infrastructure Layer"]
+        AstAnalyzer["AST Extractor & Path Resolver"]
+        GraphAlgorithms["Directed Graph & Tarjan SCC"]
+    end
+    subgraph contracts ["Types & Foundations Layer"]
+        CoreContracts["Core Architecture & Report Types"]
+        CoreErrors["Core Configuration Errors"]
+    end
+
+    CoreFacade --> CoreContracts
+    CoreFacade --> SpecParser
+    CoreFacade --> AstAnalyzer
+    CoreFacade --> GraphAlgorithms
+    CoreFacade --> ComparatorEngine
+    CoreFacade --> InvariantsEngine
+    CoreFacade --> BaselineEngine
+    CoreFacade --> StateEngine
+    CoreFacade --> CausalityEngine
+    CoreFacade --> TraceRecorder
+    CoreFacade --> CoreErrors
+    SpecParser --> CoreContracts
+    SpecParser --> CoreErrors
+    SpecParser --> InvariantsEngine
+    InvariantsEngine --> CoreContracts
+    InvariantsEngine --> AstAnalyzer
+    InvariantsEngine --> CoreErrors
+    ComparatorEngine --> CoreContracts
+    ComparatorEngine --> AstAnalyzer
+    BaselineEngine --> CoreContracts
+    BaselineEngine --> CoreErrors
+    CausalityEngine --> TraceRecorder
+    AstAnalyzer --> CoreContracts
             </pre>
           </div>
           <div class="zoom-hud" id="actual-hud">100%</div>
@@ -698,9 +666,9 @@ ${actualMermaid}
       <div class="toolbar-container">
         <div class="filter-group">
           <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #525257;">Filters:</span>
-          <button type="button" class="filter-btn active" data-filter="all" onclick="setFilter('severity', 'all', this)">All (${violations.length})</button>
-          <button type="button" class="filter-btn" data-filter="critical" onclick="setFilter('severity', 'critical', this)">Critical (${criticalCount})</button>
-          <button type="button" class="filter-btn" data-filter="warning" onclick="setFilter('severity', 'warning', this)">Warning (${warningCount})</button>
+          <button type="button" class="filter-btn active" data-filter="all" onclick="setFilter('severity', 'all', this)">All (0)</button>
+          <button type="button" class="filter-btn" data-filter="critical" onclick="setFilter('severity', 'critical', this)">Critical (0)</button>
+          <button type="button" class="filter-btn" data-filter="warning" onclick="setFilter('severity', 'warning', this)">Warning (0)</button>
         </div>
         <div>
           <input type="search" id="violationSearch" class="search-input" placeholder="Search violation message, file or component..." oninput="applyFilters()" />
@@ -708,10 +676,12 @@ ${actualMermaid}
       </div>
 
       <div id="violations-list">
-        ${violationsHtml}
+        <div style="padding: 28px; text-align: center; color: #2B6E3F; background: #EEF7F1; border: 1px solid #A3D9B5; border-radius: 6px; font-family: monospace; font-size: 14px;">
+         ✔ All modules and dependencies conform strictly to target topology and invariants.
+       </div>
       </div>
 
-      ${exemptionsHtml}
+      
     </div>
 
     <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #E5E2D6; text-align: center; font-size: 12px; color: #94949C; font-family: monospace;">
@@ -722,7 +692,7 @@ ${actualMermaid}
   <div id="toast" class="toast">✔ Copied to clipboard!</div>
 
   <script>
-    const violationsData = ${violationsJsonData};
+    const violationsData = [];
     let currentSeverityFilter = 'all';
 
     // Pan-Zoom State Management
@@ -961,13 +931,13 @@ ${actualMermaid}
         v.suggestion ? "- Remediation: " + v.suggestion : "",
         "",
         "## Offending Code Snippet",
-        "\`\`\`ts",
+        "```ts",
         v.snippet || "// (No code snippet available)",
-        "\`\`\`",
+        "```",
         "",
         "## Task Instructions",
         "Refactor this code to strictly eliminate the architectural bypass/inversion according to the target architecture rules in AGENTS.md / sextant.json. Route dependencies through the designated domain service layer rather than directly coupling.",
-      ].filter(Boolean).join('\\n');
+      ].filter(Boolean).join('\n');
 
       navigator.clipboard.writeText(prompt).then(() => {
         showToast("🤖 AI Fix Prompt copied! Paste to your AI assistant.");
@@ -1061,14 +1031,3 @@ ${actualMermaid}
   </script>
 </body>
 </html>
-`;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
