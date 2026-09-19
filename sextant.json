@@ -96,6 +96,22 @@
       ]
     },
     {
+      "id": "TraceRecorder",
+      "name": "Dynamic Trace Recorder",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/trace/**"
+      ]
+    },
+    {
+      "id": "CausalityEngine",
+      "name": "Dynamic Causality Differencer",
+      "layerId": "engine",
+      "paths": [
+        "packages/core/src/causality/**"
+      ]
+    },
+    {
       "id": "AstAnalyzer",
       "name": "AST Extractor & Path Resolver",
       "layerId": "infrastructure",

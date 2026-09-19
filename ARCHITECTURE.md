@@ -23,6 +23,8 @@ flowchart TD
         ComparatorEngine["Topology Comparator Engine"]
         BaselineEngine["Baseline & Fingerprint Engine"]
         StateEngine["State Machine Verifier Engine"]
+        TraceRecorder["Dynamic Trace Recorder"]
+        CausalityEngine["Dynamic Causality Differencer"]
     end
     subgraph infrastructure ["AST & Graph Infrastructure Layer"]
         AstAnalyzer["AST Extractor & Path Resolver"]
@@ -63,8 +65,11 @@ stateDiagram-v2
     InvariantVerification --> StateMachineVerification: invariants_verified
     InvariantVerification --> FatalError: invariant_rule_error
 
-    StateMachineVerification --> BaselineComparison: states_verified
+    StateMachineVerification --> DynamicTraceVerification: states_verified
     StateMachineVerification --> FatalError: state_syntax_error
+
+    DynamicTraceVerification --> BaselineComparison: trace_verified
+    DynamicTraceVerification --> FatalError: trace_syntax_error
 
     BaselineComparison --> GatePassed: 0_new_drifts
     BaselineComparison --> DriftDetected: drifts_found

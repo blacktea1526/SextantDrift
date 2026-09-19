@@ -28,6 +28,8 @@ import {
   DEFAULT_BASELINE_FILENAME,
 } from './baseline/manager.js';
 import { extractAndVerifyStateDiagrams } from './state/index.js';
+import { extractSequenceDiagrams, diffCausality } from './causality/index.js';
+import type { ExecutionTrace } from './trace/types.js';
 
 export const VERSION = '0.1.0';
 
@@ -52,6 +54,8 @@ export * from './invariants/engine.js';
 export * from './baseline/fingerprint.js';
 export * from './baseline/manager.js';
 export * from './state/index.js';
+export * from './trace/index.js';
+export * from './causality/index.js';
 
 /**
  * Builds Mermaid flowchart representing the actual detected component dependencies,
@@ -274,6 +278,61 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     }
   }
 
+  // G. Dynamic Trace & Causality Verifier
+  const dynamicViolations: ViolationEvidence[] = [];
+  let traceData: ExecutionTrace | undefined = options.trace;
+
+  if (!traceData) {
+    const traceFile = options.tracePath
+      ? path.resolve(rootDir, options.tracePath)
+      : path.resolve(rootDir, '.sextant/trace.json');
+    if (fs.existsSync(traceFile)) {
+      try {
+        const rawJson = fs.readFileSync(traceFile, 'utf-8');
+        traceData = JSON.parse(rawJson);
+      } catch {
+        // Silently ignore malformed trace
+      }
+    }
+  }
+
+  if (traceData && traceData.spans && traceData.spans.length > 0) {
+    const seqDiagrams: any[] = [];
+    for (const relDoc of candidateDocs) {
+      const fullDoc = path.resolve(rootDir, relDoc);
+      if (fs.existsSync(fullDoc)) {
+        const content = fs.readFileSync(fullDoc, 'utf-8');
+        if (content.includes('sequenceDiagram')) {
+          seqDiagrams.push(...extractSequenceDiagrams(content, relDoc));
+        }
+      }
+    }
+
+    if (seqDiagrams.length > 0) {
+      const drifts = diffCausality(seqDiagrams, traceData);
+      for (const d of drifts) {
+        dynamicViolations.push({
+          id: d.id,
+          type: d.type,
+          severity: d.severity,
+          message: d.message,
+          sourceFile: d.sourceDoc,
+          line: d.line,
+          column: 1,
+          snippet: d.span
+            ? `${d.span.caller} -> ${d.span.callee}.${d.span.action}`
+            : d.expectedOrder || '',
+          sourceComponent: d.span?.caller,
+          targetComponent: d.span?.callee,
+          targetCall: d.span?.action,
+          traceId: traceData.traceId,
+          spanId: d.span?.spanId,
+          suggestion: d.suggestion,
+        });
+      }
+    }
+  }
+
   // 6. Aggregate violations
   const allViolations: DriftViolation[] = [
     ...bypassViolations,
@@ -282,6 +341,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     ...forbiddenImportViolations,
     ...invariantViolations,
     ...stateViolations,
+    ...dynamicViolations,
   ];
 
   // 7. Ensure every violation has a deterministic semantic fingerprint
@@ -311,6 +371,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     forbiddenImportCount: forbiddenImportViolations.length,
     invariantViolationCount: invariantViolations.length,
     stateViolationCount: stateViolations.length,
+    dynamicViolationCount: dynamicViolations.length,
   };
 
   const actualMermaid = generateActualMermaid(arch, componentGraph, allViolations);

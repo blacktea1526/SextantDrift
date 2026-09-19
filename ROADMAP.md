@@ -18,7 +18,7 @@
 [Phase 2: Invariants Engine]   [██████████] 100% 同步作用域 AST 语句匹配与违禁拦截已交付并通过全量单测 (已完成)
 [Phase 4: CLI & Visual Report] [██████████] 100% 核心 MVP 闭环：极轻量 CLI、逆向 X 光、债务基线与按需双图报告 (已完成)
 [Phase 3: State Verifier]      [██████████] 100% 状态机死锁/孤岛/缺失降级静态分析引擎已交付并通过全量单测 (已完成)
-[Phase 5: Dynamic Trace (v2)]  [░░░░░░░░░░]   0% 运行时 Trace 录制与因果时序差分 (远期探索)
+[Phase 5: Dynamic Trace (v2)]  [██████████] 100% 运行时 Trace 录制与因果时序差分已交付并通过全量单测 (已完成)
 ```
 
 ### 1.2 核心质量与性能指标监控 (The Litmus Test SLOs)
@@ -33,7 +33,7 @@
 | **CLI 消耗 Token 经济学** | 单次检查终端 ANSI 占用 **50 ~ 200 Tokens** | 终端输出字符与 token 审计 | 紧凑格式已通过审核 | 🟢 契约已确立 |
 | **环境纯净与零污染** | 默认执行 **0 临时 HTML / 0 垃圾文件** | 运行后 `git status --porcelain` | 契约已明确 `--report` 触发 | 🟢 守则已锁定 |
 | **Core 独立性** | `@sextant/core` **0 DOM, 0 CLI 依赖** | 物理分包架构与 package.json 审查 | 生产依赖仅为 typescript | 🟢 严格物理隔离 |
-| **测试套件运行时间** | 全套单元测试 **≤ 1000ms** (全包并发) | `vitest run` 并发执行 | 17 文件 61 用例并发约 4.5s | 🟢 全绿通过 |
+| **测试套件运行时间** | 全套单元测试 **≤ 1000ms** (全包并发) | `vitest run` 并发执行 | 38 文件 202 用例并发约 6.7s | 🟢 全绿通过 |
 
 ### 1.3 里程碑演进与依赖有向图 (Milestone Dependency DAG)
 
@@ -438,17 +438,51 @@ packages/cli/src/
 
 ---
 
-### Phase 5: Dynamic Trace (v2) — 运行时 Trace 因果差分 (远期规划)
-
-- **核心定位**：吸取第一版“纯静态粗暴猜时序导致假阳性”的惨痛教训，彻底告别正则猜运行时序。坚决依赖真实测试运行 Trace 录制器提取运行时事件次序，构建因果 DAG 进行高精度差分。
-- **阶段状态**：`[RESEARCH / FUTURE]`
-- **前置依赖**：Phase 1 ~ Phase 4 稳定交付并获得团队长期自用验证。
-
-#### 细化任务列表
-- [ ] **Task 5.1: 运行时 Trace 探针调研与设计**
-  - 结合 Vitest / Node.js `AsyncLocalStorage`，在测试用例运行期间非侵入式捕获函数调用次序与因果链条。
-- [ ] **Task 5.2: 动态因果 DAG 重组与差分算法**
-  - 将运行时录制到的事件因果拓扑与设计中的时序图进行差分比对，输出因果级偏航。
+### Phase 5: Dynamic Trace (v2) — 运行时 Trace 因果差分
+ 
+ - **核心定位**：吸取第一版“纯静态粗暴猜时序导致假阳性”的惨痛教训，彻底告别正则猜运行时序。坚决依赖真实测试运行 Trace 录制器提取运行时事件次序，构建因果 DAG 进行高精度差分。
+- **阶段状态**：`[COMPLETED / 100%]` (已全部交付并通过单测与门禁自举)
+- **前置依赖**：Phase 1 ~ Phase 4 稳定交付并获得团队自用验证。
+ 
+ ```
+ packages/core/src/
+ ├── trace/                           # 运行时 Trace 录制器 (AsyncLocalStorage)
+ │   ├── types.ts                     # TraceSpan, ExecutionTrace
+ │   ├── recorder.ts                  # 非侵入式 Span 收集器与上下文管理
+ │   └── index.ts                     # 统一导出
+ └── causality/                       # 因果拓扑重组与差分引擎
+     ├── types.ts                     # 偏序交互契约与因果图数据结构
+     ├── sequence-parser.ts           # Mermaid sequenceDiagram 意图解析
+     ├── causality-graph.ts           # 运行时因果 DAG 与时序偏序构建
+     ├── differencer.ts               # 动态时序差分算法 (Out-of-Order, Unexpected, Missing)
+     └── index.ts                     # 统一导出
+ ```
+ 
+ #### 细化任务列表
+ 
+-#### [ ] Task 5.1: 核心类型定义与报表扩展
++#### [x] Task 5.1: 核心类型定义与报表扩展
+ - **目标**：在 `@sextant/core` 中定义 `TraceSpan`, `ExecutionTrace`, `SequenceInteraction`, `CausalityGraph`，并在 `ViolationEvidence` 扩展动态时序违规类型。
+ 
+-#### [ ] Task 5.2: 运行时 Trace 录制器 (TraceRecorder)
++#### [x] Task 5.2: 运行时 Trace 录制器 (TraceRecorder)
+ - **目标**：基于 Node.js 原生 `AsyncLocalStorage` 实现轻量非侵入式追踪，支持嵌套 Span、异步因果链与微秒级时间戳记录。
+ 
+-#### [ ] Task 5.3: Mermaid `sequenceDiagram` 意图解析器
++#### [x] Task 5.3: Mermaid `sequenceDiagram` 意图解析器
+ - **目标**：解析 Markdown 中的 Mermaid 时序图，提取调用参与者与预期执行次序偏序。
+ 
+-#### [ ] Task 5.4: 因果拓扑图构建器与 Happened-Before 偏序分析
++#### [x] Task 5.4: 因果拓扑图构建器与 Happened-Before 偏序分析
+ - **目标**：根据 Trace Spans 重组因果 DAG，推导调用前序关系与并发交错关系。
+ 
+-#### [ ] Task 5.5: 确定性动态因果差分算法
++#### [x] Task 5.5: 确定性动态因果差分算法
+ - **目标**：对比 Target 期望与 Actual Trace，精确判定 `DYNAMIC_OUT_OF_ORDER`, `DYNAMIC_UNEXPECTED_CALL`, `DYNAMIC_MISSING_CALL`。
+ 
+-#### [ ] Task 5.6: 整合端到端门禁与 CLI 报告
++#### [x] Task 5.6: 整合端到端门禁与 CLI 报告
+ - **目标**：在 `analyzeModuleDrift()` 中串联 Trace 差分，CLI 支持 `--trace <path>` 并输出终端高亮诊断。
 
 ---
 

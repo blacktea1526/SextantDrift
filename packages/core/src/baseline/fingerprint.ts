@@ -63,6 +63,15 @@ export function computeViolationFingerprint(violation: ViolationEvidence): strin
     const stateId = violation.stateId || 'UNKNOWN';
     const diagram = violation.diagramTitle || '';
     rawKey = `${violation.type}:${normFile}:${diagram}:${stateId}`;
+  } else if (
+    violation.type === 'DYNAMIC_OUT_OF_ORDER' ||
+    violation.type === 'DYNAMIC_UNEXPECTED_CALL' ||
+    violation.type === 'DYNAMIC_MISSING_CALL'
+  ) {
+    const caller = violation.sourceComponent || 'UNKNOWN';
+    const callee = violation.targetComponent || 'UNKNOWN';
+    const action = violation.targetCall || normSnippet;
+    rawKey = `${violation.type}:${normFile}:${caller}->${callee}:${action}`;
   } else {
     rawKey = `${violation.type}:${normFile}:${normSnippet}`;
   }
@@ -86,6 +95,8 @@ export function createBaselineFingerprint(violation: ViolationEvidence): Baselin
     ruleId: violation.ruleId,
     stateId: violation.stateId,
     diagramTitle: violation.diagramTitle,
+    traceId: violation.traceId,
+    action: violation.targetCall,
     description: violation.message,
   };
 }

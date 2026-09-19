@@ -38,6 +38,9 @@ export function formatGitHubSummary(report: DriftReport): string {
   if (summary.stateViolationCount !== undefined && summary.stateViolationCount > 0) {
     lines.push(`| State Machine Violations | ${summary.stateViolationCount} |`);
   }
+  if (summary.dynamicViolationCount !== undefined && summary.dynamicViolationCount > 0) {
+    lines.push(`| Dynamic Causality Violations | ${summary.dynamicViolationCount} |`);
+  }
   lines.push(`| Historical Exemptions | ${exemptedCount} |`);
   lines.push(`| Execution Time | ${report.durationMs}ms |`);
   lines.push('');

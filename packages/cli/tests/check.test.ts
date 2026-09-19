@@ -89,5 +89,74 @@ stateDiagram-v2
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('should detect dynamic out-of-order execution when --trace is provided (Phase 5)', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sextant-trace-test-'));
+
+    try {
+      const mdContent = `
+# System Spec
+\`\`\`mermaid
+flowchart TD
+    subgraph Core ["Core Layer"]
+        MainComp["Main"]
+    end
+\`\`\`
+
+## Checkout Sequence
+\`\`\`mermaid
+sequenceDiagram
+    OrderService->>OrderRepo: save
+    OrderService->>PaymentGateway: charge
+\`\`\`
+`;
+      fs.writeFileSync(path.join(tempDir, 'ARCHITECTURE.md'), mdContent, 'utf-8');
+      fs.mkdirSync(path.join(tempDir, 'src/core'), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, 'src/core/main.ts'), 'export const x = 1;', 'utf-8');
+
+      // Trace where charge starts BEFORE save completes
+      const traceJson = {
+        version: '1.0.0',
+        traceId: 'trace-cli-test',
+        timestamp: new Date().toISOString(),
+        spans: [
+          {
+            spanId: 's_charge',
+            traceId: 'trace-cli-test',
+            caller: 'OrderService',
+            callee: 'PaymentGateway',
+            action: 'charge',
+            startTime: 20,
+            endTime: 40,
+            status: 'ok',
+          },
+          {
+            spanId: 's_save',
+            traceId: 'trace-cli-test',
+            caller: 'OrderService',
+            callee: 'OrderRepo',
+            action: 'save',
+            startTime: 50,
+            endTime: 70,
+            status: 'ok',
+          },
+        ],
+      };
+      fs.mkdirSync(path.join(tempDir, '.sextant'), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, '.sextant/trace.json'), JSON.stringify(traceJson), 'utf-8');
+
+      const code = await runCheck(tempDir);
+      expect(code).toBe(EXIT_CODE_DRIFT_DETECTED);
+
+      const logged = consoleLogSpy.mock.calls.map((c: any[]) => c.join(' ')).join('\n');
+      expect(logged).toContain('DYNAMIC_OUT_OF_ORDER');
+      expect(logged).toContain('PaymentGateway');
+      expect(logged).toContain('1 dynamic');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 

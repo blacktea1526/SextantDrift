@@ -86,6 +86,9 @@ export function formatTerminalReport(
   if (summary.stateViolationCount && summary.stateViolationCount > 0) {
     summaryTokens.push(`${summary.stateViolationCount} state`);
   }
+  if (summary.dynamicViolationCount && summary.dynamicViolationCount > 0) {
+    summaryTokens.push(`${summary.dynamicViolationCount} dynamic`);
+  }
 
   lines.push('');
   lines.push(pc.dim(`  Summary: ${summaryTokens.join(', ')}`));

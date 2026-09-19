@@ -10,7 +10,10 @@ export interface ViolationEvidence {
     | 'INVARIANT_BROKEN'
     | 'STATE_DEADLOCK'
     | 'STATE_UNREACHABLE'
-    | 'STATE_MISSING_FALLBACK';
+    | 'STATE_MISSING_FALLBACK'
+    | 'DYNAMIC_OUT_OF_ORDER'
+    | 'DYNAMIC_UNEXPECTED_CALL'
+    | 'DYNAMIC_MISSING_CALL';
   severity: 'critical' | 'warning' | 'info';
   message: string;
   sourceFile: string;
@@ -26,6 +29,8 @@ export interface ViolationEvidence {
   targetCall?: string;
   stateId?: string;
   diagramTitle?: string;
+  traceId?: string;
+  spanId?: string;
   suggestion?: string;
   fingerprint?: string;
 }
@@ -43,6 +48,8 @@ export interface BaselineFingerprint {
   ruleId?: string;
   stateId?: string;
   diagramTitle?: string;
+  traceId?: string;
+  action?: string;
   description?: string;
 }
 
@@ -65,6 +72,7 @@ export interface DriftSummary {
   forbiddenImportCount: number;
   invariantViolationCount: number;
   stateViolationCount?: number;
+  dynamicViolationCount?: number;
 }
 
 export interface DriftReport {
@@ -83,5 +91,7 @@ export interface AnalyzeOptions {
   specPath?: string;
   tsconfigPath?: string;
   baselinePath?: string;
+  tracePath?: string;
+  trace?: any; // ExecutionTrace
   files?: string[];
 }

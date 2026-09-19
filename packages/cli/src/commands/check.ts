@@ -11,6 +11,7 @@ export interface CheckOptions {
   config?: string;
   baseline?: string;
   tsconfig?: string;
+  trace?: string;
   json?: boolean;
   strict?: boolean;
   report?: boolean | string;
@@ -33,6 +34,7 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
       specPath: options.config,
       tsconfigPath: options.tsconfig,
       baselinePath: options.baseline,
+      tracePath: options.trace,
     });
 
     if (options.strict && report.passed) {
