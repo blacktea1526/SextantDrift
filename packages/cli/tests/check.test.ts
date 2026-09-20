@@ -36,6 +36,7 @@ describe('CLI check Command (Task 4.2)', () => {
     const logged = consoleLogSpy.mock.calls.map((c: any[]) => c.join(' ')).join('\n');
     expect(logged).toContain('architectural drift');
     expect(logged).toContain('CRITICAL_BYPASS');
+    expect(logged).toContain('Architecture Container Tiers (Level 2)');
   });
 
   it('should output machine-readable JSON when --json is passed', async () => {

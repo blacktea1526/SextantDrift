@@ -77,10 +77,10 @@ describe('Enterprise-Scale Architecture Benchmark & Stress Testing (Option B)', 
       expect(hasPresToDom).toBe(true);
       expect(hasDomToInfra).toBe(true);
 
-      // Verify Mermaid spec generated in ARCHITECTURE.md
+      // Verify C4 spec generated in ARCHITECTURE.md
       const mdContent = fs.readFileSync(architectureMdPath, 'utf-8');
-      expect(mdContent).toContain('```mermaid');
-      expect(mdContent).toContain('flowchart TD');
+      expect(mdContent).not.toContain('flowchart TD');
+      expect(mdContent).toContain('C4 Architecture Overview');
       expect(mdContent).toContain('presentation');
       expect(mdContent).toContain('domain');
       expect(mdContent).toContain('infrastructure');

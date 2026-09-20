@@ -10,6 +10,7 @@ export interface ReportOptions {
   tsconfig?: string;
   baseline?: string;
   json?: boolean;
+  lang?: 'zh' | 'en';
 }
 
 /**
@@ -33,7 +34,8 @@ export async function runReport(
     });
 
     const { generateHtmlReport } = await import('@sextant/web-report');
-    const html = generateHtmlReport(report);
+    const lang = options.lang === 'en' ? 'en' : 'zh';
+    const html = generateHtmlReport(report, { lang });
 
     fs.writeFileSync(outputPath, html, 'utf-8');
 

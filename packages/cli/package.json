@@ -3,9 +3,29 @@
   "version": "0.1.0",
   "description": "SextantDrift CLI — Command-line interface and CI quality gate",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "sextant-drift": "./dist/bin/sextant-drift.js"
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blacktea1526/SextantDriftV03.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "cli",
+    "architecture-linter",
+    "drift-detector",
+    "c4-model",
+    "ci-gate"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run"

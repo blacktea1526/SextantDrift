@@ -1,8 +1,27 @@
 import pc from 'picocolors';
-import { DriftReport, DriftViolation } from '@sextant/core';
+import { DriftReport, DriftViolation, C4GraphContainer } from '@sextant/core';
 
 export interface TerminalFormatOptions {
   strict?: boolean;
+}
+
+/**
+ * Formats Level 2 Container Tiers into a high-visibility, clean health matrix.
+ */
+export function formatContainerTierMatrix(containers: C4GraphContainer[]): string {
+  const sorted = [...containers].sort((a, b) => a.order - b.order);
+  const rows: string[] = [];
+  rows.push(pc.cyan('  ── Architecture Container Tiers (Level 2) ──────────────────'));
+  for (const c of sorted) {
+    const isDrift = c.status === 'drift';
+    const statusIcon = isDrift ? pc.red('✖ DRIFT') : pc.green('✔ OK');
+    const layerTag = pc.bold(`L${c.order}: ${c.id.padEnd(14)}`);
+    const compCount = `${c.componentIds.length} comp(s)`.padEnd(11);
+    const tech = pc.dim(`[${c.technology || 'module'}]`);
+    rows.push(`  ${layerTag} ${compCount} ${statusIcon.padEnd(10)} ${tech}`);
+  }
+  rows.push(pc.cyan('  ────────────────────────────────────────────────────────────'));
+  return rows.join('\n');
 }
 
 /**
@@ -71,6 +90,12 @@ export function formatTerminalReport(
       } detected${exemptedCount > 0 ? ` (${exemptedCount} historical debt(s) exempted)` : ''}:`
     )
   );
+
+  if (report.graphData?.containers && report.graphData.containers.length > 0) {
+    lines.push('');
+    lines.push(formatContainerTierMatrix(report.graphData.containers));
+    lines.push('');
+  }
 
   for (const v of violations) {
     lines.push(formatViolation(v));

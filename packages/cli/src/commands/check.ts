@@ -17,6 +17,7 @@ export interface CheckOptions {
   report?: boolean | string;
   githubSummary?: boolean;
   filter?: string;
+  lang?: 'zh' | 'en';
 }
 
 /**
@@ -63,7 +64,8 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
 
       try {
         const { generateHtmlReport } = await import('@sextant/web-report');
-        const html = generateHtmlReport(report);
+        const lang = options.lang === 'en' ? 'en' : 'zh';
+        const html = generateHtmlReport(report, { lang });
         fs.writeFileSync(absReportPath, html, 'utf-8');
 
         if (!options.json) {

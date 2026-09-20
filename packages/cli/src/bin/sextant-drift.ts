@@ -20,6 +20,7 @@ cli
   .option('--report [output]', 'Generate standalone dual-diagram HTML inspection report')
   .option('--github-summary', 'Output markdown report to GITHUB_STEP_SUMMARY')
   .option('--filter <package>', 'Filter target Monorepo package directory')
+  .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -36,6 +37,7 @@ cli
   .option('--report [output]', 'Generate standalone dual-diagram HTML inspection report')
   .option('--github-summary', 'Output markdown report to GITHUB_STEP_SUMMARY')
   .option('--filter <package>', 'Filter target Monorepo package directory')
+  .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -68,6 +70,7 @@ cli
   .option('-o, --output <path>', 'Custom output HTML file path (default: drift-report.html)')
   .option('-b, --baseline <path>', 'Path to custom baseline.json')
   .option('-t, --tsconfig <path>', 'Path to tsconfig.json')
+  .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
   .option('--json', 'Output JSON')
   .action(async (dir, options) => {
     const code = await runReport(dir, options);

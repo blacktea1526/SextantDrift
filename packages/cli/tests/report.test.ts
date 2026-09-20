@@ -27,14 +27,23 @@ describe('CLI report Command & --report Flag (Task 4.5)', () => {
     fs.rmSync(tmpReportDir, { recursive: true, force: true });
   });
 
-  it('should generate standalone HTML report using runReport command', async () => {
+  it('should generate standalone HTML report using runReport command (defaulting to Chinese)', async () => {
     const code = await runReport(cleanAppPath, { output: tmpReportFile });
     expect(code).toBe(EXIT_CODE_SUCCESS);
     expect(fs.existsSync(tmpReportFile)).toBe(true);
 
     const html = fs.readFileSync(tmpReportFile, 'utf-8');
     expect(html).toContain('<!DOCTYPE html>');
-    expect(html).toContain('SextantDrift Visual Inspection Report');
+    expect(html).toContain('SextantDrift');
+    expect(html).toContain('架构差分审查报告');
+  });
+
+  it('should support explicit English language in runReport', async () => {
+    const code = await runReport(cleanAppPath, { output: tmpReportFile, lang: 'en' });
+    expect(code).toBe(EXIT_CODE_SUCCESS);
+    const html = fs.readFileSync(tmpReportFile, 'utf-8');
+    expect(html).toContain('Architecture Drift Report');
+    expect(html).toContain('ARCHITECTURE VERIFIED');
   });
 
   it('should generate report on-demand when --report is passed to check command', async () => {

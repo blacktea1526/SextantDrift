@@ -57,11 +57,11 @@ describe('CLI init Command (Task 4.3 Reverse X-Ray)', () => {
     expect(config.allowDependencies).toHaveLength(2);
 
     const archMd = fs.readFileSync(archMdPath, 'utf-8');
-    expect(archMd).toContain('```mermaid');
-    expect(archMd).toContain('flowchart TD');
-    expect(archMd).toContain('subgraph presentation');
-    expect(archMd).toContain('subgraph domain');
-    expect(archMd).toContain('subgraph infrastructure');
+    expect(archMd).not.toContain('flowchart TD');
+    expect(archMd).toContain('C4 Architecture Overview');
+    expect(archMd).toContain('presentation');
+    expect(archMd).toContain('domain');
+    expect(archMd).toContain('infrastructure');
   });
 
   it('should not overwrite existing sextant.json without --force', async () => {

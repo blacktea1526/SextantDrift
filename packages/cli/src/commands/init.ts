@@ -172,14 +172,31 @@ export async function runInit(
       }
     }
 
+    const containers = layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      order: l.order,
+      technology: 'TypeScript Module',
+      type: l.id === 'presentation' ? 'ui' : l.id === 'domain' ? 'service' : 'database',
+    }));
+
     const sextantConfig = {
       $schema: 'https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json',
       name: projectName,
       version: '1.0.0',
-      description: `Architecture boundary specification for ${projectName}`,
+      description: `C4 Architecture boundary specification for ${projectName}`,
+      containers,
       layers,
-      components: detectedComponents,
-      allowDependencies,
+      components: detectedComponents.map((c) => ({
+        ...c,
+        technology: 'TypeScript',
+        description: `${c.name} module`,
+      })),
+      allowDependencies: allowDependencies.map((d) => ({
+        ...d,
+        protocol: 'imports',
+        description: `Allow calls from ${d.from} to ${d.to}`,
+      })),
       invariants: [
         {
           id: 'NO_DIRECT_INFRA_IN_UI',
@@ -195,30 +212,28 @@ export async function runInit(
 
     fs.writeFileSync(sextantConfigPath, JSON.stringify(sextantConfig, null, 2), 'utf-8');
 
-    // Generate companion ARCHITECTURE.md
-    const mermaidLines: string[] = ['flowchart TD'];
-    for (const layer of layers) {
-      mermaidLines.push(`    subgraph ${layer.id} ["${layer.name}"]`);
-      const comps = detectedComponents.filter((c) => c.layerId === layer.id);
-      for (const comp of comps) {
-        mermaidLines.push(`        ${comp.id}["${comp.name}"]`);
-      }
-      mermaidLines.push('    end');
-    }
-    for (const dep of allowDependencies) {
-      mermaidLines.push(`    ${dep.from} --> ${dep.to}`);
-    }
-
-    const archMdContent = `# ${projectName} — Architecture Specification
+    // Generate companion ARCHITECTURE.md with clean C4 Model specification
+    const archMdContent = `# ${projectName} — Architecture Specification (C4 Model)
 
 > This document is automatically generated and synchronized by SextantDrift Reverse X-Ray.
 > Single source of truth: \`sextant.json\`
 
-## 1. Target Architecture Topology
+## 1. C4 Architecture Overview
 
-\`\`\`mermaid
-${mermaidLines.join('\n')}
-\`\`\`
+### Containers & Architectural Tiers
+| Tier / Container | Order | Role / Type | Technology |
+| :--- | :--- | :--- | :--- |
+${layers.map((l) => `| **${l.id}** (${l.name}) | Layer ${l.order} | Tier | TypeScript Module |`).join('\n')}
+
+### Component Topology & Physical Mapping
+| Component ID | Container | Mapped Paths |
+| :--- | :--- | :--- |
+${detectedComponents.map((c) => `| \`${c.id}\` | ${c.layerId} | \`${c.paths.join(', ')}\` |`).join('\n')}
+
+### Allowed Architectural Dependency Flow
+| From | To | Protocol | Intent |
+| :--- | :--- | :--- | :--- |
+${allowDependencies.map((d) => `| \`${d.from}\` | \`${d.to}\` | imports | Cascades downward |`).join('\n')}
 
 ## 2. Invariants and Architectural Rules
 
@@ -233,7 +248,7 @@ ${mermaidLines.join('\n')}
     } else {
       console.log(pc.green(`✔ Architecture initialized successfully (Reverse X-Ray):`));
       console.log(pc.cyan(`  - ${path.relative(process.cwd(), sextantConfigPath)} (Specification Single Source of Truth)`));
-      console.log(pc.cyan(`  - ${path.relative(process.cwd(), architectureMdPath)} (Read-only Mermaid Architecture Document)`));
+      console.log(pc.cyan(`  - ${path.relative(process.cwd(), architectureMdPath)} (Read-only C4 Architecture Document)`));
       console.log(pc.dim('\nRun "npx sextant-drift check" to verify code conformance.'));
     }
 
