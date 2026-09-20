@@ -17,6 +17,25 @@
     "test:coverage": "vitest run --coverage",
     "bench": "vitest run tests/benchmark/"
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blacktea1526/SextantDriftV03.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "architecture",
+    "drift-detection",
+    "c4-model",
+    "ast",
+    "invariants",
+    "mermaid"
+  ],
   "dependencies": {
     "typescript": "^5.6.3",
     "yaml": "^2.4.2"

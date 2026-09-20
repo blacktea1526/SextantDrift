@@ -29,14 +29,37 @@ export function globToRegExp(glob: string): RegExp {
   return new RegExp(`^${pattern}$`);
 }
 
+const patternRegexCache = new Map<string, RegExp>();
+
+export function clearPatternRegexCache(): void {
+  patternRegexCache.clear();
+}
+
+/**
+ * Returns cached compiled RegExp for a glob pattern
+ */
+export function getCachedGlobRegExp(glob: string): RegExp {
+  let reg = patternRegexCache.get(glob);
+  if (!reg) {
+    reg = globToRegExp(glob);
+    patternRegexCache.set(glob, reg);
+  }
+  return reg;
+}
+
 /**
  * Checks if a file path matches any of the glob patterns
  */
 export function matchesPatterns(filePath: string, patterns: string[]): boolean {
   const normalized = filePath.split('\\').join('/');
   for (const pattern of patterns) {
-    const reg = globToRegExp(pattern);
-    if (reg.test(normalized)) {
+    const reg = getCachedGlobRegExp(pattern);
+    if (
+      reg.test(normalized) ||
+      reg.test(normalized + '/index.ts') ||
+      reg.test(normalized + '/index.js') ||
+      reg.test(normalized + '/index')
+    ) {
       return true;
     }
     // Also test stripped extension if pattern has no extension
@@ -49,6 +72,7 @@ export function matchesPatterns(filePath: string, patterns: string[]): boolean {
   }
   return false;
 }
+
 
 /**
  * Finds the component that owns a given file path based on components' paths.

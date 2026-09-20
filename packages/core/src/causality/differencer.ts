@@ -7,10 +7,13 @@ import type { ExecutionTrace, TraceSpan } from '../trace/types.js';
 import type { SequenceDiagramSpec, SequenceInteraction, DynamicCausalityDrift } from './types.js';
 
 function isActionMatching(actualAction: string, expectedMessage: string): boolean {
+  if (!actualAction || !expectedMessage) return false;
   const cleanMsg = expectedMessage.split('(')[0].trim().toLowerCase();
   const cleanActual = actualAction.split('(')[0].trim().toLowerCase();
+  if (!cleanMsg || !cleanActual) return false;
   return cleanActual === cleanMsg || cleanMsg.includes(cleanActual) || cleanActual.includes(cleanMsg);
 }
+
 
 /**
  * Checks if span B is a child or descendant of span A.

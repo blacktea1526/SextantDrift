@@ -34,4 +34,18 @@ describe('C4 Noise Filter', () => {
     expect(isNoiseFile('src/common/logger.ts', components)).toBe(true);
     expect(isNoiseFile('src/services/user.service.ts', components)).toBe(false);
   });
+
+  it('should match normalized paths resolving to index.ts or index.js', () => {
+    const singleIndexComp: Component[] = [
+      {
+        id: 'CoreFacade',
+        name: 'Core Facade API',
+        layerId: 'engine',
+        paths: ['packages/core/src/index.ts'],
+      },
+    ];
+    // When path resolver normalizes 'packages/core/src/index.ts' to 'packages/core/src'
+    expect(findComponentForFile('packages/core/src', singleIndexComp)?.id).toBe('CoreFacade');
+    expect(findComponentForFile('packages/core/src/index.ts', singleIndexComp)?.id).toBe('CoreFacade');
+  });
 });

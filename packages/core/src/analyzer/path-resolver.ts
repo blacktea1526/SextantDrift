@@ -57,6 +57,49 @@ export function getPackageName(specifier: string): string {
   return specifier.split('/')[0];
 }
 
+const workspacePackageCache = new Map<string, Map<string, string>>();
+
+export function clearWorkspacePackageCache(): void {
+  workspacePackageCache.clear();
+}
+
+/**
+ * Discovers and caches monorepo workspace packages from packages/*
+ */
+export function loadWorkspacePackages(rootDir: string): Map<string, string> {
+  const cached = workspacePackageCache.get(rootDir);
+  if (cached) return cached;
+
+  const pkgMap = new Map<string, string>();
+  const packagesDir = path.resolve(rootDir, 'packages');
+  if (fs.existsSync(packagesDir)) {
+    try {
+      const pkgEntries = fs.readdirSync(packagesDir, { withFileTypes: true });
+      for (const entry of pkgEntries) {
+        if (entry.isDirectory()) {
+          const pkgJsonPath = path.join(packagesDir, entry.name, 'package.json');
+          if (fs.existsSync(pkgJsonPath)) {
+            const rawPkg = fs.readFileSync(pkgJsonPath, 'utf-8');
+            const pkgJson = JSON.parse(rawPkg);
+            if (pkgJson.name) {
+              const srcIndex = path.join('packages', entry.name, 'src', 'index.ts');
+              const candidate = fs.existsSync(path.resolve(rootDir, srcIndex))
+                ? srcIndex
+                : path.join('packages', entry.name, pkgJson.main || 'src/index.ts');
+              pkgMap.set(pkgJson.name, normalizePath(candidate));
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore read errors
+    }
+  }
+
+  workspacePackageCache.set(rootDir, pkgMap);
+  return pkgMap;
+}
+
 /**
  * Resolves a module specifier to an internal relative file path or external package
  */
@@ -126,10 +169,21 @@ export function resolveModulePath(
     }
   }
 
-  // 4. Otherwise, it is an external package
+  // 4. Monorepo workspace package resolution (e.g. @sextant/core -> packages/core/src/index.ts)
+  const workspacePkgs = loadWorkspacePackages(rootDir);
+  const matchedTarget = workspacePkgs.get(rawSpecifier);
+  if (matchedTarget) {
+    return {
+      type: 'internal',
+      targetPath: matchedTarget,
+    };
+  }
+
+  // 5. Otherwise, it is an external package
   return {
     type: 'external',
     packageName: getPackageName(rawSpecifier),
     rawSpecifier,
   };
 }
+

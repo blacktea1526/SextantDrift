@@ -59,4 +59,27 @@ export async function loadRepo() {
       line: 8,
     });
   });
+
+  it('should capture no-substitution template literals for require and dynamic import', () => {
+    const code = `
+const service = require(\`./services/auth.service.js\`);
+export async function init() {
+  const mod = await import(\`./dynamic/loader.js\`);
+  return { service, mod };
+}
+`;
+    const evidences = extractDependenciesFromSource('src/app.ts', code);
+    expect(evidences).toHaveLength(2);
+    expect(evidences[0]).toMatchObject({
+      rawSpecifier: './services/auth.service.js',
+      kind: 'require',
+      line: 2,
+    });
+    expect(evidences[1]).toMatchObject({
+      rawSpecifier: './dynamic/loader.js',
+      kind: 'dynamic-import',
+      line: 4,
+    });
+  });
 });
+

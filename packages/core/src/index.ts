@@ -28,7 +28,9 @@ import {
   DEFAULT_BASELINE_FILENAME,
 } from './baseline/manager.js';
 import { extractAndVerifyStateDiagrams } from './state/index.js';
-import { extractSequenceDiagrams, diffCausality } from './causality/index.js';
+import { extractSequenceDiagrams, diffCausality, SequenceDiagramSpec } from './causality/index.js';
+import { buildC4GraphData } from './c4/index.js';
+import { generateActualMermaid, generateUnifiedMermaid } from './parser/mermaid-generator.js';
 import type { ExecutionTrace } from './trace/types.js';
 
 export const VERSION = '0.1.0';
@@ -37,6 +39,7 @@ export * from './types/index.js';
 export * from './errors/config-error.js';
 export * from './parser/json-spec-parser.js';
 export * from './parser/mermaid-adapter.js';
+export * from './parser/mermaid-generator.js';
 export * from './parser/spec-resolver.js';
 export * from './analyzer/file-scanner.js';
 export * from './analyzer/ast-extractor.js';
@@ -56,62 +59,8 @@ export * from './baseline/manager.js';
 export * from './state/index.js';
 export * from './trace/index.js';
 export * from './causality/index.js';
+export * from './c4/index.js';
 
-/**
- * Builds Mermaid flowchart representing the actual detected component dependencies,
- * annotating violations with red warning lines.
- */
-export function generateActualMermaid(
-  arch: TargetArchitecture,
-  componentGraph: DirectedGraph,
-  violations: ViolationEvidence[]
-): string {
-  const lines: string[] = ['flowchart TD'];
-
-  // Add layers and components
-  const sortedLayers = [...arch.layers].sort((a, b) => a.order - b.order);
-  for (const layer of sortedLayers) {
-    lines.push(`    subgraph ${layer.id} ["${layer.name}"]`);
-    const layerComps = arch.components.filter((c) => c.layerId === layer.id);
-    for (const comp of layerComps) {
-      lines.push(`        ${comp.id}["${comp.name}"]`);
-    }
-    lines.push('    end');
-  }
-
-  lines.push('');
-
-  // Collect violating component pairs
-  const violatingEdges = new Set<string>();
-  for (const v of violations) {
-    if (v.sourceComponent && v.targetComponent) {
-      violatingEdges.add(`${v.sourceComponent}->${v.targetComponent}`);
-    }
-  }
-
-  // Add actual edges
-  const edges = componentGraph.getEdges();
-  let edgeIndex = 0;
-  const violatingIndices: number[] = [];
-
-  for (const edge of edges) {
-    const isViolating = violatingEdges.has(`${edge.from}->${edge.to}`);
-    if (isViolating) {
-      lines.push(`    ${edge.from} -.->|DRIFT!| ${edge.to}`);
-      violatingIndices.push(edgeIndex);
-    } else {
-      lines.push(`    ${edge.from} --> ${edge.to}`);
-    }
-    edgeIndex++;
-  }
-
-  // Style violating edges red
-  for (const idx of violatingIndices) {
-    lines.push(`    linkStyle ${idx} stroke:#E5484D,stroke-width:2px,color:#E5484D;`);
-  }
-
-  return lines.join('\n');
-}
 
 /**
  * Main Pure Analysis Entrypoint.
@@ -146,6 +95,8 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
   }
 
   let totalDependencies = 0;
+  const componentFileCounts = new Map<string, number>();
+  const fileContentMap = new Map<string, string>();
 
   // 4. Extract dependencies from each file
   for (const relPath of filePaths) {
@@ -153,8 +104,13 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     if (!fs.existsSync(fullPath)) continue;
 
     const content = fs.readFileSync(fullPath, 'utf-8');
+    fileContentMap.set(relPath, content);
     const evidences = extractDependenciesFromSource(relPath, content);
     const sourceComp = findComponentForFile(relPath, arch.components);
+
+    if (sourceComp) {
+      componentFileCounts.set(sourceComp.id, (componentFileCounts.get(sourceComp.id) || 0) + 1);
+    }
 
     for (const evidence of evidences) {
       totalDependencies++;
@@ -233,6 +189,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
           rootDir,
           filePaths,
           rules: arch.invariants,
+          fileContentMap,
         })
       : [];
 
@@ -297,7 +254,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
   }
 
   if (traceData && traceData.spans && traceData.spans.length > 0) {
-    const seqDiagrams: any[] = [];
+    const seqDiagrams: SequenceDiagramSpec[] = [];
     for (const relDoc of candidateDocs) {
       const fullDoc = path.resolve(rootDir, relDoc);
       if (fs.existsSync(fullDoc)) {
@@ -307,6 +264,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
         }
       }
     }
+
 
     if (seqDiagrams.length > 0) {
       const drifts = diffCausality(seqDiagrams, traceData);
@@ -374,7 +332,12 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     dynamicViolationCount: dynamicViolations.length,
   };
 
+  const graphData = buildC4GraphData(arch, componentGraph, allViolations, {
+    componentFileCounts,
+  });
+
   const actualMermaid = generateActualMermaid(arch, componentGraph, allViolations);
+  const unifiedMermaid = generateUnifiedMermaid(arch, componentGraph, allViolations);
   const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
   const hasCritical = newViolations.some((v) => v.severity === 'critical');
   const passed = !hasCritical && newViolations.length === 0;
@@ -386,7 +349,9 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     violations: newViolations,
     exemptions,
     targetArchitecture: arch,
+    graphData,
     actualMermaid,
+    unifiedMermaid,
     durationMs,
   };
 }

@@ -1,4 +1,4 @@
-import { TargetArchitecture } from './architecture.js';
+import { TargetArchitecture, C4SystemContext } from './architecture.js';
 
 export interface ViolationEvidence {
   id: string;
@@ -75,6 +75,71 @@ export interface DriftSummary {
   dynamicViolationCount?: number;
 }
 
+export type C4NodeStatus = 'compliant' | 'drift';
+export type C4EdgeStatus = 'compliant' | 'drift' | 'planned';
+export type C4EdgeViolationType =
+  | 'bypass'
+  | 'inversion'
+  | 'cycle'
+  | 'forbidden_import'
+  | 'invariant_broken'
+  | 'dynamic'
+  | 'state'
+  | 'allowed'
+  | 'planned';
+
+export interface C4GraphNode {
+  id: string;
+  name: string;
+  layerId: string;
+  layerName?: string;
+  containerId?: string;
+  containerName?: string;
+  technology?: string;
+  description?: string;
+  paths: string[];
+  fileCount: number;
+  status: C4NodeStatus;
+  violationCount: number;
+}
+
+export interface C4GraphEdge {
+  id: string;
+  from: string;
+  to: string;
+  status: C4EdgeStatus;
+  type?: C4EdgeViolationType;
+  violations?: string[];
+  violationSummaries?: string[];
+  description?: string;
+  technology?: string;
+  protocol?: string;
+}
+
+export interface C4GraphContainer {
+  id: string;
+  name: string;
+  order: number;
+  description?: string;
+  technology?: string;
+  type?: string;
+  status: 'compliant' | 'drift';
+  componentIds: string[];
+}
+
+export interface C4GraphData {
+  systemName?: string;
+  systemContext?: C4SystemContext;
+  containers: C4GraphContainer[];
+  nodes: C4GraphNode[];
+  edges: C4GraphEdge[];
+  targetEdges: C4GraphEdge[];
+  actualEdges: C4GraphEdge[];
+  containerEdges?: C4GraphEdge[];
+  targetContainerEdges?: C4GraphEdge[];
+  actualContainerEdges?: C4GraphEdge[];
+}
+
 export interface DriftReport {
   passed: boolean;
   exitCode: 0 | 1 | 2;
@@ -82,7 +147,11 @@ export interface DriftReport {
   violations: DriftViolation[];
   exemptions?: DriftViolation[];
   targetArchitecture: TargetArchitecture;
-  actualMermaid: string;
+  graphData: C4GraphData;
+  /** @deprecated Kept for backward compatibility */
+  actualMermaid?: string;
+  /** @deprecated Kept for backward compatibility */
+  unifiedMermaid?: string;
   durationMs: number;
 }
 

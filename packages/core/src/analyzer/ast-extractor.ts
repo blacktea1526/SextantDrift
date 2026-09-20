@@ -12,22 +12,24 @@ export interface ImportEvidence {
   snippet: string;
 }
 
+function isModuleStringLike(node: ts.Node): node is ts.StringLiteral | ts.NoSubstitutionTemplateLiteral {
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
+}
+
 /**
- * Extracts all module dependencies from a TypeScript/JavaScript source text
+ * Extracts all module dependencies from a TypeScript/JavaScript source text or parsed SourceFile
  * using the official TypeScript Compiler API.
  */
 export function extractDependenciesFromSource(
   sourceFilePath: string,
-  sourceText: string
+  sourceInput: string | ts.SourceFile
 ): ImportEvidence[] {
-  const sourceFile = ts.createSourceFile(
-    sourceFilePath,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true
-  );
+  const sourceFile =
+    typeof sourceInput === 'string'
+      ? ts.createSourceFile(sourceFilePath, sourceInput, ts.ScriptTarget.Latest, true)
+      : sourceInput;
 
-  const lines = sourceText.split('\n');
+  const lines = sourceFile.text.split('\n');
   const evidences: ImportEvidence[] = [];
 
   function getLineSnippet(lineNumber: number): string {
@@ -37,7 +39,7 @@ export function extractDependenciesFromSource(
   function visit(node: ts.Node) {
     // 1. Static import declarations: import ... from '...'
     if (ts.isImportDeclaration(node)) {
-      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      if (node.moduleSpecifier && isModuleStringLike(node.moduleSpecifier)) {
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
         const isTypeOnly = node.importClause?.isTypeOnly ?? false;
         evidences.push({
@@ -54,7 +56,7 @@ export function extractDependenciesFromSource(
 
     // 2. Export-from declarations: export * from '...' or export { X } from '...'
     if (ts.isExportDeclaration(node)) {
-      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      if (node.moduleSpecifier && isModuleStringLike(node.moduleSpecifier)) {
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
         const isTypeOnly = node.isTypeOnly;
         evidences.push({
@@ -74,7 +76,7 @@ export function extractDependenciesFromSource(
       // Dynamic import: import('...')
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         const firstArg = node.arguments[0];
-        if (firstArg && ts.isStringLiteral(firstArg)) {
+        if (firstArg && isModuleStringLike(firstArg)) {
           const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
           evidences.push({
             sourceFile: sourceFilePath,
@@ -91,7 +93,7 @@ export function extractDependenciesFromSource(
       // require('...')
       if (ts.isIdentifier(node.expression) && node.expression.text === 'require') {
         const firstArg = node.arguments[0];
-        if (firstArg && ts.isStringLiteral(firstArg)) {
+        if (firstArg && isModuleStringLike(firstArg)) {
           const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
           evidences.push({
             sourceFile: sourceFilePath,
@@ -112,3 +114,4 @@ export function extractDependenciesFromSource(
   visit(sourceFile);
   return evidences;
 }
+
