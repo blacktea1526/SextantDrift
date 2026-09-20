@@ -1,64 +1,111 @@
-import { DriftReport, DriftViolation } from '@sextant/core';
+import { DriftReport, C4GraphData, buildC4GraphData, DirectedGraph } from '@sextant/core';
+import { SEXTANT_LOGO_SVG } from './assets/logo.js';
+import { getTranslations, I18N_DICTIONARIES, Lang, Translations } from './i18n.js';
+import { renderC4Svg, renderC4ContainerSvg } from './c4-svg-renderer.js';
+import { getReportCss } from './styles/report.css.js';
+import { getReportScript } from './scripts/report.js.js';
+import { escapeHtml, safeJsonStringify } from './utils/security.js';
 
-function buildTargetMermaid(arch: any): string {
-  if (arch.mermaid) return arch.mermaid;
-  const lines: string[] = ['flowchart TD'];
-  const sortedLayers = [...(arch.layers || [])].sort((a: any, b: any) => a.order - b.order);
-  for (const layer of sortedLayers) {
-    lines.push(`    subgraph ${layer.id} ["${layer.name}"]`);
-    const layerComps = (arch.components || []).filter((c: any) => c.layerId === layer.id);
-    for (const comp of layerComps) {
-      lines.push(`        ${comp.id}["${comp.name}"]`);
-    }
-    lines.push('    end');
-  }
-  for (const dep of (arch.allowDependencies || [])) {
-    lines.push(`    ${dep.from} --> ${dep.to}`);
-  }
-  return lines.join('\n');
+export { escapeHtml, safeJsonStringify };
+
+export interface RenderOptions {
+  lang?: Lang;
 }
 
-export function renderHtmlTemplate(report: DriftReport): string {
-  const { summary, violations, exemptions, targetArchitecture, actualMermaid, passed, durationMs } = report;
-  const projectName = targetArchitecture.name || 'Architecture Target';
-  const targetMermaid = buildTargetMermaid(targetArchitecture);
+export function renderHtmlTemplate(report: DriftReport, options?: RenderOptions): string {
+  const lang = options?.lang || 'zh';
+  const t: Translations = getTranslations(lang);
 
-  const statusColor = passed ? '#2B6E3F' : '#C92A2A';
-  const statusBg = passed ? '#EEF7F1' : '#FDF2F2';
-  const statusBorder = passed ? '#A3D9B5' : '#F09595';
-  const statusText = passed ? 'ARCHITECTURE VERIFIED' : `${violations.length} ARCHITECTURAL DRIFT(S) DETECTED`;
+  const { summary, violations, exemptions, targetArchitecture, passed, durationMs } = report;
+  const projectName = targetArchitecture.name || targetArchitecture.systemName || 'Architecture Target';
 
-  const criticalCount = violations.filter(v => v.severity === 'critical').length;
-  const warningCount = violations.filter(v => v.severity === 'warning').length;
+  // Ensure graphData is available; compute via builder if absent
+  let graphData: C4GraphData = report.graphData;
+  if (!graphData) {
+    const dummyGraph = new DirectedGraph();
+    graphData = buildC4GraphData(targetArchitecture, dummyGraph, violations);
+  }
 
-  const violationsJsonData = JSON.stringify(violations.map((v, i) => ({
-    index: i + 1,
-    id: v.id || `V${i + 1}`,
-    type: v.type,
-    severity: v.severity,
-    sourceFile: v.sourceFile,
-    line: v.line,
-    column: v.column,
-    message: v.message,
-    snippet: v.snippet || '',
-    sourceComponent: v.sourceComponent || '',
-    targetComponent: v.targetComponent || '',
-    rule: v.ruleDesc || v.ruleId || '',
-    suggestion: v.suggestion || '',
-  })));
+  // Generate Native SVG C4 Diagrams (100% Self-Contained, Zero External CDN)
+  // Level 3: Detailed Component SVGs
+  const unifiedComponentResult = renderC4Svg(graphData, 'unified', t);
+  const targetComponentResult = renderC4Svg(graphData, 'target', t);
+  const actualComponentResult = renderC4Svg(graphData, 'actual', t);
 
-  const violationsHtml = violations.length === 0
-    ? `<div style="padding: 28px; text-align: center; color: #2B6E3F; background: #EEF7F1; border: 1px solid #A3D9B5; border-radius: 6px; font-family: monospace; font-size: 14px;">
-         ✔ All modules and dependencies conform strictly to target topology and invariants.
-       </div>`
-    : violations.map((v, i) => {
-        const badgeColor = v.severity === 'critical' ? '#C92A2A' : '#D97706';
-        const badgeBg = v.severity === 'critical' ? '#FDF2F2' : '#FEF3C7';
-        const flowLabel = (v.sourceComponent || v.targetComponent)
-          ? `<span class="flow-pill">${escapeHtml(v.sourceComponent || '?')} ➔ ${escapeHtml(v.targetComponent || '?')}</span>`
-          : '';
+  // Level 2: Macro Container Architecture SVGs (0 Component Clutter)
+  const unifiedContainerResult = renderC4ContainerSvg(graphData, 'unified', t);
+  const targetContainerResult = renderC4ContainerSvg(graphData, 'target', t);
+  const actualContainerResult = renderC4ContainerSvg(graphData, 'actual', t);
 
-        return `
+  const statusColor = passed ? '#166534' : '#991B1B';
+  const statusBg = passed ? '#F0FDF4' : '#FEF2F2';
+  const statusBorder = passed ? '#86EFAC' : '#FCA5A5';
+  const statusText = passed
+    ? (lang === 'zh' ? '架构验证通过（零偏航）' : 'ARCHITECTURE VERIFIED')
+    : (lang === 'zh'
+        ? `发现 ${violations.length} 处架构偏航与违规`
+        : `${violations.length} ARCHITECTURAL DRIFT(S) DETECTED`);
+
+  const criticalCount = violations.filter((v) => v.severity === 'critical').length;
+  const warningCount = violations.filter((v) => v.severity === 'warning').length;
+
+  const componentsList = targetArchitecture.components || [];
+  const sortedComponents = [...componentsList].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+
+  // Determine contract/foundation components (for clutter filtering)
+  const maxLayerOrder = Math.max(...(targetArchitecture.layers || []).map((l) => l.order || 0), 0);
+  const contractCompIds = componentsList
+    .filter((c) => {
+      const layer = (targetArchitecture.layers || []).find((l) => l.id === c.layerId);
+      return (
+        layer?.id === 'contracts' ||
+        layer?.order === maxLayerOrder ||
+        c.id.toLowerCase().includes('contract') ||
+        c.id.toLowerCase().includes('error')
+      );
+    })
+    .map((c) => c.id);
+
+  // Build dependency map for component isolation
+  const dependencyMap: Record<string, string[]> = {};
+  for (const dep of targetArchitecture.allowDependencies || []) {
+    if (!dependencyMap[dep.from]) dependencyMap[dep.from] = [];
+    dependencyMap[dep.from].push(dep.to);
+  }
+
+  const violationsJsonData = safeJsonStringify(
+    violations.map((v, i) => ({
+      index: i + 1,
+      id: v.id || `V${i + 1}`,
+      type: v.type,
+      severity: v.severity,
+      sourceFile: v.sourceFile,
+      line: v.line,
+      column: v.column,
+      message: v.message,
+      snippet: v.snippet || '',
+      sourceComponent: v.sourceComponent || '',
+      targetComponent: v.targetComponent || '',
+      rule: v.ruleDesc || v.ruleId || '',
+      suggestion: v.suggestion || '',
+    }))
+  );
+
+  const violationsHtml =
+    violations.length === 0
+      ? `<div style="padding: 28px; text-align: center; color: #166534; background: #F0FDF4; border: 1px solid #86EFAC; border-radius: 6px; font-family: monospace; font-size: 14px;" data-i18n="noViolations">
+           ${t.noViolations}
+         </div>`
+      : violations
+          .map((v, i) => {
+            const badgeColor = v.severity === 'critical' ? '#991B1B' : '#D97706';
+            const badgeBg = v.severity === 'critical' ? '#FEF2F2' : '#FEF3C7';
+            const flowLabel =
+              v.sourceComponent || v.targetComponent
+                ? `<span class="flow-pill">${escapeHtml(v.sourceComponent || '?')} <span class="flow-arrow">➔</span> ${escapeHtml(v.targetComponent || '?')}</span>`
+                : '';
+
+            return `
         <div class="violation-card" id="violation-card-${i + 1}"
              data-violation-id="${v.id || `V${i + 1}`}"
              data-index="${i + 1}"
@@ -78,573 +125,258 @@ export function renderHtmlTemplate(report: DriftReport): string {
               </strong>
             </div>
             <div class="card-actions">
-              <button type="button" class="btn-action" onclick="locateInDiagram('${escapeHtml(v.sourceComponent || '')}', '${escapeHtml(v.targetComponent || '')}')" title="Highlight in diagram">
-                🔍 Locate
+              <button type="button" class="btn-action" data-action="locate" data-source-component="${escapeHtml(v.sourceComponent || '')}" data-target-component="${escapeHtml(v.targetComponent || '')}" onclick="locateInDiagram('${escapeHtml(v.sourceComponent || '')}', '${escapeHtml(v.targetComponent || '')}')" title="${lang === 'zh' ? '在 C4 架构图中聚焦定位' : 'Locate in C4 diagram'}">
+                🎯 <span data-i18n="btnFocusGraph">${t.btnFocusGraph}</span>
               </button>
-              <button type="button" class="btn-action btn-ai" onclick="copyAiFixPrompt(${i})" title="Copy AI prompt to clipboard">
+              <button type="button" class="btn-action btn-ai" data-action="copy-ai" data-index="${i}" onclick="copyAiFixPrompt(${i})" title="${lang === 'zh' ? '复制 AI 修复 Prompt 到剪贴板' : 'Copy AI fix prompt'}">
                 🤖 Copy AI Fix Prompt
               </button>
               <span class="card-index">#${i + 1}</span>
             </div>
           </div>
           <div class="card-message">${escapeHtml(v.message)}</div>
-          ${v.suggestion ? `<div class="card-suggestion">💡 <strong>Remediation:</strong> ${escapeHtml(v.suggestion)}</div>` : ''}
+          ${v.suggestion ? `<div class="card-suggestion">💡 <strong data-i18n="fixSuggestion">${t.fixSuggestion}:</strong> ${escapeHtml(v.suggestion)}</div>` : ''}
           ${v.snippet ? `<pre class="code-snippet">${escapeHtml(v.snippet)}</pre>` : ''}
-        </div>
-      `;
-      }).join('\n');
+        </div>`;
+          })
+          .join('\n');
 
-  const exemptionsHtml = exemptions && exemptions.length > 0
-    ? `<div style="margin-top: 32px;">
-         <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #717178; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-           <span>Historical Exemptions (${exemptions.length} debts snapshot in baseline)</span>
-         </h3>
-         ${exemptions.map((e) => `
-           <div class="exemption-card">
-             <span style="color: #2563EB; font-weight: 700;">[EXEMPTED]</span>
-             <strong>${escapeHtml(e.sourceFile)}:${e.line}</strong>
-             <span style="color: #525257;">— ${escapeHtml(e.message)}</span>
-           </div>
-         `).join('\n')}
-       </div>`
-    : '';
+  const exemptionsHtml =
+    exemptions && exemptions.length > 0
+      ? `
+      <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #E2E8F0;">
+        <h3 style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 10px;">
+          🛡️ <span>Historical Exemptions (${exemptions.length} debts snapshot in baseline)</span>
+        </h3>
+        <div style="font-size: 12px; color: #64748B; margin-bottom: 8px;">
+          Historical debts grandfathered by .sextant/baseline.json.
+        </div>
+        ${exemptions
+          .map(
+            (e) => `
+             <div class="exemption-card">
+               <span style="color: #64748B;">[EXEMPTED]</span>
+               <strong>${escapeHtml(e.sourceFile)}:${e.line}</strong>
+               <span style="color: #525257;">— ${escapeHtml(e.message)}</span>
+             </div>`
+          )
+          .join('')}
+      </div>`
+      : '';
+
+
+  const reportCss = getReportCss({ statusBorder, statusBg, statusColor });
+  const reportScript = getReportScript({
+    violationsJson: violationsJsonData,
+    graphDataJson: safeJsonStringify(graphData),
+    contractCompIdsJson: safeJsonStringify(contractCompIds),
+    dependencyMapJson: safeJsonStringify(dependencyMap),
+    i18nJson: safeJsonStringify(I18N_DICTIONARIES),
+    lang,
+    passed,
+  });
+
+  const htmlLang = lang === 'zh' ? 'zh-CN' : 'en';
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${htmlLang}">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SextantDrift — Architecture Drift Report: ${escapeHtml(projectName)}</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SextantDrift — ${lang === 'zh' ? '架构偏航检测报告' : 'Architecture Drift Report'}: ${escapeHtml(projectName)}</title>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 32px 24px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: #F7F5EE;
-      background-image:
-        linear-gradient(to right, rgba(142, 136, 118, 0.12) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(142, 136, 118, 0.12) 1px, transparent 1px);
-      background-size: 20px 20px;
-      color: #141416;
-    }
-    .container {
-      max-width: 1560px;
-      margin: 0 auto;
-      background: #FCFBF8;
-      border: 1px solid #C8C3B1;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 16px 40px -4px rgba(35,35,38,0.07);
-      border-radius: 6px;
-      padding: 36px;
-      transition: all 0.2s ease;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2px solid #D3CEBE;
-      padding-bottom: 20px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    .stamp {
-      display: inline-block;
-      padding: 6px 14px;
-      border: 2px solid ${statusBorder};
-      background: ${statusBg};
-      color: ${statusColor};
-      font-weight: 800;
-      font-size: 13px;
-      letter-spacing: 0.08em;
-      border-radius: 4px;
-      font-family: monospace;
-    }
-    .stats-bar {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-    .stat-box {
-      background: #FFFFFF;
-      border: 1px solid #E5E2D6;
-      border-radius: 4px;
-      padding: 14px 18px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-    }
-    .stat-label { font-size: 11px; color: #717178; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; font-weight: 600; }
-    .stat-value { font-size: 22px; font-weight: 700; font-family: monospace; color: #141416; }
-
-    /* Layout Mode Switcher Bar */
-    .view-controls-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-      padding: 10px 16px;
-      background: #F1EFE6;
-      border: 1px solid #DCD7C7;
-      border-radius: 6px;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .mode-group {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .mode-btn {
-      padding: 5px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      background: #FFFFFF;
-      border: 1px solid #D3CEBE;
-      border-radius: 4px;
-      cursor: pointer;
-      color: #525257;
-      transition: all 0.15s ease;
-    }
-    .mode-btn:hover {
-      background: #EFECE1;
-      color: #141416;
-    }
-    .mode-btn.active {
-      background: #141416;
-      color: #FFFFFF;
-      border-color: #141416;
-    }
-    .pan-tip {
-      font-size: 12px;
-      color: #717178;
-      font-family: monospace;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* Dual Diagram Split-Screen Grid */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 32px;
-      transition: grid-template-columns 0.2s ease;
-    }
-    .grid-2.stacked {
-      grid-template-columns: 1fr !important;
-    }
-    .grid-2.tab-target #actual-panel {
-      display: none !important;
-    }
-    .grid-2.tab-actual #target-panel {
-      display: none !important;
-    }
-    .grid-2.tab-target #target-panel,
-    .grid-2.tab-actual #actual-panel {
-      grid-column: 1 / -1;
-    }
-
-    @media (max-width: 1024px) {
-      .grid-2 { grid-template-columns: 1fr; }
-    }
-
-    .diagram-panel {
-      background: #FFFFFF;
-      border: 1px solid #E5E2D6;
-      border-radius: 6px;
-      padding: 16px 20px 20px 20px;
-      min-height: 560px;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-      position: relative;
-    }
-    .diagram-panel.fullscreen {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 10000 !important;
-      margin: 0 !important;
-      border-radius: 0 !important;
-      padding: 24px !important;
-      background: #FCFBF8 !important;
-    }
-    .diagram-header {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #525257;
-      margin-bottom: 12px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #EFEFF3;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .diagram-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    /* Pan & Zoom Viewport */
-    .diagram-viewport {
-      flex: 1;
-      min-height: 480px;
-      background: #FAF8F2;
-      background-image:
-        radial-gradient(circle, #E2DEC9 1px, transparent 1px);
-      background-size: 16px 16px;
-      border: 1px solid #E5E2D6;
-      border-radius: 4px;
-      position: relative;
-      overflow: hidden;
-      cursor: grab;
-      user-select: none;
-    }
-    .diagram-viewport:active {
-      cursor: grabbing;
-    }
-    .panzoom-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      transform-origin: 0 0;
-      transition: transform 0.05s ease-out;
-      will-change: transform;
-    }
-
-    /* Override Mermaid SVG shrinking behavior: RENDER AT 100% CRISP SCALE */
-    .panzoom-canvas svg {
-      max-width: none !important;
-      height: auto !important;
-      display: block;
-    }
-
-    .zoom-hud {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      background: rgba(20, 20, 22, 0.85);
-      color: #FFFFFF;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-family: monospace;
-      font-weight: 700;
-      pointer-events: none;
-      letter-spacing: 0.05em;
-    }
-
-    /* Diagram Interactive Highlight Styles */
-    svg .node {
-      cursor: pointer;
-      transition: opacity 0.2s, filter 0.2s;
-    }
-    svg .node:hover rect, svg .node:hover polygon, svg .node:hover circle {
-      stroke: #2563EB !important;
-      stroke-width: 2.5px !important;
-    }
-    svg .node.dimmed {
-      opacity: 0.15 !important;
-    }
-    svg .node.active-highlight rect, svg .node.active-highlight polygon {
-      stroke: #C92A2A !important;
-      stroke-width: 3.5px !important;
-      filter: drop-shadow(0 0 8px rgba(201, 42, 42, 0.6));
-    }
-    svg .flowchart-link.dimmed, svg .edgePath.dimmed {
-      opacity: 0.1 !important;
-    }
-
-    /* Violations Toolbar & Filter */
-    .toolbar-container {
-      background: #FFFFFF;
-      border: 1px solid #E5E2D6;
-      border-radius: 6px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    .filter-group {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .filter-btn {
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      background: #F7F5EE;
-      border: 1px solid #D3CEBE;
-      border-radius: 4px;
-      cursor: pointer;
-      color: #525257;
-      transition: all 0.15s ease;
-    }
-    .filter-btn:hover {
-      background: #EFECE1;
-      color: #141416;
-    }
-    .filter-btn.active {
-      background: #141416;
-      color: #FFFFFF;
-      border-color: #141416;
-    }
-    .search-input {
-      padding: 6px 12px;
-      font-size: 13px;
-      border: 1px solid #D3CEBE;
-      border-radius: 4px;
-      background: #FFFFFF;
-      min-width: 260px;
-      font-family: inherit;
-    }
-    .search-input:focus {
-      outline: none;
-      border-color: #2563EB;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-    }
-
-    /* Violation Cards */
-    .violation-card {
-      border: 1px solid #E5E2D6;
-      border-left: 4px solid #C92A2A;
-      border-radius: 4px;
-      padding: 18px;
-      margin-bottom: 14px;
-      background: #FFFFFF;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .violation-card:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .card-title-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .severity-pill {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 3px;
-      font-family: monospace;
-      letter-spacing: 0.04em;
-    }
-    .flow-pill {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 3px;
-      background: #F1EFE6;
-      color: #38383C;
-      font-family: monospace;
-      border: 1px solid #D8D4C5;
-    }
-    .file-loc {
-      font-family: monospace;
-      font-size: 13px;
-      color: #141416;
-    }
-    .card-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .btn-action {
-      padding: 5px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      background: #F7F5EE;
-      border: 1px solid #D3CEBE;
-      border-radius: 4px;
-      color: #38383C;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: all 0.15s ease;
-    }
-    .btn-action:hover {
-      background: #EBE8DB;
-      color: #141416;
-    }
-    .btn-zoom {
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 700;
-      font-family: monospace;
-    }
-    .btn-ai {
-      background: #EEF2FF;
-      border-color: #C7D2FE;
-      color: #3730A3;
-    }
-    .btn-ai:hover {
-      background: #E0E7FF;
-      color: #312E81;
-    }
-    .card-index {
-      font-size: 11px;
-      color: #94949C;
-      font-family: monospace;
-      margin-left: 4px;
-    }
-    .card-message {
-      font-size: 13px;
-      color: #38383C;
-      margin-bottom: 8px;
-      line-height: 1.5;
-    }
-    .card-suggestion {
-      font-size: 12px;
-      color: #4B5563;
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 4px;
-      padding: 8px 12px;
-      margin-bottom: 10px;
-      line-height: 1.4;
-    }
-    .code-snippet {
-      background: #F7F5EE;
-      border: 1px solid #E5E2D6;
-      padding: 10px 14px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 12px;
-      color: #141416;
-      overflow-x: auto;
-      margin: 0;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-    .exemption-card {
-      border: 1px dashed #D3CEBE;
-      border-radius: 4px;
-      padding: 10px 14px;
-      margin-bottom: 8px;
-      background: #FCFBF8;
-      font-size: 12px;
-      font-family: monospace;
-      color: #525257;
-    }
-
-    /* Toast Notification */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #141416;
-      color: #FFFFFF;
-      padding: 12px 20px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-      opacity: 0;
-      transform: translateY(12px);
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      pointer-events: none;
-      z-index: 99999;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+${reportCss}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
   <div class="container">
+    <!-- Brand Header with Vector SVG Logo -->
     <div class="header">
-      <div>
-        <h1 style="margin: 0 0 6px 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em;">
-          🧭 SextantDrift Visual Inspection Report
-        </h1>
-        <div style="font-size: 13px; color: #717178; font-family: monospace;">
-          Target: <strong>${escapeHtml(projectName)}</strong> | Generated at: ${new Date().toISOString()} | Scan time: ${durationMs}ms
+      <div class="brand-wrap">
+        <div class="brand-logo-container" title="SextantDrift Official Logo">
+          ${SEXTANT_LOGO_SVG}
+        </div>
+        <div>
+          <h1 class="brand-title">
+            <span>SextantDrift</span>
+            <span class="brand-badge" data-i18n="metaReport">${t.metaReport}</span>
+            <span class="c4-badge-tag">${t.c4Badge}</span>
+          </h1>
+          <div class="brand-sub">
+            <span data-i18n="appSubtitle">${t.appSubtitle}</span>
+            <span class="dot-sep">•</span>
+            <span>Target: <strong>${escapeHtml(projectName)}</strong></span>
+            <span class="dot-sep">•</span>
+            <span>${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC</span>
+          </div>
         </div>
       </div>
-      <div class="stamp">${statusText}</div>
+      <div class="header-right-actions">
+        <div class="stamp" id="status-stamp">${statusText}</div>
+        <button type="button" class="btn-lang" id="btn-lang-toggle" onclick="toggleLanguage()" title="Switch Language">
+          ${t.langToggle}
+        </button>
+      </div>
     </div>
 
+    <!-- Stats Dashboard -->
     <div class="stats-bar">
       <div class="stat-box">
-        <div class="stat-label">Files Scanned</div>
-        <div class="stat-value">${summary.totalFiles}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Dependencies</div>
-        <div class="stat-value">${summary.totalDependencies}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">New Drifts</div>
-        <div class="stat-value" style="color: ${violations.length > 0 ? '#C92A2A' : '#2B6E3F'};">${violations.length}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Critical / Warning</div>
-        <div class="stat-value" style="font-size: 18px;">
-          <span style="color: #C92A2A;">${criticalCount}</span> / <span style="color: #D97706;">${warningCount}</span>
+        <div class="stat-label" data-i18n="statViolations">${t.statViolations}</div>
+        <div class="stat-value" style="color: ${violations.length > 0 ? '#DC2626' : '#16A34A'};">
+          ${violations.length}
         </div>
       </div>
       <div class="stat-box">
-        <div class="stat-label">Historical Exemptions</div>
-        <div class="stat-value">${summary.exemptedViolations || 0}</div>
+        <div class="stat-label" data-i18n="statCritical">${t.statCritical}</div>
+        <div class="stat-value" style="color: ${criticalCount > 0 ? '#DC2626' : '#0F172A'};">
+          ${criticalCount}
+        </div>
       </div>
       <div class="stat-box">
-        <div class="stat-label">Scan Latency</div>
-        <div class="stat-value">${durationMs}ms</div>
+        <div class="stat-label" data-i18n="statWarning">${t.statWarning}</div>
+        <div class="stat-value" style="color: ${warningCount > 0 ? '#D97706' : '#0F172A'};">
+          ${warningCount}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label" data-i18n="statComponents">${t.statComponents}</div>
+        <div class="stat-value">${componentsList.length}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label" data-i18n="statLayers">${t.statLayers}</div>
+        <div class="stat-value">${targetArchitecture.layers ? targetArchitecture.layers.length : 0}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label" data-i18n="statDuration">${t.statDuration}</div>
+        <div class="stat-value">${durationMs}<span style="font-size: 14px; font-weight: 500; color: #64748B;">ms</span></div>
       </div>
     </div>
 
-    <!-- View Mode Selector & Pan/Zoom Hint -->
+    <!-- C4 Level Switcher (L2 Containers vs L3 Components) -->
+    <div class="c4-level-bar" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border: 1px solid #E2E8F0; padding: 10px 18px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">C4 视图层级:</span>
+        <div class="mode-group" style="margin-bottom: 0;">
+          <button type="button" class="mode-btn active" id="btn-level-container" onclick="setC4Level('container')" data-i18n="viewLevelL2">
+            ${t.viewLevelL2}
+          </button>
+          <button type="button" class="mode-btn" id="btn-level-component" onclick="setC4Level('component')" data-i18n="viewLevelL3">
+            ${t.viewLevelL3}
+          </button>
+        </div>
+      </div>
+      <div id="c4-level-tip" style="font-size: 12px; color: #64748B; font-family: monospace;">
+        ${t.drillDownHint}
+      </div>
+    </div>
+
+    <!-- Container Isolation Filter Bar (Shown in L3) -->
+    <div class="container-filter-bar" id="container-filter-bar" style="display: none; margin-bottom: 12px; align-items: center; gap: 8px; flex-wrap: wrap; background: #F8FAFC; border: 1px dashed #CBD5E1; padding: 8px 16px; border-radius: 6px;">
+      <span style="font-size: 12px; font-weight: 700; color: #334155;" data-i18n="filterByContainer">${t.filterByContainer}</span>
+      <button type="button" class="btn-action filter-chip active" id="chip-all-containers" onclick="filterByContainer('')" data-i18n="allContainers">${t.allContainers}</button>
+      ${(graphData.containers || []).map((c) => `
+        <button type="button" class="btn-action filter-chip" id="chip-container-${escapeHtml(c.id)}" onclick="filterByContainer('${escapeHtml(c.id)}')">
+          ${escapeHtml(c.name)} <span style="font-size: 10px; opacity: 0.8;">(${c.componentIds.length})</span>
+        </button>
+      `).join('')}
+    </div>
+
+    <!-- View Controls Bar -->
     <div class="view-controls-bar">
       <div class="mode-group">
-        <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #525257; margin-right: 4px;">Diagram Layout:</span>
-        <button type="button" class="mode-btn active" id="btn-mode-split" onclick="setLayoutMode('split')">◫ Side-by-Side</button>
-        <button type="button" class="mode-btn" id="btn-mode-stacked" onclick="setLayoutMode('stacked')">☰ Stacked (Full Width)</button>
-        <button type="button" class="mode-btn" id="btn-mode-target" onclick="setLayoutMode('target')">🎯 Target Only</button>
-        <button type="button" class="mode-btn" id="btn-mode-actual" onclick="setLayoutMode('actual')">🔬 Actual Only</button>
+        <button type="button" class="mode-btn active" id="btn-mode-unified" onclick="setLayoutMode('unified')" data-i18n="tabUnified">
+          ${t.tabUnified}
+        </button>
+        <button type="button" class="mode-btn" id="btn-mode-target" onclick="setLayoutMode('target')" data-i18n="tabTarget">
+          ${t.tabTarget}
+        </button>
+        <button type="button" class="mode-btn" id="btn-mode-actual" onclick="setLayoutMode('actual')" data-i18n="tabActual">
+          ${t.tabActual}
+        </button>
+        <button type="button" class="mode-btn" id="btn-mode-side-by-side" onclick="setLayoutMode('side-by-side')" data-i18n="tabSideBySide">
+          ${t.tabSideBySide}
+        </button>
       </div>
+
       <div class="pan-tip">
-        <span>🖱️ <strong>Pan & Zoom:</strong> Drag mouse to pan • Scroll wheel to zoom • Click <strong>Fit / 1:1 / Fullscreen</strong></span>
+        <span>💡 ${lang === 'zh' ? '点击 C4 组件卡片查看详细依赖属性；滚轮缩放 / 拖拽平移' : 'Click component to inspect; Drag to pan / Scroll to zoom'}</span>
       </div>
     </div>
 
-    <!-- Dual Diagram Split-Screen Grid -->
-    <div class="grid-2" id="diagrams-grid">
+    <!-- Red/Green Architecture Diff Visual Legend Bar -->
+    <div class="diff-legend-bar">
+      <div class="legend-items">
+        <div class="legend-item">
+          <span class="legend-line-sample" style="background: #16A34A;"></span>
+          <strong style="color: #166534;" data-i18n="legendGreen">${t.legendGreen}</strong>
+          <span style="color: #64748B;">(Compliant Path)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-line-sample" style="background: #DC2626; height: 4px; border: 1px dashed #991B1B;"></span>
+          <strong style="color: #991B1B;" data-i18n="legendRed">${t.legendRed}</strong>
+          <span style="color: #DC2626; font-weight: 700; font-family: monospace;">[DRIFT ALERT]</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-line-sample" style="background: #94A3B8; border-top: 1px dashed #94A3B8; height: 2px;"></span>
+          <strong style="color: #475569;" data-i18n="legendGrey">${t.legendGrey}</strong>
+          <span style="color: #64748B;">(Planned Path)</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button type="button" class="btn-action" id="btn-toggle-contracts-unified" onclick="toggleContractEdges()" title="过滤底层契约连线">
+          ${t.btnHideContracts}
+        </button>
+        <button type="button" class="btn-action" onclick="resetDiagramHighlight()" title="重置聚焦">
+          ${t.btnResetFocus}
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode 1: Unified Flagship Overlay Diff Panel (Default) -->
+    <div class="unified-panel-container" id="unified-panel-container">
+      <div class="diagram-panel" id="unified-panel">
+        <div class="diagram-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 800; color: #0F172A;" data-i18n="tabUnified">${t.tabUnified}</span>
+            <span style="color: #2563EB; font-size: 11px; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-weight: 700;">
+              C4 ARCHITECTURE X-RAY
+            </span>
+          </div>
+          <div class="diagram-toolbar">
+            <!-- Component Isolation Dropdown -->
+            <select id="comp-isolate-select-unified" class="select-comp" onchange="isolateComponent(this.value)">
+              <option value="" data-i18n="selectComponent">${t.selectComponent}</option>
+              ${sortedComponents.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name || c.id)}</option>`).join('')}
+            </select>
+
+            <!-- Zoom & Viewport Controls -->
+            <button type="button" class="btn-action btn-zoom" onclick="zoom('unified', 1.25)" title="放大">+</button>
+            <button type="button" class="btn-action btn-zoom" onclick="zoom('unified', 0.8)" title="缩小">−</button>
+            <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="zoomTo('unified', 1.0)" title="100% Scale">1:1</button>
+            <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="fitDiagram('unified')" title="Fit to Viewport">Fit</button>
+            <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="toggleFullscreen('unified-panel')" title="Fullscreen">⛶ Fullscreen</button>
+          </div>
+        </div>
+        <div class="diagram-viewport" id="unified-viewport">
+          <div class="panzoom-canvas" id="unified-canvas">
+            <div id="unified-container-view">${unifiedContainerResult.svg}</div>
+            <div id="unified-component-view" style="display: none;">${unifiedComponentResult.svg}</div>
+          </div>
+          <div class="zoom-hud" id="unified-hud">100%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode 2: Dual Diagram Split-Screen Grid (Side-by-Side, Target Only, Actual Only) -->
+    <div class="grid-2" id="diagrams-grid" style="display: none;">
       <!-- Target Diagram Panel -->
       <div class="diagram-panel" id="target-panel">
         <div class="diagram-header">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-weight: 700;">Target Architecture (Design Intent)</span>
-            <span style="color: #2B6E3F; font-size: 11px; background: #EEF7F1; padding: 2px 6px; border-radius: 3px; font-family: monospace;">SPECIFICATION</span>
+            <span style="font-weight: 700;" data-i18n="tabTarget">${t.tabTarget}</span>
+            <span style="color: #166534; font-size: 11px; background: #F0FDF4; border: 1px solid #86EFAC; padding: 2px 6px; border-radius: 3px; font-family: monospace;">C4 DESIGN INTENT</span>
           </div>
           <div class="diagram-toolbar">
             <button type="button" class="btn-action btn-zoom" onclick="zoom('target', 1.25)" title="Zoom In">+</button>
@@ -656,9 +388,8 @@ export function renderHtmlTemplate(report: DriftReport): string {
         </div>
         <div class="diagram-viewport" id="target-viewport">
           <div class="panzoom-canvas" id="target-canvas">
-            <pre class="mermaid" id="target-mermaid">
-${targetMermaid}
-            </pre>
+            <div id="target-container-view">${targetContainerResult.svg}</div>
+            <div id="target-component-view" style="display: none;">${targetComponentResult.svg}</div>
           </div>
           <div class="zoom-hud" id="target-hud">100%</div>
         </div>
@@ -668,407 +399,111 @@ ${targetMermaid}
       <div class="diagram-panel" id="actual-panel">
         <div class="diagram-header">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-weight: 700;">Actual Code Topology (AST Extracted)</span>
-            <span style="color: ${violations.length > 0 ? '#C92A2A' : '#2B6E3F'}; font-size: 11px; background: ${violations.length > 0 ? '#FDF2F2' : '#EEF7F1'}; padding: 2px 6px; border-radius: 3px; font-family: monospace;">
-              ${violations.length > 0 ? 'DRIFT HIGHLIGHTED' : 'IN COMPLIANCE'}
+            <span style="font-weight: 700;" data-i18n="tabActual">${t.tabActual}</span>
+            <span style="color: ${violations.length > 0 ? '#991B1B' : '#166534'}; font-size: 11px; background: ${violations.length > 0 ? '#FEF2F2' : '#F0FDF4'}; border: 1px solid ${violations.length > 0 ? '#FCA5A5' : '#86EFAC'}; padding: 2px 6px; border-radius: 3px; font-family: monospace;">
+              ${violations.length > 0 ? 'ACTUAL DRIFT' : 'IN COMPLIANCE'}
             </span>
           </div>
           <div class="diagram-toolbar">
+            <!-- Component Isolation Dropdown -->
+            <select id="comp-isolate-select-actual" class="select-comp" onchange="isolateComponent(this.value)">
+              <option value="" data-i18n="selectComponent">${t.selectComponent}</option>
+              ${sortedComponents.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name || c.id)}</option>`).join('')}
+            </select>
             <button type="button" class="btn-action btn-zoom" onclick="zoom('actual', 1.25)" title="Zoom In">+</button>
             <button type="button" class="btn-action btn-zoom" onclick="zoom('actual', 0.8)" title="Zoom Out">−</button>
             <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="zoomTo('actual', 1.0)" title="100% Scale">1:1</button>
             <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="fitDiagram('actual')" title="Fit to Viewport">Fit</button>
-            <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="resetDiagramHighlight()" title="Reset Focus">Reset Focus</button>
             <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 11px;" onclick="toggleFullscreen('actual-panel')" title="Fullscreen">⛶ Fullscreen</button>
           </div>
         </div>
         <div class="diagram-viewport" id="actual-viewport">
           <div class="panzoom-canvas" id="actual-canvas">
-            <pre class="mermaid" id="actual-mermaid">
-${actualMermaid}
-            </pre>
+            <div id="actual-container-view">${actualContainerResult.svg}</div>
+            <div id="actual-component-view" style="display: none;">${actualComponentResult.svg}</div>
           </div>
           <div class="zoom-hud" id="actual-hud">100%</div>
         </div>
       </div>
     </div>
 
-    <!-- Violation Forensic Evidence Drawer -->
-    <div style="margin-top: 32px;" id="violations-section">
-      <div class="toolbar-container">
-        <div class="filter-group">
-          <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #525257;">Filters:</span>
-          <button type="button" class="filter-btn active" data-filter="all" onclick="setFilter('severity', 'all', this)">All (${violations.length})</button>
-          <button type="button" class="filter-btn" data-filter="critical" onclick="setFilter('severity', 'critical', this)">Critical (${criticalCount})</button>
-          <button type="button" class="filter-btn" data-filter="warning" onclick="setFilter('severity', 'warning', this)">Warning (${warningCount})</button>
-        </div>
-        <div>
-          <input type="search" id="violationSearch" class="search-input" placeholder="Search violation message, file or component..." oninput="applyFilters()" />
+    <!-- Violations Section -->
+    <div id="violations-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+        <h2 style="font-size: 18px; font-weight: 800; margin: 0; color: #0F172A;" data-i18n="violationsTitle">
+          ${t.violationsTitle}
+        </h2>
+        <div style="font-size: 13px; color: #64748B;">
+          ${violations.length > 0 ? (lang === 'zh' ? '共检测到 ' : 'Found ') + violations.length + (lang === 'zh' ? ' 处违规' : ' violations') : ''}
         </div>
       </div>
 
+      <!-- Violations Filter Bar -->
+      <div class="toolbar-container">
+        <div class="filter-group">
+          <button type="button" class="filter-btn active" onclick="setFilter('severity', 'all', this)" data-i18n="filterAll">
+            ${t.filterAll} (${violations.length})
+          </button>
+          <button type="button" class="filter-btn" onclick="setFilter('severity', 'critical', this)" data-i18n="filterCritical">
+            ${t.filterCritical} (${criticalCount})
+          </button>
+          <button type="button" class="filter-btn" onclick="setFilter('severity', 'warning', this)" data-i18n="filterWarning">
+            ${t.filterWarning} (${warningCount})
+          </button>
+        </div>
+        <input type="text" id="violationSearch" class="search-input" placeholder="${t.searchPlaceholder}" oninput="applyFilters()" />
+      </div>
+
+      <!-- Violation Cards List -->
       <div id="violations-list">
         ${violationsHtml}
       </div>
 
+      <!-- Historical Baseline Exemptions -->
       ${exemptionsHtml}
-    </div>
-
-    <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #E5E2D6; text-align: center; font-size: 12px; color: #94949C; font-family: monospace;">
-      Generated deterministically by @sextant/web-report • Architecture X-Ray & Drift Compass
     </div>
   </div>
 
-  <div id="toast" class="toast">✔ Copied to clipboard!</div>
+  <!-- Interactive C4 Component Inspector Drawer -->
+  <div id="c4-inspector" class="c4-inspector">
+    <div class="insp-header">
+      <div>
+        <span class="insp-badge" id="insp-container">C4 Component Inspector</span>
+        <h3 class="insp-title" id="insp-name">Component Name</h3>
+      </div>
+
+      <button type="button" class="btn-close-insp" onclick="closeInspector()" title="${t.inspectorClose}">✕</button>
+    </div>
+    <div class="insp-body">
+      <div class="insp-section">
+        <div class="insp-label">${t.inspectorTech}</div>
+        <div class="insp-value" id="insp-tech">TypeScript</div>
+      </div>
+      <div class="insp-section">
+        <div class="insp-label">${t.inspectorPaths}</div>
+        <div class="insp-code" id="insp-paths">src/**</div>
+      </div>
+      <div class="insp-section">
+        <div class="insp-label">${t.inspectorIncoming} (<span id="insp-incoming-count">0</span>)</div>
+        <div class="insp-list" id="insp-incoming"></div>
+      </div>
+      <div class="insp-section">
+        <div class="insp-label">${t.inspectorOutgoing} (<span id="insp-outgoing-count">0</span>)</div>
+        <div class="insp-list" id="insp-outgoing"></div>
+      </div>
+      <div class="insp-section">
+        <div class="insp-label">${t.inspectorViolations} (<span id="insp-violations-count">0</span>)</div>
+        <div class="insp-list" id="insp-violations"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">✔ Copied</div>
 
   <script>
-    const violationsData = ${violationsJsonData};
-    let currentSeverityFilter = 'all';
-
-    // Pan-Zoom State Management
-    const viewStates = {
-      target: { x: 20, y: 20, scale: 1.0, isDragging: false, startX: 0, startY: 0 },
-      actual: { x: 20, y: 20, scale: 1.0, isDragging: false, startX: 0, startY: 0 }
-    };
-
-    document.addEventListener("DOMContentLoaded", function() {
-      if (window.mermaid) {
-        mermaid.initialize({
-          startOnLoad: true,
-          theme: 'neutral',
-          flowchart: {
-            curve: 'linear',
-            htmlLabels: true,
-            useMaxWidth: false // Crucial: prevents Mermaid from shrinking wide diagrams!
-          }
-        });
-      }
-
-      // Initialize Pan-Zoom after Mermaid renders SVG
-      setTimeout(function() {
-        initPanZoom('target');
-        initPanZoom('actual');
-        fitDiagram('target');
-        fitDiagram('actual');
-        bindDiagramInteractions();
-      }, 700);
-    });
-
-    function initPanZoom(key) {
-      const viewport = document.getElementById(key + '-viewport');
-      const canvas = document.getElementById(key + '-canvas');
-      if (!viewport || !canvas) return;
-
-      const state = viewStates[key];
-
-      viewport.addEventListener('mousedown', function(e) {
-        if (e.target.closest('button') || e.target.closest('.node')) return;
-        state.isDragging = true;
-        state.startX = e.clientX - state.x;
-        state.startY = e.clientY - state.y;
-      });
-
-      window.addEventListener('mousemove', function(e) {
-        if (!state.isDragging) return;
-        state.x = e.clientX - state.startX;
-        state.y = e.clientY - state.startY;
-        applyTransform(key);
-      });
-
-      window.addEventListener('mouseup', function() {
-        state.isDragging = false;
-      });
-
-      viewport.addEventListener('wheel', function(e) {
-        e.preventDefault();
-        const rect = viewport.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const factor = e.deltaY < 0 ? 1.12 : 0.89;
-        const newScale = Math.min(Math.max(state.scale * factor, 0.15), 4.0);
-
-        // Zoom centered on cursor
-        state.x = mouseX - (mouseX - state.x) * (newScale / state.scale);
-        state.y = mouseY - (mouseY - state.y) * (newScale / state.scale);
-        state.scale = newScale;
-
-        applyTransform(key);
-      }, { passive: false });
-    }
-
-    function applyTransform(key) {
-      const canvas = document.getElementById(key + '-canvas');
-      const hud = document.getElementById(key + '-hud');
-      const state = viewStates[key];
-      if (canvas) {
-        canvas.style.transform = "translate(" + state.x + "px, " + state.y + "px) scale(" + state.scale + ")";
-      }
-      if (hud) {
-        hud.textContent = Math.round(state.scale * 100) + "%";
-      }
-    }
-
-    function zoom(key, factor) {
-      const viewport = document.getElementById(key + '-viewport');
-      if (!viewport) return;
-      const rect = viewport.getBoundingClientRect();
-      const cx = rect.width / 2;
-      const cy = rect.height / 2;
-
-      const state = viewStates[key];
-      const newScale = Math.min(Math.max(state.scale * factor, 0.15), 4.0);
-
-      state.x = cx - (cx - state.x) * (newScale / state.scale);
-      state.y = cy - (cy - state.y) * (newScale / state.scale);
-      state.scale = newScale;
-
-      applyTransform(key);
-    }
-
-    function zoomTo(key, targetScale) {
-      const viewport = document.getElementById(key + '-viewport');
-      if (!viewport) return;
-      const state = viewStates[key];
-      state.scale = targetScale;
-      state.x = 20;
-      state.y = 20;
-      applyTransform(key);
-    }
-
-    function fitDiagram(key) {
-      const viewport = document.getElementById(key + '-viewport');
-      const svg = document.querySelector('#' + key + '-mermaid svg');
-      if (!viewport || !svg) return;
-
-      const vRect = viewport.getBoundingClientRect();
-      const sRect = svg.getBoundingClientRect();
-
-      const naturalW = svg.viewBox?.baseVal?.width || sRect.width || 800;
-      const naturalH = svg.viewBox?.baseVal?.height || sRect.height || 600;
-
-      if (naturalW === 0 || naturalH === 0) return;
-
-      const pad = 40;
-      const availW = Math.max(vRect.width - pad * 2, 200);
-      const availH = Math.max(vRect.height - pad * 2, 200);
-
-      const scaleX = availW / naturalW;
-      const scaleY = availH / naturalH;
-      // Don't shrink to microscopic specs! Keep a readable scale minimum of 0.65
-      let fitScale = Math.min(scaleX, scaleY);
-      if (fitScale < 0.65) {
-        fitScale = 0.75; // Prioritize text readability over forcing whole graph into tiny box
-      } else if (fitScale > 1.2) {
-        fitScale = 1.0;
-      }
-
-      const state = viewStates[key];
-      state.scale = fitScale;
-      state.x = Math.max((vRect.width - naturalW * fitScale) / 2, 20);
-      state.y = Math.max((vRect.height - naturalH * fitScale) / 2, 20);
-
-      applyTransform(key);
-    }
-
-    function setLayoutMode(mode) {
-      const grid = document.getElementById('diagrams-grid');
-      if (!grid) return;
-
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      const activeBtn = document.getElementById('btn-mode-' + mode);
-      if (activeBtn) activeBtn.classList.add('active');
-
-      grid.classList.remove('stacked', 'tab-target', 'tab-actual');
-
-      if (mode === 'stacked') {
-        grid.classList.add('stacked');
-      } else if (mode === 'target') {
-        grid.classList.add('tab-target');
-      } else if (mode === 'actual') {
-        grid.classList.add('tab-actual');
-      }
-
-      setTimeout(() => {
-        fitDiagram('target');
-        fitDiagram('actual');
-      }, 150);
-    }
-
-    function toggleFullscreen(panelId) {
-      const panel = document.getElementById(panelId);
-      if (!panel) return;
-      panel.classList.toggle('fullscreen');
-
-      const isFs = panel.classList.contains('fullscreen');
-      const key = panelId.startsWith('target') ? 'target' : 'actual';
-
-      setTimeout(() => {
-        fitDiagram(key);
-      }, 150);
-
-      if (isFs) {
-        showToast("Press Escape or click Fullscreen to exit");
-      }
-    }
-
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        document.querySelectorAll('.diagram-panel.fullscreen').forEach(p => {
-          p.classList.remove('fullscreen');
-          const key = p.id.startsWith('target') ? 'target' : 'actual';
-          setTimeout(() => fitDiagram(key), 100);
-        });
-      }
-    });
-
-    function setFilter(type, value, btnElem) {
-      if (type === 'severity') {
-        currentSeverityFilter = value;
-        document.querySelectorAll('.filter-group .filter-btn').forEach(b => b.classList.remove('active'));
-        if (btnElem) btnElem.classList.add('active');
-      }
-      applyFilters();
-    }
-
-    function applyFilters() {
-      const searchVal = (document.getElementById('violationSearch')?.value || '').toLowerCase().trim();
-      const cards = document.querySelectorAll('.violation-card');
-
-      cards.forEach(card => {
-        const sev = card.getAttribute('data-severity');
-        const text = card.textContent.toLowerCase();
-
-        const matchSev = (currentSeverityFilter === 'all' || sev === currentSeverityFilter);
-        const matchSearch = !searchVal || text.includes(searchVal);
-
-        card.style.display = (matchSev && matchSearch) ? 'block' : 'none';
-      });
-    }
-
-    function copyAiFixPrompt(index) {
-      const v = violationsData[index];
-      if (!v) return;
-
-      const prompt = [
-        "Please fix the following architectural drift detected by SextantDrift:",
-        "",
-        "## Architectural Violation Details",
-        "- Type: " + v.type + " (" + v.severity + ")",
-        "- Location: " + v.sourceFile + ":" + v.line + ":" + v.column,
-        "- Offending Component Flow: " + (v.sourceComponent || 'N/A') + " -> " + (v.targetComponent || 'N/A'),
-        "- Diagnostic Message: " + v.message,
-        v.suggestion ? "- Remediation: " + v.suggestion : "",
-        "",
-        "## Offending Code Snippet",
-        "\`\`\`ts",
-        v.snippet || "// (No code snippet available)",
-        "\`\`\`",
-        "",
-        "## Task Instructions",
-        "Refactor this code to strictly eliminate the architectural bypass/inversion according to the target architecture rules in AGENTS.md / sextant.json. Route dependencies through the designated domain service layer rather than directly coupling.",
-      ].filter(Boolean).join('\\n');
-
-      navigator.clipboard.writeText(prompt).then(() => {
-        showToast("🤖 AI Fix Prompt copied! Paste to your AI assistant.");
-      }).catch(() => {
-        const textarea = document.createElement('textarea');
-        textarea.value = prompt;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showToast("🤖 AI Fix Prompt copied! Paste to your AI assistant.");
-      });
-    }
-
-    function locateInDiagram(sourceComp, targetComp) {
-      const actualPanel = document.getElementById('actual-panel');
-      if (actualPanel) {
-        actualPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      const svg = document.querySelector('#actual-mermaid svg');
-      if (!svg) return;
-
-      resetDiagramHighlight();
-
-      const nodes = svg.querySelectorAll('.node');
-      let found = false;
-
-      nodes.forEach(node => {
-        const text = node.textContent.trim();
-        if ((sourceComp && text.includes(sourceComp)) || (targetComp && text.includes(targetComp))) {
-          node.classList.add('active-highlight');
-          found = true;
-        } else {
-          node.classList.add('dimmed');
-        }
-      });
-
-      if (found) {
-        showToast("Focused [" + (sourceComp || '') + " -> " + (targetComp || '') + "] in Actual Topology");
-      }
-    }
-
-    function resetDiagramHighlight() {
-      const svg = document.querySelector('#actual-mermaid svg');
-      if (!svg) return;
-      svg.querySelectorAll('.node').forEach(n => {
-        n.classList.remove('active-highlight');
-        n.classList.remove('dimmed');
-      });
-      svg.querySelectorAll('.flowchart-link, .edgePath').forEach(l => {
-        l.classList.remove('dimmed');
-      });
-    }
-
-    function bindDiagramInteractions() {
-      const svg = document.querySelector('#actual-mermaid svg');
-      if (!svg) return;
-
-      svg.querySelectorAll('.node').forEach(node => {
-        node.addEventListener('click', function(e) {
-          e.stopPropagation();
-          const nodeText = this.textContent.trim();
-          filterViolationsByComponent(nodeText);
-        });
-      });
-    }
-
-    function filterViolationsByComponent(compName) {
-      const searchInput = document.getElementById('violationSearch');
-      if (searchInput) {
-        searchInput.value = compName;
-        applyFilters();
-        const section = document.getElementById('violations-section');
-        if (section) {
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        showToast("Filtered violations mentioning: " + compName);
-      }
-    }
-
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      if (!toast) return;
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
-    }
+${reportScript}
   </script>
 </body>
-</html>
-`;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+</html>`;
 }

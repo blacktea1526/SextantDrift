@@ -19,9 +19,56 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
         { id: 'OrderRepo', name: 'Order Repository', layerId: 'Infra', paths: ['src/repos/**'] },
       ],
       allowDependencies: [{ from: 'UI', to: 'Domain' }, { from: 'Domain', to: 'Infra' }],
-      mermaid: 'flowchart TD\n  UI --> Domain\n  Domain --> Infra',
     },
-    actualMermaid: 'flowchart TD\n  OrderCtrl -.->|DRIFT!| OrderRepo',
+    graphData: {
+      systemName: 'Test Ecommerce App',
+      containers: [
+        { id: 'UI', name: 'Presentation', order: 1, status: 'drift', componentIds: ['OrderCtrl'] },
+        { id: 'Domain', name: 'Domain', order: 2, status: 'compliant', componentIds: [] },
+        { id: 'Infra', name: 'Infra', order: 3, status: 'drift', componentIds: ['OrderRepo'] },
+      ],
+      nodes: [
+        {
+          id: 'OrderCtrl',
+          name: 'Order Controller',
+          layerId: 'UI',
+          paths: ['src/controllers/**'],
+          fileCount: 3,
+          status: 'drift',
+          violationCount: 1,
+        },
+        {
+          id: 'OrderRepo',
+          name: 'Order Repository',
+          layerId: 'Infra',
+          paths: ['src/repos/**'],
+          fileCount: 2,
+          status: 'drift',
+          violationCount: 1,
+        },
+      ],
+      edges: [
+        {
+          id: 'OrderCtrl->OrderRepo',
+          from: 'OrderCtrl',
+          to: 'OrderRepo',
+          status: 'drift',
+          type: 'bypass',
+          violations: ['V1'],
+        },
+      ],
+      targetEdges: [],
+      actualEdges: [
+        {
+          id: 'OrderCtrl->OrderRepo',
+          from: 'OrderCtrl',
+          to: 'OrderRepo',
+          status: 'drift',
+          type: 'bypass',
+          violations: ['V1'],
+        },
+      ],
+    },
     violations: [
       {
         id: 'V1',
@@ -63,43 +110,63 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
     },
   };
 
-  it('should generate self-contained HTML with dual Mermaid diagrams and violation details', () => {
+  it('should generate Chinese-first report by default with brand vector logo, native C4 SVG, and decluttering', () => {
     const html = generateHtmlReport(baseReport);
 
     expect(html).toContain('<!DOCTYPE html>');
-    expect(html).toContain('SextantDrift Visual Inspection Report');
-    expect(html).toContain('Test Ecommerce App');
-    expect(html).toContain('1 ARCHITECTURAL DRIFT(S) DETECTED');
-    expect(html).toContain('flowchart TD');
-    expect(html).toContain('OrderCtrl -.->|DRIFT!| OrderRepo');
+    expect(html).toContain('lang="zh-CN"');
+    expect(html).toContain('SextantDrift');
+    expect(html).toContain('架构差分审查报告');
+    expect(html).toContain('发现 1 处架构偏航与违规');
+
+    // Vector Brand SVG Logo
+    expect(html).toContain('class="brand-logo-icon"');
+    expect(html).toContain('viewBox="0 0 40 40"');
+
+    // Completely Zero External Mermaid CDN Dependency
+    expect(html).not.toContain('mermaid.min.js');
+    expect(html).not.toContain('<pre class="mermaid">');
+
+    // Native C4 Architecture Canvas & Diff View
+    expect(html).toContain('id="unified-panel"');
+    expect(html).toContain('id="unified-canvas"');
+    expect(html).toContain('class="c4-canvas c4-mode-unified"');
+    expect(html).toContain('🌟 规划与现实同图差分');
+    expect(html).toContain('C4 ARCHITECTURE X-RAY');
+
+    // C4 Inspector Drawer
+    expect(html).toContain('id="c4-inspector"');
+    expect(html).toContain('C4 架构组件审查面板');
+
+    // Clutter Filter & Component Isolation
+    expect(html).toContain('btn-toggle-contracts-unified');
+    expect(html).toContain('过滤底层契约连线');
+    expect(html).toContain('comp-isolate-select-unified');
+    expect(html).toContain('聚焦指定组件...');
+
+    // Violation details
+    expect(html).toContain('OrderCtrl <span class="flow-arrow">➔</span> OrderRepo');
     expect(html).toContain('src/controllers/order.ts:47:1');
     expect(html).toContain("import { OrderRepo } from &#039;../repos/order&#039;;");
     expect(html).toContain('Historical Exemptions (1 debts snapshot in baseline)');
-    expect(html).toContain('src/controllers/legacy.ts:12');
+
+    // In-browser language toggle button
+    expect(html).toContain('btn-lang-toggle');
+    expect(html).toContain('🌐 English');
   });
 
-  it('should generate interactive toolbar, filter controls, and diagram cross-linking hooks', () => {
-    const html = generateHtmlReport(baseReport);
+  it('should generate English report when options.lang is "en"', () => {
+    const html = generateHtmlReport(baseReport, { lang: 'en' });
 
-    // Filter controls and search input
-    expect(html).toContain('id="violationSearch"');
-    expect(html).toContain('data-filter="all"');
-    expect(html).toContain('data-filter="critical"');
-    expect(html).toContain('Critical (1)');
-    expect(html).toContain('Warning (0)');
-
-    // AI Fix Prompt button and functionality
-    expect(html).toContain('🤖 Copy AI Fix Prompt');
-    expect(html).toContain('copyAiFixPrompt(');
-    expect(html).toContain('showToast');
-    expect(html).toContain('id="toast"');
-
-    // Diagram cross-linking
-    expect(html).toContain('locateInDiagram(');
-    expect(html).toContain('data-source-component="OrderCtrl"');
-    expect(html).toContain('data-target-component="OrderRepo"');
-    expect(html).toContain('OrderCtrl ➔ OrderRepo');
-    expect(html).toContain('Inject and call OrderService instead of OrderRepo.');
+    expect(html).toContain('lang="en"');
+    expect(html).toContain('Architecture Drift Report');
+    expect(html).toContain('1 ARCHITECTURAL DRIFT(S) DETECTED');
+    expect(html).toContain('All Violations (1)');
+    expect(html).toContain('Critical Only (1)');
+    expect(html).toContain('Warning Only (0)');
+    expect(html).toContain('Copy AI Fix Prompt');
+    expect(html).toContain('🌐 中文');
+    expect(html).toContain('C4 Component Inspector');
   });
 
   it('should generate clean verified badge when report has 0 violations', () => {
@@ -116,8 +183,40 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
       },
     };
 
-    const html = generateHtmlReport(cleanReport);
-    expect(html).toContain('ARCHITECTURE VERIFIED');
-    expect(html).toContain('All modules and dependencies conform strictly to target topology');
+    const zhHtml = generateHtmlReport(cleanReport, { lang: 'zh' });
+    expect(zhHtml).toContain('架构验证通过（零偏航）');
+    expect(zhHtml).toContain('所有代码模块依赖均严格符合目标架构拓扑与不变量规范。');
+
+    const enHtml = generateHtmlReport(cleanReport, { lang: 'en' });
+    expect(enHtml).toContain('ARCHITECTURE VERIFIED');
+    expect(enHtml).toContain('All modules and dependencies conform strictly to target topology');
+  });
+
+  it('should dynamically generate native C4 architecture with containers and swimlanes when graphData is absent', () => {
+    const reportWithoutGraphData: any = {
+      ...baseReport,
+      graphData: undefined,
+    };
+    const html = generateHtmlReport(reportWithoutGraphData);
+    expect(html).toContain('c4-container-group');
+    expect(html).toContain('LAYER 1');
+    expect(html).toContain('Presentation');
+    expect(html).toContain('Domain');
+    expect(html).toContain('Infra');
+    expect(html).toContain('diff-legend-bar');
+    expect(html).not.toContain('mermaid.min.js');
+  });
+
+  it('should render C4 Level 2 Container Overview and level switcher controls', () => {
+    const html = generateHtmlReport(baseReport);
+    expect(html).toContain('id="btn-level-container"');
+    expect(html).toContain('id="btn-level-component"');
+    expect(html).toContain('id="unified-container-view"');
+    expect(html).toContain('id="unified-component-view"');
+    expect(html).toContain('c4-container-canvas');
+    expect(html).toContain('container-filter-bar');
+    expect(html).toContain('function setC4Level(');
+    expect(html).toContain('function drillDownContainer(');
+    expect(html).toContain('function filterByContainer(');
   });
 });

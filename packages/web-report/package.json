@@ -5,6 +5,24 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blacktea1526/SextantDriftV03.git",
+    "directory": "packages/web-report"
+  },
+  "keywords": [
+    "reporting",
+    "html-report",
+    "c4-svg",
+    "architecture-diff",
+    "visualization"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run"
