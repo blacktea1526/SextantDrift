@@ -3,6 +3,84 @@
   "name": "SextantDrift",
   "version": "2.0.0",
   "description": "Architecture X-Ray & Drift Compass Monorepo Self-Dogfooding Specification",
+  "systemContext": {
+    "systemName": "SextantDrift",
+    "description": "Architecture X-Ray & Drift Compass for continuous architecture verification",
+    "actors": [
+      {
+        "id": "Architect",
+        "name": "Human Architect & Tech Lead",
+        "role": "human",
+        "description": "Defines target architecture specifications and reviews drift reports"
+      },
+      {
+        "id": "AIAgent",
+        "name": "AI Coding Agent",
+        "role": "agent",
+        "description": "Writes code and performs pre-commit architecture drift checks"
+      },
+      {
+        "id": "CIPipeline",
+        "name": "CI/CD Gate Pipeline",
+        "role": "system",
+        "description": "Automated architectural conformance gatekeeper in GitHub Actions"
+      }
+    ],
+    "externalSystems": [
+      {
+        "id": "GitRepo",
+        "name": "Source Code & Git Repository",
+        "description": "TypeScript AST files, git history, and architecture specifications"
+      },
+      {
+        "id": "HTMLViewer",
+        "name": "Offline Report Browser",
+        "description": "Static HTML5 browser viewing platform for drift-report.html"
+      }
+    ]
+  },
+  "containers": [
+    {
+      "id": "cli",
+      "name": "CLI Presentation Tier",
+      "order": 1,
+      "technology": "Node.js / CAC / ANSI",
+      "type": "application",
+      "description": "Terminal entrypoint and CI gate controller"
+    },
+    {
+      "id": "reporting",
+      "name": "Visual Reporting Tier",
+      "order": 2,
+      "technology": "HTML5 / Native SVG",
+      "type": "ui",
+      "description": "Interactive offline C4 architecture diff visualizer"
+    },
+    {
+      "id": "engine",
+      "name": "Core Engine Tier",
+      "order": 3,
+      "technology": "TypeScript / Headless",
+      "type": "service",
+      "description": "Pure headless analysis, invariants and C4 diff engine"
+    },
+    {
+      "id": "infrastructure",
+      "name": "AST & Graph Infrastructure Tier",
+      "order": 4,
+      "technology": "TypeScript AST / Tarjan SCC",
+      "type": "library",
+      "description": "AST extraction and graph topology infrastructure"
+    },
+    {
+      "id": "contracts",
+      "name": "Types & Foundations Tier",
+      "order": 5,
+      "technology": "TypeScript Contract Types",
+      "type": "library",
+      "description": "Core architecture definitions and domain errors"
+    }
+  ],
   "layers": [
     {
       "id": "cli",
@@ -35,6 +113,8 @@
       "id": "CliGate",
       "name": "CLI Gate & Commands",
       "layerId": "cli",
+      "technology": "CAC / ANSI",
+      "description": "CLI command dispatcher and quality gates",
       "paths": [
         "packages/cli/src/**"
       ]
@@ -43,6 +123,8 @@
       "id": "WebReport",
       "name": "Visual Report Generator",
       "layerId": "reporting",
+      "technology": "HTML5 / Native SVG",
+      "description": "Offline C4 visual diff inspection report generator",
       "paths": [
         "packages/web-report/src/**"
       ]
@@ -51,8 +133,20 @@
       "id": "CoreFacade",
       "name": "Core Facade API",
       "layerId": "engine",
+      "technology": "TypeScript API",
+      "description": "Main entry point for architecture analysis",
       "paths": [
         "packages/core/src/index.ts"
+      ]
+    },
+    {
+      "id": "C4Engine",
+      "name": "C4 Architecture Model Engine",
+      "layerId": "engine",
+      "technology": "TypeScript / C4 Model",
+      "description": "C4 model topology extraction and diff graph builder",
+      "paths": [
+        "packages/core/src/c4/**"
       ]
     },
     {

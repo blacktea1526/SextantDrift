@@ -106,14 +106,22 @@ npx sextant-drift baseline
 ```
 生成的 `.sextant/baseline.json` 提交到 Git 仓库后，之后的 `check` 会自动豁免历史债务，仅在引入**全新违规**时阻断！
 
-#### ④ 生成自包含双图审查报告 (`report` 或 `--report`)
+#### ④ 生成 100% 零 CDN 原生 SVG 审查报告 (`report` 或 `--report`)
 ```bash
-# 导出零外部依赖、单文件自包含的双图红绿审查报告
+# 导出 100% 离线自包含、零外部 CDN 依赖的 C4 交互式审查报告
 npx sextant-drift report
-# 或在 check 时导出
+
+# 支持指定中英双语输出 (默认 zh，支持 --lang en)
+npx sextant-drift report --lang zh
+
+# 或在 check 门禁核验时同步导出
 npx sextant-drift check --report
 ```
-双击在浏览器打开 `drift-report.html`，无需安装任何服务端，离线查看左屏 Target、右屏 Actual，违规连线直接标红。
+双击在任意浏览器打开 `drift-report.html`：
+- **100% 零外部请求**：断网与气隙环境毫秒级原生 SVG 渲染，杜绝任何外部 CDN 挂掉或渲染抖动；
+- **C4 多层级下钻**：支持 **Level 2 容器层级概览** 与 **Level 3 组件拓扑明细** 一键切换；
+- **高信噪比交互探针**：具备滚轮平移缩放 (Pan & Zoom)、一键过滤底层 Contracts 契约连线、组件聚焦探针与中英文一键切换；
+- **AI 自愈提示词复制**：一键复制携带行号切片与确凿证据的标准化 AI Fix Prompt，赋能 Agent 单轮自愈。
 
 ---
 

@@ -16,6 +16,7 @@
 | [ADR-004](./ADR-004-invariants-determinism-boundary.md) | 语义不变量分析深度与确定性边界 | 限定于同函数/块作用域语句序与文件级 Import | **Accepted** | 2026-09-16 |
 | [ADR-005](./ADR-005-cli-framework-and-terminal-output.md) | CLI 门禁工具链与终端呈现 | `cac` + `picocolors` + Unix 退出码 (0/1/2) | **Accepted** | 2026-09-16 |
 | [ADR-006](./ADR-006-brownfield-baseline-ast-fingerprinting.md) | 存量项目历史基线债务管理 | AST 语义指纹算法 + Git 版本纳管 | **Accepted** | 2026-09-16 |
+| [ADR-007](./ADR-007-c4-model-and-native-svg-visual-report.md) | C4 多层级模型与原生零 CDN SVG 审查引擎 | C4 Model (L1~L3) + 零依赖原生 SVG 画布 + XSS 防御 | **Accepted** | 2026-09-20 |
 
 ---
 

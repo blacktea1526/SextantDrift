@@ -39,7 +39,7 @@ jobs:
       - name: Build Monorepo Packages
         run: pnpm -r run build
 
-      - name: Run Full Vitest Suite (38 suites, 202 tests)
+      - name: Run Full Vitest Suite (44 suites, 228 tests)
         run: pnpm test
 
       - name: Self-Dogfooding Architectural Verification
