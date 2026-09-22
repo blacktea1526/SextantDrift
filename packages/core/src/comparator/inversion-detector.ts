@@ -33,6 +33,7 @@ export function detectLayerInversions(
         snippet: evidence.snippet,
         sourceComponent: sourceComponent.id,
         targetComponent: targetComponent.id,
+        suggestion: `Apply Dependency Inversion: define an abstraction/interface in lower layer "${sourceLayer.name}" and implement it in upper layer "${targetLayer.name}", or extract shared contracts/DTOs into a shared contracts layer.`,
       });
     }
   }
@@ -92,6 +93,7 @@ export function detectForbiddenImports(
           column: evidence.column,
           snippet: evidence.snippet,
           sourceComponent: sourceComponent.id,
+          suggestion: `Remove import "${forbidden}" from "${sourceComponent.name}". Encapsulate access within an authorized layer/adapter and access it via an interface.`,
         });
         break;
       }

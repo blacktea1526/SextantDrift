@@ -346,5 +346,20 @@ export async function diskAction() {
       expect(violations).toHaveLength(2);
       expect(violations[0].sourceFile).toBe('src/controllers/disk.controller.ts');
     });
+
+    it('should pre-filter and completely skip files not matching any rule scope', () => {
+      const unrelatedDir = path.join(tmpDir, 'src', 'unrelated');
+      fs.mkdirSync(unrelatedDir, { recursive: true });
+      const filePath = path.join(unrelatedDir, 'unrelated.file.ts');
+      fs.writeFileSync(filePath, `import { Pool } from 'pg';\nexport function test() { db.query(); }`);
+
+      const violations = executeInvariantsEngine({
+        rootDir: tmpDir,
+        filePaths: ['src/unrelated/unrelated.file.ts'],
+        rules: allRules, // rules only target src/controllers/**
+      });
+
+      expect(violations).toHaveLength(0);
+    });
   });
 });

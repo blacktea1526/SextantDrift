@@ -41,7 +41,13 @@ export function extractDependenciesFromSource(
     if (ts.isImportDeclaration(node)) {
       if (node.moduleSpecifier && isModuleStringLike(node.moduleSpecifier)) {
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-        const isTypeOnly = node.importClause?.isTypeOnly ?? false;
+        let isTypeOnly = node.importClause?.isTypeOnly ?? false;
+        if (!isTypeOnly && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
+          const elements = node.importClause.namedBindings.elements;
+          if (elements.length > 0 && elements.every((e) => e.isTypeOnly)) {
+            isTypeOnly = true;
+          }
+        }
         evidences.push({
           sourceFile: sourceFilePath,
           rawSpecifier: node.moduleSpecifier.text,
@@ -58,7 +64,13 @@ export function extractDependenciesFromSource(
     if (ts.isExportDeclaration(node)) {
       if (node.moduleSpecifier && isModuleStringLike(node.moduleSpecifier)) {
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-        const isTypeOnly = node.isTypeOnly;
+        let isTypeOnly = node.isTypeOnly;
+        if (!isTypeOnly && node.exportClause && ts.isNamedExports(node.exportClause)) {
+          const elements = node.exportClause.elements;
+          if (elements.length > 0 && elements.every((e) => e.isTypeOnly)) {
+            isTypeOnly = true;
+          }
+        }
         evidences.push({
           sourceFile: sourceFilePath,
           rawSpecifier: node.moduleSpecifier.text,

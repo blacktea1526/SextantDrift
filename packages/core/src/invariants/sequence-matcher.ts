@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { InvariantRule } from '../types/architecture.js';
 import { ViolationEvidence } from '../types/report.js';
-import { globToRegExp } from '../analyzer/noise-filter.js';
+import { getCachedGlobRegExp } from '../analyzer/noise-filter.js';
 
 /**
  * Checks if a file path matches the given scope pattern (supports comma-separated globs).
@@ -18,7 +18,7 @@ export function matchesScope(filePath: string, scope?: string): boolean {
     .filter(Boolean);
 
   for (const pattern of patterns) {
-    const reg = globToRegExp(pattern);
+    const reg = getCachedGlobRegExp(pattern);
     if (reg.test(normalizedFile)) {
       return true;
     }
@@ -87,7 +87,7 @@ export function findMatchingPattern(calleeName: string, patterns: string[]): str
       return pattern;
     }
     if (pattern.includes('*')) {
-      const reg = globToRegExp(pattern);
+      const reg = getCachedGlobRegExp(pattern);
       if (reg.test(calleeName) || (strippedThis !== null && reg.test(strippedThis))) {
         return pattern;
       }
@@ -323,6 +323,10 @@ export function matchSequenceInvariants(
             message = `Invariant broken: Rule "${rule.id}" requires ${precedeListStr} to precede "${targetOcc.calleeName}" in the same function block, but no preceding call was found.`;
           }
 
+          const suggestion = followingPrecede
+            ? `Move "${followingPrecede.calleeName}" before "${targetOcc.calleeName}" to satisfy required execution sequence for rule "${rule.id}".`
+            : `Ensure one of [${rule.pattern.must_precede?.join(', ')}] is invoked before "${targetOcc.calleeName}" in function "${block.enclosingFunction || 'anonymous'}".`;
+
           violations.push({
             id: `INVARIANT_${rule.id}_${lineNumber}_${columnNumber}`,
             type: 'INVARIANT_BROKEN',
@@ -336,6 +340,7 @@ export function matchSequenceInvariants(
             snippet,
             enclosingFunction: block.enclosingFunction,
             targetCall: targetOcc.calleeName,
+            suggestion,
           });
         }
       }

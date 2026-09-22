@@ -52,15 +52,21 @@ export function getCachedGlobRegExp(glob: string): RegExp {
  */
 export function matchesPatterns(filePath: string, patterns: string[]): boolean {
   const normalized = filePath.split('\\').join('/');
+  const isFileWithExt = /\.[a-zA-Z0-9]+$/.test(normalized);
+
   for (const pattern of patterns) {
     const reg = getCachedGlobRegExp(pattern);
-    if (
-      reg.test(normalized) ||
-      reg.test(normalized + '/index.ts') ||
-      reg.test(normalized + '/index.js') ||
-      reg.test(normalized + '/index')
-    ) {
+    if (reg.test(normalized)) {
       return true;
+    }
+    if (!isFileWithExt) {
+      if (
+        reg.test(normalized + '/index.ts') ||
+        reg.test(normalized + '/index.js') ||
+        reg.test(normalized + '/index')
+      ) {
+        return true;
+      }
     }
     // Also test stripped extension if pattern has no extension
     if (!pattern.includes('.')) {
@@ -74,6 +80,12 @@ export function matchesPatterns(filePath: string, patterns: string[]): boolean {
 }
 
 
+const componentLookupCache = new Map<string, Component | null>();
+
+export function clearComponentLookupCache(): void {
+  componentLookupCache.clear();
+}
+
 /**
  * Finds the component that owns a given file path based on components' paths.
  * Returns null if the file does not belong to any defined component (cross-cutting noise).
@@ -82,11 +94,18 @@ export function findComponentForFile(
   filePath: string,
   components: Component[]
 ): Component | null {
+  const cached = componentLookupCache.get(filePath);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   for (const comp of components) {
     if (matchesPatterns(filePath, comp.paths)) {
+      componentLookupCache.set(filePath, comp);
       return comp;
     }
   }
+  componentLookupCache.set(filePath, null);
   return null;
 }
 

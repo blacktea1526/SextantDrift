@@ -81,5 +81,48 @@ export async function init() {
       line: 4,
     });
   });
+
+  it('should recognize TypeScript 4.5+ named type-only imports and exports', () => {
+    const code = `
+import { type UserDto, type AdminDto } from './dto/user.dto.js';
+import { UserService, type RoleDto } from './services/user.service.js';
+export { type ConfigDto } from './config/dto.js';
+export { AppService, type AppConfig } from './app.service.js';
+`;
+    const evidences = extractDependenciesFromSource('src/test.ts', code);
+    expect(evidences).toHaveLength(4);
+
+    // 1. All named imports are type-only
+    expect(evidences[0]).toMatchObject({
+      rawSpecifier: './dto/user.dto.js',
+      isTypeOnly: true,
+      kind: 'import',
+      line: 2,
+    });
+
+    // 2. Mixed named imports (value + type)
+    expect(evidences[1]).toMatchObject({
+      rawSpecifier: './services/user.service.js',
+      isTypeOnly: false,
+      kind: 'import',
+      line: 3,
+    });
+
+    // 3. All named exports are type-only
+    expect(evidences[2]).toMatchObject({
+      rawSpecifier: './config/dto.js',
+      isTypeOnly: true,
+      kind: 'export-from',
+      line: 4,
+    });
+
+    // 4. Mixed named exports (value + type)
+    expect(evidences[3]).toMatchObject({
+      rawSpecifier: './app.service.js',
+      isTypeOnly: false,
+      kind: 'export-from',
+      line: 5,
+    });
+  });
 });
 

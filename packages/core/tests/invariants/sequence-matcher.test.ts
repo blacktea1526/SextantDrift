@@ -388,6 +388,7 @@ function test() {
       expect(violations[0].ruleId).toBe('IDENTIFIER_CALL_RULE');
       expect(violations[0].severity).toBe('warning');
       expect(violations[0].message).toContain('inverted order');
+      expect(violations[0].suggestion).toContain('Move "persistData" before "invokeExternal"');
     });
 
     it('should accept pre-created ts.SourceFile directly', () => {

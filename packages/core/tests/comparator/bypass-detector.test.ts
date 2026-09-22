@@ -46,6 +46,8 @@ describe('Layer Bypass Detector', () => {
     expect(violations[0].line).toBe(5);
     expect(violations[0].sourceComponent).toBe('Controller');
     expect(violations[0].targetComponent).toBe('Repo');
+    expect(violations[0].message).toContain('bypassing "Domain" (order 2)');
+    expect(violations[0].suggestion).toContain('Route call through intermediate layer "Domain"');
   });
 
   it('should NOT report bypass when explicitly allowed in allowDependencies', () => {

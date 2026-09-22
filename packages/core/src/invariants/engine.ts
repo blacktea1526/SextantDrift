@@ -3,7 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { InvariantRule } from '../types/architecture.js';
 import { ViolationEvidence } from '../types/report.js';
-import { matchSequenceInvariants } from './sequence-matcher.js';
+import { matchSequenceInvariants, matchesScope } from './sequence-matcher.js';
 import { matchImportInvariants } from './import-matcher.js';
 import { matchConfigInvariants } from './config-matcher.js';
 
@@ -48,6 +48,21 @@ export function executeInvariantsEngine(options: InvariantsEngineOptions): Viola
   const violations: ViolationEvidence[] = [];
 
   for (const relPath of filePaths) {
+    // 0. Scope pre-filter: skip files that do not match ANY invariant rule
+    const matchesAnyRule = rules.some((rule) => {
+      if (rule.pattern.scope && !matchesScope(relPath, rule.pattern.scope)) {
+        return false;
+      }
+      if (rule.pattern.in_path && !matchesScope(relPath, rule.pattern.in_path)) {
+        return false;
+      }
+      return true;
+    });
+
+    if (!matchesAnyRule) {
+      continue;
+    }
+
     // Reuse cached AST if available in sourceFilesMap
     let sourceFile: ts.SourceFile | undefined = sourceFilesMap?.get(relPath);
 

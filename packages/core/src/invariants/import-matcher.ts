@@ -2,7 +2,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { InvariantRule } from '../types/architecture.js';
 import { ViolationEvidence } from '../types/report.js';
-import { globToRegExp } from '../analyzer/noise-filter.js';
+import { getCachedGlobRegExp } from '../analyzer/noise-filter.js';
 import { matchesScope, unwrapExpression } from './sequence-matcher.js';
 
 /**
@@ -25,15 +25,19 @@ export function isForbiddenImportMatch(specifier: string, pattern: string, relPa
     return true;
   }
 
+  const hasWildcard = cleanPat.includes('*') || cleanPat.includes('?');
+
   // Glob test directly on specifier
-  const regClean = globToRegExp(cleanPat);
-  if (regClean.test(cleanSpec)) {
-    return true;
-  }
-  if (!cleanPat.includes('.')) {
-    const withoutExt = cleanSpec.replace(/\.[^/.]+$/, '');
-    if (regClean.test(withoutExt)) {
+  if (hasWildcard) {
+    const regClean = getCachedGlobRegExp(cleanPat);
+    if (regClean.test(cleanSpec)) {
       return true;
+    }
+    if (!cleanPat.includes('.')) {
+      const withoutExt = cleanSpec.replace(/\.[^/.]+$/, '');
+      if (regClean.test(withoutExt)) {
+        return true;
+      }
     }
   }
 
@@ -46,13 +50,16 @@ export function isForbiddenImportMatch(specifier: string, pattern: string, relPa
     if (resolvedRel === cleanPat || resolvedRel.startsWith(cleanPat + '/')) {
       return true;
     }
-    if (regClean.test(resolvedRel)) {
-      return true;
-    }
-    if (!cleanPat.includes('.')) {
-      const withoutExt = resolvedRel.replace(/\.[^/.]+$/, '');
-      if (regClean.test(withoutExt)) {
+    if (hasWildcard) {
+      const regClean = getCachedGlobRegExp(cleanPat);
+      if (regClean.test(resolvedRel)) {
         return true;
+      }
+      if (!cleanPat.includes('.')) {
+        const withoutExt = resolvedRel.replace(/\.[^/.]+$/, '');
+        if (regClean.test(withoutExt)) {
+          return true;
+        }
       }
     }
   }
@@ -125,6 +132,7 @@ export function matchImportInvariants(
           line: lineNumber,
           column: columnNumber,
           snippet,
+          suggestion: `Remove forbidden import "${specifier}" or replace it with an authorized interface/adapter compliant with rule "${rule.id}".`,
         });
       }
     }

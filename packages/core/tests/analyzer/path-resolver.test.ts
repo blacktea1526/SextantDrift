@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveModulePath, getPackageName } from '../../src/analyzer/path-resolver.js';
+import { resolveModulePath, getPackageName, clearResolutionCache } from '../../src/analyzer/path-resolver.js';
 
 describe('Path Resolver', () => {
   it('should extract package name for scoped and non-scoped packages', () => {
@@ -19,6 +19,28 @@ describe('Path Resolver', () => {
       type: 'internal',
       targetPath: 'src/services/user.service',
     });
+  });
+
+  it('should leverage resolution cache and support cache clearing', () => {
+    clearResolutionCache();
+    const res1 = resolveModulePath(
+      '/project',
+      'src/ui/app.ts',
+      './utils/helper.js'
+    );
+    const res2 = resolveModulePath(
+      '/project',
+      'src/ui/app.ts',
+      './utils/helper.js'
+    );
+    expect(res1).toBe(res2); // Referentially identical from resolutionCache
+    clearResolutionCache();
+    const res3 = resolveModulePath(
+      '/project',
+      'src/ui/app.ts',
+      './utils/helper.js'
+    );
+    expect(res3).toEqual(res1);
   });
 
   it('should resolve path aliases via tsconfig.json paths', () => {

@@ -185,6 +185,7 @@ export function matchConfigInvariants(
           snippet,
           enclosingFunction: enclosingFn,
           targetCall: calleeName,
+          suggestion: `Pass a configuration object containing [${requiredConfigs.map((c) => `"${c}"`).join(', ')}] when calling "${calleeName}".`,
         });
       } else {
         // Verify that all required keys are present across object literal arguments
@@ -211,6 +212,7 @@ export function matchConfigInvariants(
             snippet,
             enclosingFunction: enclosingFn,
             targetCall: calleeName,
+            suggestion: `Add missing configuration property [${missingKeys.map((c) => `"${c}"`).join(', ')}] to the options passed to "${calleeName}".`,
           });
         }
       }

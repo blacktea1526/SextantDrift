@@ -56,17 +56,30 @@ export function detectLayerBypasses(
         continue;
       }
 
+      const intermediateLayers = (arch.layers || [])
+        .filter((l) => l.order > sourceLayer.order && l.order < targetLayer.order)
+        .sort((a, b) => a.order - b.order);
+
+      const skippedStr = intermediateLayers.length > 0
+        ? intermediateLayers.map((l) => `"${l.name}" (order ${l.order})`).join(', ')
+        : 'intermediate layer(s)';
+
+      const suggestion = intermediateLayers.length > 0
+        ? `Route call through intermediate layer ${intermediateLayers.map((l) => `"${l.name}"`).join(' -> ')} (e.g. call a service in Domain instead of directly accessing "${targetComponent.name}"), or explicitly permit this bypass in sextant.json allowDependencies if intentional.`
+        : `Route call through intermediate layer or declare an explicit dependency in sextant.json.`;
+
       violations.push({
         id: `BYPASS_${sourceComponent.id}_${targetComponent.id}_${evidence.line}`,
         type: 'CRITICAL_BYPASS',
         severity: 'critical',
-        message: `Layer bypass detected: "${sourceComponent.name}" in layer "${sourceLayer.name}" (order ${sourceLayer.order}) directly calls "${targetComponent.name}" in layer "${targetLayer.name}" (order ${targetLayer.order}), bypassing intermediate layer(s).`,
+        message: `Layer bypass detected: "${sourceComponent.name}" in layer "${sourceLayer.name}" (order ${sourceLayer.order}) directly calls "${targetComponent.name}" in layer "${targetLayer.name}" (order ${targetLayer.order}), bypassing ${skippedStr}.`,
         sourceFile: evidence.sourceFile,
         line: evidence.line,
         column: evidence.column,
         snippet: evidence.snippet,
         sourceComponent: sourceComponent.id,
         targetComponent: targetComponent.id,
+        suggestion,
       });
     }
   }

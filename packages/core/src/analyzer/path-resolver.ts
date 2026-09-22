@@ -100,6 +100,12 @@ export function loadWorkspacePackages(rootDir: string): Map<string, string> {
   return pkgMap;
 }
 
+const resolutionCache = new Map<string, ResolvedTarget>();
+
+export function clearResolutionCache(): void {
+  resolutionCache.clear();
+}
+
 /**
  * Resolves a module specifier to an internal relative file path or external package
  */
@@ -109,14 +115,29 @@ export function resolveModulePath(
   rawSpecifier: string,
   tsConfigPaths?: TsConfigPaths | null
 ): ResolvedTarget {
+  const cacheKey = `${sourceFilePath}\0${rawSpecifier}`;
+  const cached = resolutionCache.get(cacheKey);
+  if (cached) return cached;
+
+  const result = doResolveModulePath(rootDir, sourceFilePath, rawSpecifier, tsConfigPaths);
+  resolutionCache.set(cacheKey, result);
+  return result;
+}
+
+function doResolveModulePath(
+  rootDir: string,
+  sourceFilePath: string,
+  rawSpecifier: string,
+  tsConfigPaths?: TsConfigPaths | null
+): ResolvedTarget {
   // 1. Relative paths: ./ or ../
   if (rawSpecifier.startsWith('./') || rawSpecifier.startsWith('../')) {
-    const sourceDir = path.dirname(path.resolve(rootDir, sourceFilePath));
-    const absoluteTarget = path.resolve(sourceDir, rawSpecifier);
-    const relativeTarget = path.relative(rootDir, absoluteTarget);
+    const normSource = sourceFilePath.split('\\').join('/');
+    const sourceDir = path.posix.dirname(normSource);
+    const resolvedRel = path.posix.normalize(path.posix.join(sourceDir, rawSpecifier));
     return {
       type: 'internal',
-      targetPath: normalizePath(relativeTarget),
+      targetPath: normalizePath(resolvedRel),
     };
   }
 

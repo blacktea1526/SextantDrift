@@ -104,6 +104,7 @@ describe('AST Config Matcher (require_config)', () => {
       expect(violations[0].column).toBe(16);
       expect(violations[0].snippet).toContain("axios.get('https://api.example.com/user')");
       expect(violations[0].message).toContain('no config object was provided');
+      expect(violations[0].suggestion).toContain('Pass a configuration object');
     });
 
     it('should emit violation when config object is missing required key', () => {
@@ -120,6 +121,7 @@ describe('AST Config Matcher (require_config)', () => {
       expect(violations[0].line).toBe(2);
       expect(violations[0].column).toBe(16);
       expect(violations[0].message).toContain('missing required config: ["timeout"]');
+      expect(violations[0].suggestion).toContain('Add missing configuration property');
     });
 
     it('should support wildcard targets like *.get', () => {

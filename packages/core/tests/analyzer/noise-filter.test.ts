@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchesPatterns, findComponentForFile, isNoiseFile } from '../../src/analyzer/noise-filter.js';
+import { matchesPatterns, findComponentForFile, isNoiseFile, clearComponentLookupCache } from '../../src/analyzer/noise-filter.js';
 import { Component } from '../../src/types/architecture.js';
 
 describe('C4 Noise Filter', () => {
@@ -22,6 +22,17 @@ describe('C4 Noise Filter', () => {
     expect(matchesPatterns('src/controllers/user.controller.ts', ['src/controllers/**'])).toBe(true);
     expect(matchesPatterns('src/services/auth/token.ts', ['src/services/**'])).toBe(true);
     expect(matchesPatterns('src/utils/format.ts', ['src/controllers/**', 'src/services/**'])).toBe(false);
+  });
+
+  it('should leverage component lookup cache and support cache clearing', () => {
+    clearComponentLookupCache();
+    const comp1 = findComponentForFile('src/controllers/user.controller.ts', components);
+    const comp2 = findComponentForFile('src/controllers/user.controller.ts', components);
+    expect(comp1).toBe(comp2);
+    expect(comp1?.id).toBe('Controller');
+    clearComponentLookupCache();
+    const comp3 = findComponentForFile('src/controllers/user.controller.ts', components);
+    expect(comp3?.id).toBe('Controller');
   });
 
   it('should identify component owning the file', () => {

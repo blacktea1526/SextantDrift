@@ -68,7 +68,14 @@ describe('E2E: Drifted Bypass App Fixture (Negative Test)', () => {
     expect(invariantViolation?.snippet).toContain('return this.repo.findUser();');
     expect(invariantViolation?.message).toContain('AUTH_BEFORE_REPO_ACCESS');
 
-    // 7. Actual Mermaid should highlight drift edges with DRIFT! and red style
+    // 7. Verify 100% suggestion coverage for remediation efficiency
+    for (const v of report.violations) {
+      expect(v.suggestion).toBeDefined();
+      expect(typeof v.suggestion).toBe('string');
+      expect(v.suggestion!.length).toBeGreaterThan(10);
+    }
+
+    // 8. Actual Mermaid should highlight drift edges with DRIFT! and red style
     expect(report.actualMermaid).toContain('-.->|DRIFT!|');
     expect(report.actualMermaid).toContain('stroke:#E5484D');
   });

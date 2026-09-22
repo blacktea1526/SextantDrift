@@ -57,6 +57,7 @@ describe('Layer Inversion & Forbidden Import Detector', () => {
     expect(violations[0].line).toBe(3);
     expect(violations[0].sourceComponent).toBe('Service');
     expect(violations[0].targetComponent).toBe('Controller');
+    expect(violations[0].suggestion).toContain('Dependency Inversion');
   });
 
   it('should detect forbidden import when Controller imports @prisma/client', () => {
@@ -82,5 +83,6 @@ describe('Layer Inversion & Forbidden Import Detector', () => {
     expect(violations[0].type).toBe('CRITICAL_FORBIDDEN_IMPORT');
     expect(violations[0].line).toBe(2);
     expect(violations[0].message).toContain('@prisma/client');
+    expect(violations[0].suggestion).toContain('Remove import "@prisma/client"');
   });
 });
