@@ -127,8 +127,15 @@ export function getReportCss(options: ReportCssOptions): string {
       color: ${statusColor};
       letter-spacing: 0.04em;
       box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+      transition: box-shadow 0.3s ease;
     }
-    .btn-lang {
+    .stamp.alert-pulse {
+      animation: stamp-alert-pulse 2.2s infinite ease-in-out;
+    }
+    .stamp.clean-shimmer {
+      animation: stamp-clean-shimmer 3.2s infinite ease-in-out;
+    }
+    .btn-lang, .btn-motion {
       padding: 7px 14px;
       font-size: 12px;
       font-weight: 700;
@@ -137,15 +144,21 @@ export function getReportCss(options: ReportCssOptions): string {
       border-radius: 6px;
       cursor: pointer;
       color: #334155;
-      transition: all 0.15s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .btn-lang:hover {
+    .btn-lang:hover, .btn-motion:hover {
       background: #E2E8F0;
       color: #0F172A;
       border-color: #94A3B8;
+      transform: translateY(-1px);
+    }
+    .btn-motion.active {
+      background: #EFF6FF;
+      color: #1D4ED8;
+      border-color: #93C5FD;
     }
 
     /* Stats Dashboard */
@@ -358,6 +371,23 @@ export function getReportCss(options: ReportCssOptions): string {
       transition: transform 0.05s ease-out;
       will-change: transform;
     }
+    .panzoom-canvas.smooth-camera {
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .c4-view-transition {
+      animation: c4ViewEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    @keyframes c4ViewEnter {
+      from {
+        opacity: 0;
+        transform: scale(0.985);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
 
     .zoom-hud {
       position: absolute;
@@ -378,32 +408,83 @@ export function getReportCss(options: ReportCssOptions): string {
     .c4-canvas {
       display: block;
       user-select: none;
+      shape-rendering: geometricPrecision;
+      text-rendering: geometricPrecision;
     }
     .c4-node {
       cursor: pointer;
-      transition: opacity 0.2s, filter 0.2s;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s, filter 0.2s;
+    }
+    .c4-node:hover {
+      transform: translateY(-2px);
     }
     .c4-node:hover .node-box {
       stroke: #2563EB !important;
       stroke-width: 3px !important;
-      filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.25)) !important;
+      filter: drop-shadow(0 6px 16px rgba(37, 99, 235, 0.28)) !important;
     }
     .c4-node.selected .node-box {
       stroke: #2563EB !important;
       stroke-width: 3.5px !important;
-      filter: drop-shadow(0 0 10px rgba(37, 99, 235, 0.5)) !important;
+      filter: drop-shadow(0 0 12px rgba(37, 99, 235, 0.55)) !important;
     }
     .c4-node.active-highlight .node-box {
       stroke: #DC2626 !important;
       stroke-width: 3.5px !important;
-      filter: drop-shadow(0 0 12px rgba(220, 38, 38, 0.7)) !important;
+      filter: drop-shadow(0 0 14px rgba(220, 38, 38, 0.75)) !important;
     }
-    .c4-node.dimmed, .c4-edge-group.dimmed {
+    .c4-container-node {
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+    }
+    .c4-container-node:hover {
+      transform: translateY(-2px);
+    }
+    .c4-container-node:hover .container-box {
+      stroke: #2563EB !important;
+      stroke-width: 3px !important;
+      filter: drop-shadow(0 6px 18px rgba(37, 99, 235, 0.25)) !important;
+    }
+    .c4-subcomponent-chip {
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .c4-subcomponent-chip:hover rect {
+      fill: #EEF2FF !important;
+      stroke: #6366F1 !important;
+      filter: drop-shadow(0 2px 6px rgba(99, 102, 241, 0.25));
+    }
+    .c4-node.dimmed, .c4-edge-group.dimmed, .c4-container-edge.dimmed, .c4-container-node.dimmed {
       opacity: 0.1 !important;
     }
     .c4-edge-group.highlighted path {
       stroke-width: 4.5px !important;
-      filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.7)) !important;
+      filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.8)) !important;
+    }
+
+    /* SVG Architecture Topology Edge Flow Motion */
+    .c4-edge.compliant {
+      stroke-dasharray: 6 4;
+      animation: c4-flow-green 20s linear infinite;
+    }
+    .c4-edge.drift {
+      stroke-dasharray: 8 5;
+      animation: c4-flow-drift 1.6s linear infinite, c4-drift-glow 2s ease-in-out infinite;
+    }
+    .c4-edge.planned {
+      stroke-dasharray: 4 4;
+      animation: c4-flow-planned 26s linear infinite;
+    }
+    .c4-edge-pill.drift {
+      transform-origin: center;
+      animation: c4-badge-pulse 2s ease-in-out infinite;
+    }
+
+    /* Radar Beacon for Focused Architecture Violations */
+    .c4-radar-beacon {
+      fill: none;
+      stroke: #DC2626;
+      pointer-events: none;
+      animation: c4-radar-ping 1.4s cubic-bezier(0, 0.2, 0.8, 1) infinite;
     }
 
     /* Violations Toolbar & Filter */
@@ -478,10 +559,14 @@ export function getReportCss(options: ReportCssOptions): string {
       padding: 18px;
       margin-bottom: 14px;
       background: #FFFFFF;
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
     }
     .violation-card:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    }
+    .violation-card.card-flashing {
+      animation: c4-card-flash 1.6s ease-in-out 2;
     }
     .card-header {
       display: flex;
@@ -538,7 +623,7 @@ export function getReportCss(options: ReportCssOptions): string {
       font-size: 11px;
       font-weight: 600;
       color: #334155;
-      transition: all 0.15s ease;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -547,6 +632,10 @@ export function getReportCss(options: ReportCssOptions): string {
       background: #F1F5F9;
       color: #0F172A;
       border-color: #94A3B8;
+      transform: translateY(-1px);
+    }
+    .btn-action:active {
+      transform: translateY(1px) scale(0.97);
     }
     .btn-ai {
       background: #EEF2FF;
@@ -557,6 +646,12 @@ export function getReportCss(options: ReportCssOptions): string {
       background: #E0E7FF;
       color: #312E81;
       border-color: #A5B4FC;
+    }
+    .btn-ai.copied-success {
+      background: #DCFCE7 !important;
+      color: #166534 !important;
+      border-color: #86EFAC !important;
+      transform: scale(1.04);
     }
     .card-index {
       font-family: monospace;
@@ -743,6 +838,112 @@ export function getReportCss(options: ReportCssOptions): string {
     .toast.show {
       opacity: 1;
       transform: translateY(0);
+    }
+
+    /* ==========================================================================
+       Web Motion Keyframes & Dynamic Fluid Effects
+       ========================================================================== */
+    @keyframes c4-flow-green {
+      from { stroke-dashoffset: 20; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes c4-flow-drift {
+      from { stroke-dashoffset: 26; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes c4-flow-planned {
+      from { stroke-dashoffset: 16; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes c4-drift-glow {
+      0%, 100% {
+        filter: drop-shadow(0 0 3px rgba(220, 38, 38, 0.45));
+      }
+      50% {
+        filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.85));
+      }
+    }
+    @keyframes c4-badge-pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.06);
+      }
+    }
+    @keyframes c4-radar-ping {
+      0% {
+        r: 12px;
+        opacity: 0.95;
+        stroke-width: 3.5px;
+      }
+      50% {
+        opacity: 0.5;
+      }
+      100% {
+        r: 56px;
+        opacity: 0;
+        stroke-width: 1px;
+      }
+    }
+    @keyframes c4-card-flash {
+      0%, 100% {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: #E2E8F0;
+      }
+      25%, 75% {
+        box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.25), 0 8px 24px rgba(220, 38, 38, 0.15);
+        border-color: #DC2626;
+      }
+    }
+    @keyframes stamp-alert-pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 7px rgba(220, 38, 38, 0);
+      }
+    }
+    @keyframes stamp-clean-shimmer {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(22, 163, 74, 0);
+      }
+    }
+
+    /* Motion FX Controls & Reduced Motion Accessibility */
+    body.motion-disabled * {
+      animation: none !important;
+      transition: none !important;
+    }
+    body.motion-disabled .c4-edge {
+      animation: none !important;
+    }
+    body.motion-disabled .c4-radar-beacon {
+      display: none !important;
+    }
+    body.motion-disabled .stamp {
+      animation: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+      .c4-edge {
+        animation: none !important;
+      }
+      .c4-radar-beacon {
+        display: none !important;
+      }
+      .stamp {
+        animation: none !important;
+      }
     }
 `;
 }

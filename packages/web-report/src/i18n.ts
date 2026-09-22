@@ -57,6 +57,11 @@ export interface Translations {
   filterByContainer: string;
   allContainers: string;
   drillDownHint: string;
+  btnMotion: string;
+  btnMotionOn: string;
+  btnMotionOff: string;
+  motionToggledOn: string;
+  motionToggledOff: string;
 }
 
 export const I18N_DICTIONARIES: Record<Lang, Translations> = {
@@ -117,6 +122,11 @@ export const I18N_DICTIONARIES: Record<Lang, Translations> = {
     inspectorViolations: '关联违规证据',
     inspectorNoViolations: '未检出任何架构违规 (合规)',
     c4Badge: 'C4 架构模型',
+    btnMotion: '⚡ 动效',
+    btnMotionOn: '⚡ 动效: 开启',
+    btnMotionOff: '⚡ 动效: 暂停',
+    motionToggledOn: '已启用架构动态流向与平滑运镜',
+    motionToggledOff: '已切换为极简静态模式',
   },
   en: {
     appName: 'SextantDrift Architecture Compass',
@@ -175,6 +185,11 @@ export const I18N_DICTIONARIES: Record<Lang, Translations> = {
     inspectorViolations: 'Related Violations',
     inspectorNoViolations: 'No architectural violations detected (Compliant)',
     c4Badge: 'C4 Model',
+    btnMotion: '⚡ Motion',
+    btnMotionOn: '⚡ Motion: ON',
+    btnMotionOff: '⚡ Motion: OFF',
+    motionToggledOn: 'Dynamic topology flow & smooth camera enabled',
+    motionToggledOff: 'Static rendering mode enabled',
   },
 };
 

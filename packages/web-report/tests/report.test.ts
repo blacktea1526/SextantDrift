@@ -165,6 +165,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
     expect(html).toContain('Critical Only (1)');
     expect(html).toContain('Warning Only (0)');
     expect(html).toContain('Copy AI Fix Prompt');
+    expect(html).toContain('⚡ Motion: ON');
     expect(html).toContain('🌐 中文');
     expect(html).toContain('C4 Component Inspector');
   });
@@ -218,5 +219,56 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
     expect(html).toContain('function setC4Level(');
     expect(html).toContain('function drillDownContainer(');
     expect(html).toContain('function filterByContainer(');
+  });
+
+  it('should inject Web Motion dynamic flows, radar beacons, accessibility rules, and toggle button', () => {
+    const html = generateHtmlReport(baseReport);
+
+    // Motion Toggle Button
+    expect(html).toContain('id="btn-toggle-motion"');
+    expect(html).toContain('⚡ 动效: 开启');
+    expect(html).toContain('function toggleMotionFx(');
+
+    // Dynamic Edge Flow Keyframes & Classes
+    expect(html).toContain('@keyframes c4-flow-green');
+    expect(html).toContain('@keyframes c4-flow-drift');
+    expect(html).toContain('@keyframes c4-drift-glow');
+    expect(html).toContain('c4-edge.compliant');
+    expect(html).toContain('c4-edge.drift');
+
+    // Radar Beacon & Card Flash
+    expect(html).toContain('@keyframes c4-radar-ping');
+    expect(html).toContain('@keyframes c4-card-flash');
+    expect(html).toContain('.c4-radar-beacon');
+
+    // Accessibility & Motion Disable controls
+    expect(html).toContain('body.motion-disabled');
+    expect(html).toContain('@media (prefers-reduced-motion: reduce)');
+
+    // Smooth Camera & View Transitions
+    expect(html).toContain('.panzoom-canvas.smooth-camera');
+    expect(html).toContain('.c4-view-transition');
+  });
+
+  it('should render high-clarity double-bezel cards, domain role icons, and sub-component chips gallery', () => {
+    const html = generateHtmlReport(baseReport);
+
+    // Double-bezel top accent stripe and SVG precision
+    expect(html).toContain('shape-rendering: geometricPrecision');
+    expect(html).toContain('c4-components-layer');
+    expect(html).toContain('c4-subcomponent-chip');
+
+    // Domain role icons in component and container cards
+    expect(html).toContain('⚡'); // Order Controller API/Controller icon
+    expect(html).toContain('🗄️'); // Order Repository Infra/Database icon
+    expect(html).toContain('🖥️'); // UI / Presentation Container icon
+
+    // Level 2 Sub-Component Chips with status dots
+    expect(html).toContain('包含组件 (1):');
+    expect(html).toContain('Order Controller');
+    expect(html).toContain('Order Repository');
+
+    // Outer gutter orthogonal/bezier routing
+    expect(html).toContain('c4-container-edges-layer');
   });
 });

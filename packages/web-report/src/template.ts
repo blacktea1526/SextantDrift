@@ -213,6 +213,9 @@ ${reportCss}
       </div>
       <div class="header-right-actions">
         <div class="stamp" id="status-stamp">${statusText}</div>
+        <button type="button" class="btn-motion active" id="btn-toggle-motion" onclick="toggleMotionFx()" title="Toggle Web Motion FX">
+          ${t.btnMotionOn}
+        </button>
         <button type="button" class="btn-lang" id="btn-lang-toggle" onclick="toggleLanguage()" title="Switch Language">
           ${t.langToggle}
         </button>

@@ -34,6 +34,7 @@ export function getReportScript(options: ReportScriptOptions): string {
     let currentSeverityFilter = 'all';
     let currentC4Level = 'container';
     let selectedContainerFilter = '';
+    let isMotionEnabled = sessionStorage.getItem('sextant_motion') !== 'false';
 
     const viewStates = {
       unified: { scale: 1.0, x: 20, y: 20, isDragging: false, startX: 0, startY: 0 },
@@ -45,6 +46,31 @@ export function getReportScript(options: ReportScriptOptions): string {
       initPanZoom('unified');
       initPanZoom('target');
       initPanZoom('actual');
+
+      // Initialize motion FX preference and toggle button
+      const motionBtn = document.getElementById('btn-toggle-motion');
+      if (!isMotionEnabled) {
+        document.body.classList.add('motion-disabled');
+        if (motionBtn) {
+          motionBtn.classList.remove('active');
+          motionBtn.textContent = I18N[currentLang].btnMotionOff;
+        }
+      } else {
+        if (motionBtn) {
+          motionBtn.classList.add('active');
+          motionBtn.textContent = I18N[currentLang].btnMotionOn;
+        }
+      }
+
+      // Initialize status stamp breathing pulse
+      const stamp = document.getElementById('status-stamp');
+      if (stamp) {
+        if (violationsData.length > 0) {
+          stamp.classList.add('alert-pulse');
+        } else {
+          stamp.classList.add('clean-shimmer');
+        }
+      }
 
       setC4Level('container');
 
@@ -67,6 +93,37 @@ export function getReportScript(options: ReportScriptOptions): string {
       });
     });
 
+    function toggleMotionFx() {
+      isMotionEnabled = !isMotionEnabled;
+      sessionStorage.setItem('sextant_motion', isMotionEnabled ? 'true' : 'false');
+      const btn = document.getElementById('btn-toggle-motion');
+      const dict = I18N[currentLang];
+      if (isMotionEnabled) {
+        document.body.classList.remove('motion-disabled');
+        if (btn) {
+          btn.classList.add('active');
+          btn.textContent = dict.btnMotionOn;
+        }
+        showToast(dict.motionToggledOn);
+      } else {
+        document.body.classList.add('motion-disabled');
+        if (btn) {
+          btn.classList.remove('active');
+          btn.textContent = dict.btnMotionOff;
+        }
+        showToast(dict.motionToggledOff);
+      }
+    }
+
+    function applySmoothTransform(key) {
+      const canvas = document.getElementById(key + '-canvas');
+      if (canvas && isMotionEnabled) {
+        canvas.classList.add('smooth-camera');
+        setTimeout(() => canvas.classList.remove('smooth-camera'), 360);
+      }
+      applyTransform(key);
+    }
+
     function setC4Level(level) {
       currentC4Level = level;
       const btnContainer = document.getElementById('btn-level-container');
@@ -81,7 +138,14 @@ export function getReportScript(options: ReportScriptOptions): string {
         ['unified', 'target', 'actual'].forEach(k => {
           const cv = document.getElementById(k + '-container-view');
           const mv = document.getElementById(k + '-component-view');
-          if (cv) cv.style.display = 'block';
+          if (cv) {
+            cv.style.display = 'block';
+            if (isMotionEnabled) {
+              cv.classList.remove('c4-view-transition');
+              void cv.offsetWidth;
+              cv.classList.add('c4-view-transition');
+            }
+          }
           if (mv) mv.style.display = 'none';
           fitDiagram(k);
         });
@@ -94,7 +158,14 @@ export function getReportScript(options: ReportScriptOptions): string {
           const cv = document.getElementById(k + '-container-view');
           const mv = document.getElementById(k + '-component-view');
           if (cv) cv.style.display = 'none';
-          if (mv) mv.style.display = 'block';
+          if (mv) {
+            mv.style.display = 'block';
+            if (isMotionEnabled) {
+              mv.classList.remove('c4-view-transition');
+              void mv.offsetWidth;
+              mv.classList.add('c4-view-transition');
+            }
+          }
           fitDiagram(k);
         });
       }
@@ -160,6 +231,8 @@ export function getReportScript(options: ReportScriptOptions): string {
 
       viewport.addEventListener('mousedown', function(e) {
         if (e.target.closest('button') || e.target.closest('select')) return;
+        const canvas = document.getElementById(key + '-canvas');
+        if (canvas) canvas.classList.remove('smooth-camera');
         state.isDragging = true;
         state.startX = e.clientX - state.x;
         state.startY = e.clientY - state.y;
@@ -219,7 +292,7 @@ export function getReportScript(options: ReportScriptOptions): string {
       state.y = cy - (cy - state.y) * (newScale / state.scale);
       state.scale = newScale;
 
-      applyTransform(key);
+      applySmoothTransform(key);
     }
 
     function zoomTo(key, targetScale) {
@@ -229,7 +302,7 @@ export function getReportScript(options: ReportScriptOptions): string {
       state.scale = targetScale;
       state.x = 20;
       state.y = 20;
-      applyTransform(key);
+      applySmoothTransform(key);
     }
 
     function fitDiagram(key) {
@@ -262,7 +335,7 @@ export function getReportScript(options: ReportScriptOptions): string {
       state.x = Math.max((vRect.width - naturalW * fitScale) / 2, 20);
       state.y = 20;
 
-      applyTransform(key);
+      applySmoothTransform(key);
     }
 
     function setLayoutMode(mode) {
@@ -278,11 +351,21 @@ export function getReportScript(options: ReportScriptOptions): string {
       if (mode === 'unified') {
         unifiedContainer.style.display = 'block';
         grid.style.display = 'none';
+        if (isMotionEnabled) {
+          unifiedContainer.classList.remove('c4-view-transition');
+          void unifiedContainer.offsetWidth;
+          unifiedContainer.classList.add('c4-view-transition');
+        }
         fitDiagram('unified');
       } else if (mode === 'side-by-side') {
         unifiedContainer.style.display = 'none';
         grid.style.display = 'grid';
         grid.className = 'grid-2';
+        if (isMotionEnabled) {
+          grid.classList.remove('c4-view-transition');
+          void grid.offsetWidth;
+          grid.classList.add('c4-view-transition');
+        }
         setTimeout(() => {
           fitDiagram('target');
           fitDiagram('actual');
@@ -291,11 +374,21 @@ export function getReportScript(options: ReportScriptOptions): string {
         unifiedContainer.style.display = 'none';
         grid.style.display = 'grid';
         grid.className = 'grid-2 tab-target';
+        if (isMotionEnabled) {
+          grid.classList.remove('c4-view-transition');
+          void grid.offsetWidth;
+          grid.classList.add('c4-view-transition');
+        }
         setTimeout(() => fitDiagram('target'), 50);
       } else if (mode === 'actual') {
         unifiedContainer.style.display = 'none';
         grid.style.display = 'grid';
         grid.className = 'grid-2 tab-actual';
+        if (isMotionEnabled) {
+          grid.classList.remove('c4-view-transition');
+          void grid.offsetWidth;
+          grid.classList.add('c4-view-transition');
+        }
         setTimeout(() => fitDiagram('actual'), 50);
       }
     }
@@ -420,6 +513,7 @@ export function getReportScript(options: ReportScriptOptions): string {
         svg.querySelectorAll('.c4-node').forEach(n => n.classList.remove('dimmed', 'selected', 'active-highlight'));
         svg.querySelectorAll('.c4-edge-group').forEach(e => e.classList.remove('dimmed', 'highlighted'));
       });
+      document.querySelectorAll('.c4-radar-beacon').forEach(el => el.remove());
 
       const selU = document.getElementById('comp-isolate-select-unified');
       const selA = document.getElementById('comp-isolate-select-actual');
@@ -500,6 +594,26 @@ export function getReportScript(options: ReportScriptOptions): string {
 
       if (srcNode || dstNode) {
         const targetElement = srcNode || dstNode;
+
+        // Dynamic Radar Beacon pulse animation on target node
+        const nodeBox = targetElement.querySelector('.node-box') || targetElement.querySelector('rect');
+        if (nodeBox && isMotionEnabled) {
+          const bx = parseFloat(nodeBox.getAttribute('x') || '0');
+          const by = parseFloat(nodeBox.getAttribute('y') || '0');
+          const bw = parseFloat(nodeBox.getAttribute('width') || '0');
+          const bh = parseFloat(nodeBox.getAttribute('height') || '0');
+          const cx = bx + bw / 2;
+          const cy = by + bh / 2;
+
+          const beacon = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          beacon.setAttribute('class', 'c4-radar-beacon');
+          beacon.setAttribute('cx', String(cx));
+          beacon.setAttribute('cy', String(cy));
+          targetElement.appendChild(beacon);
+
+          setTimeout(() => beacon.remove(), 4500);
+        }
+
         const viewport = document.getElementById('unified-viewport');
         if (viewport && targetElement) {
           const vRect = viewport.getBoundingClientRect();
@@ -512,13 +626,26 @@ export function getReportScript(options: ReportScriptOptions): string {
           state.scale = 1.15;
           state.x = vRect.width / 2 - nodeRelX * state.scale;
           state.y = vRect.height / 2 - nodeRelY * state.scale;
-          applyTransform('unified');
+          applySmoothTransform('unified');
         }
 
         const panel = document.getElementById('unified-panel');
         if (panel) {
           panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+
+        // Highlight matching violation card in list
+        const cards = document.querySelectorAll('.violation-card');
+        cards.forEach(card => {
+          const cSrc = card.getAttribute('data-source-component');
+          const cDst = card.getAttribute('data-target-component');
+          if (cSrc === sourceComp && cDst === targetComp) {
+            card.classList.remove('card-flashing');
+            void card.offsetWidth;
+            card.classList.add('card-flashing');
+            setTimeout(() => card.classList.remove('card-flashing'), 3500);
+          }
+        });
       }
 
       showToast(currentLang === 'zh'
@@ -557,6 +684,11 @@ export function getReportScript(options: ReportScriptOptions): string {
       const contractBtnUnified = document.getElementById('btn-toggle-contracts-unified');
       if (contractBtnUnified) {
         contractBtnUnified.textContent = isContractsHidden ? dict.btnShowContracts : dict.btnHideContracts;
+      }
+
+      const motionBtn = document.getElementById('btn-toggle-motion');
+      if (motionBtn) {
+        motionBtn.textContent = isMotionEnabled ? dict.btnMotionOn : dict.btnMotionOff;
       }
 
       showToast(currentLang === 'zh' ? '已切换为中文显示' : 'Language switched to English');
@@ -627,6 +759,17 @@ export function getReportScript(options: ReportScriptOptions): string {
         "Refactor this code to strictly eliminate the architectural bypass/inversion according to target architecture rules in AGENTS.md / sextant.json. Route dependencies through designated domain services.",
       ].filter(Boolean).join('\\n');
 
+      const btn = document.querySelector('[data-action="copy-ai"][data-index="' + index + '"]');
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.classList.add('copied-success');
+        btn.innerHTML = '✔ ' + (isZh ? '已复制！' : 'Copied!');
+        setTimeout(() => {
+          btn.classList.remove('copied-success');
+          btn.innerHTML = originalHtml;
+        }, 2000);
+      }
+
       navigator.clipboard.writeText(prompt).then(() => {
         showToast(isZh ? "✔ 已成功复制 AI 修复 Prompt 到剪贴板！" : "✔ AI Fix Prompt copied to clipboard!");
       }).catch(() => {
@@ -676,6 +819,7 @@ export function getReportScript(options: ReportScriptOptions): string {
     window.toggleContractEdges = toggleContractEdges;
     window.locateInDiagram = locateInDiagram;
     window.toggleLanguage = toggleLanguage;
+    window.toggleMotionFx = toggleMotionFx;
     window.setFilter = setFilter;
     window.applyFilters = applyFilters;
     window.copyAiFixPrompt = copyAiFixPrompt;
