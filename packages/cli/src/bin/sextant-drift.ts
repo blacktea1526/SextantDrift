@@ -15,12 +15,15 @@ cli
   .option('-b, --baseline <path>', 'Path to custom baseline.json')
   .option('-t, --tsconfig <path>', 'Path to tsconfig.json')
   .option('--trace <path>', 'Path to runtime trace JSON file (.sextant/trace.json)')
+  .option('--contract <path>', 'Path to API contract specification (e.g. api-contract.md)')
   .option('--json', 'Output machine-readable JSON')
   .option('--strict', 'Treat warnings as errors')
   .option('--report [output]', 'Generate standalone dual-diagram HTML inspection report')
   .option('--github-summary', 'Output markdown report to GITHUB_STEP_SUMMARY')
   .option('--filter <package>', 'Filter target Monorepo package directory')
   .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
+  .option('--fix-manifest', 'Output compact YAML Fix Manifest for AI remediation (token-optimized)')
+  .option('--ai-prompt', 'Output ready-to-execute prompt for AI coding assistants')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -32,12 +35,15 @@ cli
   .option('-b, --baseline <path>', 'Path to custom baseline.json')
   .option('-t, --tsconfig <path>', 'Path to tsconfig.json')
   .option('--trace <path>', 'Path to runtime trace JSON file (.sextant/trace.json)')
+  .option('--contract <path>', 'Path to API contract specification (e.g. api-contract.md)')
   .option('--json', 'Output machine-readable JSON')
   .option('--strict', 'Treat warnings as errors')
   .option('--report [output]', 'Generate standalone dual-diagram HTML inspection report')
   .option('--github-summary', 'Output markdown report to GITHUB_STEP_SUMMARY')
   .option('--filter <package>', 'Filter target Monorepo package directory')
   .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
+  .option('--fix-manifest', 'Output compact YAML Fix Manifest for AI remediation (token-optimized)')
+  .option('--ai-prompt', 'Output ready-to-execute prompt for AI coding assistants')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -77,7 +83,16 @@ cli
     exitWithCode(code);
   });
 
-cli.help();
+cli.help((sections) => {
+  sections.push({
+    title: 'Language & Ecosystem Matrix',
+    body: [
+      '  Tier 1 (Native AST): TypeScript, JavaScript, TSX/JSX, Node.js, Bun, Next.js, NestJS',
+      '  Tier 2 (Polyglot Dynamic): Any backend language via .sextant/trace.json & api-contract.md',
+      '  Tier 3 (Roadmap): Go, Python, Rust via Tree-sitter AST engine',
+    ].join('\n'),
+  });
+});
 cli.version('0.1.0');
 
 cli.parse();
