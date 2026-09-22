@@ -13,7 +13,12 @@ export interface ViolationEvidence {
     | 'STATE_MISSING_FALLBACK'
     | 'DYNAMIC_OUT_OF_ORDER'
     | 'DYNAMIC_UNEXPECTED_CALL'
-    | 'DYNAMIC_MISSING_CALL';
+    | 'DYNAMIC_MISSING_CALL'
+    | 'CONTRACT_MISSING_ENDPOINT'
+    | 'CONTRACT_SHADOW_ENDPOINT'
+    | 'CONTRACT_MISSING_PARAM'
+    | 'CONTRACT_UNHANDLED_STATUS'
+    | 'CONTRACT_LINT_ERROR';
   severity: 'critical' | 'warning' | 'info';
   message: string;
   sourceFile: string;
@@ -73,6 +78,7 @@ export interface DriftSummary {
   invariantViolationCount: number;
   stateViolationCount?: number;
   dynamicViolationCount?: number;
+  contractViolationCount?: number;
 }
 
 export type C4NodeStatus = 'compliant' | 'drift';
@@ -162,5 +168,7 @@ export interface AnalyzeOptions {
   baselinePath?: string;
   tracePath?: string;
   trace?: any; // ExecutionTrace
+  contractPath?: string;
+  contractContent?: string;
   files?: string[];
 }

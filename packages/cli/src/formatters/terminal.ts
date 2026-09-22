@@ -114,6 +114,9 @@ export function formatTerminalReport(
   if (summary.dynamicViolationCount && summary.dynamicViolationCount > 0) {
     summaryTokens.push(`${summary.dynamicViolationCount} dynamic`);
   }
+  if (summary.contractViolationCount && summary.contractViolationCount > 0) {
+    summaryTokens.push(`${summary.contractViolationCount} contract`);
+  }
 
   lines.push('');
   lines.push(pc.dim(`  Summary: ${summaryTokens.join(', ')}`));

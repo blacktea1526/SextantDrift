@@ -12,12 +12,15 @@ export interface CheckOptions {
   baseline?: string;
   tsconfig?: string;
   trace?: string;
+  contract?: string;
   json?: boolean;
   strict?: boolean;
   report?: boolean | string;
   githubSummary?: boolean;
   filter?: string;
   lang?: 'zh' | 'en';
+  fixManifest?: boolean;
+  aiPrompt?: boolean;
 }
 
 /**
@@ -36,6 +39,7 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
       tsconfigPath: options.tsconfig,
       baselinePath: options.baseline,
       tracePath: options.trace,
+      contractPath: options.contract,
     });
 
     if (options.strict && report.passed) {
@@ -44,6 +48,18 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
         report.passed = false;
         report.exitCode = 1;
       }
+    }
+
+    if (options.fixManifest) {
+      const { generateAiFixManifest } = await import('@sextant/core');
+      console.log(generateAiFixManifest(report.violations));
+      return report.passed ? EXIT_CODE_SUCCESS : EXIT_CODE_DRIFT_DETECTED;
+    }
+
+    if (options.aiPrompt) {
+      const { generateAiFixPrompt } = await import('@sextant/core');
+      console.log(generateAiFixPrompt(report.violations));
+      return report.passed ? EXIT_CODE_SUCCESS : EXIT_CODE_DRIFT_DETECTED;
     }
 
     if (options.json) {

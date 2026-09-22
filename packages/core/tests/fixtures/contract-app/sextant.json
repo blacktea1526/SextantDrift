@@ -1,0 +1,9 @@
+{
+  "systemName": "ContractApp",
+  "layers": [
+    { "id": "API", "name": "API Layer", "order": 1 }
+  ],
+  "components": [
+    { "id": "Controller", "name": "Controllers", "layerId": "API", "paths": ["*.ts"] }
+  ]
+}

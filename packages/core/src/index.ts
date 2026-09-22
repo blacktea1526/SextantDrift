@@ -1,13 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
+import ts from 'typescript';
 import { TargetArchitecture, Component, Layer } from './types/architecture.js';
 import { DriftReport, DriftSummary, DriftViolation, AnalyzeOptions } from './types/report.js';
 import { resolveTargetArchitecture } from './parser/spec-resolver.js';
 import { scanSourceFiles } from './analyzer/file-scanner.js';
 import { extractDependenciesFromSource, ImportEvidence } from './analyzer/ast-extractor.js';
-import { loadTsConfigPaths, resolveModulePath } from './analyzer/path-resolver.js';
-import { findComponentForFile } from './analyzer/noise-filter.js';
+import { loadTsConfigPaths, resolveModulePath, clearResolutionCache } from './analyzer/path-resolver.js';
+import { findComponentForFile, clearComponentLookupCache } from './analyzer/noise-filter.js';
 import { DirectedGraph } from './graph/directed-graph.js';
 import { detectCycles } from './graph/tarjan.js';
 import {
@@ -29,6 +30,7 @@ import {
 } from './baseline/manager.js';
 import { extractAndVerifyStateDiagrams } from './state/index.js';
 import { extractSequenceDiagrams, diffCausality, SequenceDiagramSpec } from './causality/index.js';
+import { verifyContractAlignment } from './contract/index.js';
 import { buildC4GraphData } from './c4/index.js';
 import { generateActualMermaid, generateUnifiedMermaid } from './parser/mermaid-generator.js';
 import type { ExecutionTrace } from './trace/types.js';
@@ -59,6 +61,7 @@ export * from './baseline/manager.js';
 export * from './state/index.js';
 export * from './trace/index.js';
 export * from './causality/index.js';
+export * from './contract/index.js';
 export * from './c4/index.js';
 
 
@@ -67,6 +70,8 @@ export * from './c4/index.js';
  * Evaluates target architecture against physical TypeScript code, returning DriftReport.
  */
 export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<DriftReport> {
+  clearResolutionCache();
+  clearComponentLookupCache();
   const startTime = performance.now();
   const rootDir = path.resolve(options.rootDir);
 
@@ -170,6 +175,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
       sourceComponent: fromComp,
       targetComponent: toComp,
       cycle: cycle.nodes,
+      suggestion: `Break circular dependency cycle between "${fromComp}" and "${toComp}". Extract shared interfaces/types into a common contracts module, or decouple via Dependency Injection or Event Bus.`,
     });
   }
 
@@ -291,6 +297,16 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     }
   }
 
+  // H. Lightweight API Contract Alignment Verifier
+  const contractResult = verifyContractAlignment({
+    rootDir,
+    contractPath: options.contractPath,
+    contractContent: options.contractContent,
+    files: filePaths,
+    fileContentMap,
+  });
+  const contractViolations = contractResult.violations;
+
   // 6. Aggregate violations
   const allViolations: DriftViolation[] = [
     ...bypassViolations,
@@ -300,6 +316,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     ...invariantViolations,
     ...stateViolations,
     ...dynamicViolations,
+    ...contractViolations,
   ];
 
   // 7. Ensure every violation has a deterministic semantic fingerprint
@@ -330,6 +347,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     invariantViolationCount: invariantViolations.length,
     stateViolationCount: stateViolations.length,
     dynamicViolationCount: dynamicViolations.length,
+    contractViolationCount: contractViolations.length,
   };
 
   const graphData = buildC4GraphData(arch, componentGraph, allViolations, {

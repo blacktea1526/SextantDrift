@@ -115,6 +115,7 @@ flowchart TD
     StateEngine["🔄 StateEngine\n状态机死锁检测"]:::engine
     C4Engine["🗺️ C4Engine\nC4 多层级图模型构建器"]:::engine
     Baseline["🔒 BaselineEngine\n历史债务指纹引擎"]:::engine
+    ContractEngine["📋 ContractEngine\nAPI 契约对齐校验引擎"]:::engine
     DynamicTrace["⏱️ Trace & Causality\n运行时因果时序差分"]:::engine
 
     Facade --> SpecParser
@@ -123,6 +124,7 @@ flowchart TD
     Facade --> StateEngine
     Facade --> Baseline
     Facade --> C4Engine
+    Facade --> ContractEngine
     Facade -.-> DynamicTrace
 ```
 
@@ -157,6 +159,7 @@ flowchart TD
 | `StateEngine` | `engine` | FSM Verifier | `packages/core/src/state/**` |
 | `TraceRecorder` | `engine` | Dynamic Trace | `packages/core/src/trace/**` |
 | `CausalityEngine` | `engine` | Causality DAG | `packages/core/src/causality/**` |
+| `ContractEngine` | `engine` | Markdown AST | `packages/core/src/contract/**` |
 | `AstAnalyzer` | `infrastructure`| TS AST | `packages/core/src/analyzer/**` |
 | `GraphAlgorithms` | `infrastructure`| DirectedGraph | `packages/core/src/graph/**` |
 | `CoreContracts` | `contracts` | Types | `packages/core/src/types/**` |

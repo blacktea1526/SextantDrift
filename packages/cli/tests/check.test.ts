@@ -159,5 +159,27 @@ sequenceDiagram
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('should output compact YAML Fix Manifest when --fix-manifest is passed', async () => {
+    const code = await runCheck(driftedAppPath, { fixManifest: true });
+    expect(code).toBe(EXIT_CODE_DRIFT_DETECTED);
+
+    const logged = consoleLogSpy.mock.calls.map((c: any[]) => c.join(' ')).join('\n');
+    expect(logged).toContain('# SextantDrift AI Fix Manifest');
+    expect(logged).toContain('fixes:');
+    expect(logged).toContain('action: REMOVE_BYPASS');
+    expect(logged).not.toContain('Architecture Container Tiers');
+  });
+
+  it('should output ready-to-execute AI prompt when --ai-prompt is passed', async () => {
+    const code = await runCheck(driftedAppPath, { aiPrompt: true });
+    expect(code).toBe(EXIT_CODE_DRIFT_DETECTED);
+
+    const logged = consoleLogSpy.mock.calls.map((c: any[]) => c.join(' ')).join('\n');
+    expect(logged).toContain('Please resolve the following');
+    expect(logged).toContain('```yaml');
+    expect(logged).toContain('fixes:');
+  });
 });
+
 
