@@ -192,7 +192,7 @@ npx sextant-drift init --source-dir app
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json",
   "name": "E-Commerce System",
   "version": "1.0.0",
   "layers": [
@@ -474,7 +474,7 @@ SextantDrift 源码仓库自带跨平台的统一开发调度中枢 `./start.sh`
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json",
   "name": "Enterprise Service Monorepo",
   "version": "2.0.0",
   "systemContext": {

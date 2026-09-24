@@ -16,7 +16,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/blacktea1526/sextant-web-report.git"
+    "url": "https://github.com/blacktea1526/SextantDrift.git",
+    "directory": "packages/web-report"
   },
   "keywords": [
     "reporting",

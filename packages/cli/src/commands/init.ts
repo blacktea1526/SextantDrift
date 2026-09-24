@@ -181,7 +181,7 @@ export async function runInit(
     }));
 
     const sextantConfig = {
-      $schema: 'https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json',
+      $schema: 'https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json',
       name: projectName,
       version: '1.0.0',
       description: `C4 Architecture boundary specification for ${projectName}`,

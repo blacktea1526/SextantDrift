@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "$id": "https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json",
   "title": "SextantDrift Architecture Specification Schema",
   "description": "JSON Schema specification for SextantDrift target architecture definitions, C4 mappings, and semantic invariants.",
   "type": "object",

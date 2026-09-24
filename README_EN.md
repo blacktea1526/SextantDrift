@@ -192,7 +192,7 @@ Open `sextant.json` to review or refine your architecture layers and component b
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json",
   "name": "E-Commerce Microservice",
   "version": "1.0.0",
   "layers": [
@@ -474,7 +474,7 @@ Below is a complete specification incorporating C4 modeling and semantic invaria
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json",
   "name": "Enterprise Payment Platform",
   "version": "2.0.0",
   "systemContext": {
