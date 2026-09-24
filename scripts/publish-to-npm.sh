@@ -45,15 +45,15 @@ fi
 
 echo ""
 echo "==> [1/3] 正在发布核心引擎包: @sextant/core 到 npm..."
-(cd packages/core && "$PNPM_BIN" publish --access public --no-git-checks)
+(cd packages/core && "$PNPM_BIN" publish --access public --no-git-checks --registry=https://registry.npmjs.org/)
 
 echo ""
 echo "==> [2/3] 正在发布离线双图可视化报告包: @sextant/web-report 到 npm..."
-(cd packages/web-report && "$PNPM_BIN" publish --access public --no-git-checks)
+(cd packages/web-report && "$PNPM_BIN" publish --access public --no-git-checks --registry=https://registry.npmjs.org/)
 
 echo ""
 echo "==> [3/3] 正在发布 CLI 门禁工具包: sextant-drift 到 npm..."
-(cd packages/cli && "$PNPM_BIN" publish --access public --no-git-checks)
+(cd packages/cli && "$PNPM_BIN" publish --access public --no-git-checks --registry=https://registry.npmjs.org/)
 
 echo ""
 echo -e "\033[32m✔ 恭喜！SextantDrift 已成功发布到 npm 镜像！\033[0m"

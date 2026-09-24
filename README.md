@@ -139,7 +139,7 @@ SextantDrift 构建了全方位的架构维度检测矩阵，全面拦截各类�
 
 ### 2.7 严苛的项目自举架构验证
 - **Self-Dogfooding 铁律**：SextantDrift Monorepo 自身全面遵循该规范约束，并在自身编译与测试流程中作为第一项验收标准；
-- **覆盖率与完备性**：内置 49 个测试套件、250 个测试用例，涵盖各类边界情况与极端图拓扑，代码质量经久耐用。
+- **覆盖率与完备性**：内置 57 个测试套件、300 个测试用例，涵盖各类边界情况与极端图拓扑，代码质量经久耐用。
 
 ---
 
@@ -457,10 +457,10 @@ SextantDrift 源码仓库自带跨平台的统一开发调度中枢 `./start.sh`
 
 ```bash
 ./start.sh            # 启动本地可视化审查工作台 (Workbench Web Server @ 3000)
-./start.sh --test     # 执行全套单元测试 (Vitest CLI, 49 个套件, 250 个用例全部通过)
+./start.sh --test     # 执行全套单元测试 (Vitest CLI, 57 个套件, 300 个用例全部通过)
 ./start.sh --ui       # 启动 Vitest UI 交互式测试仪表盘
 ./start.sh --check    # 执行三维架构门禁实测 (包含 SextantDrift 自身自举核验)
-./start.sh --build    # 全量构建所有子包 (@sextant/core, sextant-drift)
+./start.sh --build    # 全量构建所有子包 (@sextant/core, sextant-drift, @sextant/web-report)
 ./start.sh --release  # 自动化构建、测试并发布至 npm 镜像 (支持 npx 免安装运行)
 ./start.sh --bench    # 执行 AST 提取与 Tarjan 强连通分量算法性能压测
 ./start.sh --coverage # 统计 V8 代码测试覆盖率报告
@@ -550,9 +550,8 @@ SextantDrift 采用高内聚、分层隔离的现代 pnpm Monorepo 物理结构�
 SextantDrift/
 ├── packages/
 │   ├── core/           # @sextant/core: 纯无头核心分析引擎 (TS AST 解析, Tarjan 图算法, 不变量匹配, 因果差分)
-│   └── cli/            # sextant-drift: 极轻量命令行门禁工具 (基于 cac + picocolors, < 50KB, 零冗余依赖)
-├── standalone/         # 独立生态工程 (可发布到独立 GitHub 仓库)
-│   └── sextant-web-report/ # @sextant/web-report: 100% 离线自包含的原生 SVG 双图审查报告生成器 (独立扩展)
+│   ├── cli/            # sextant-drift: 极轻量命令行门禁工具 (基于 cac + picocolors, < 50KB, 零冗余依赖)
+│   └── web-report/     # @sextant/web-report: 100% 离线自包含的原生 SVG 双图审查报告生成器 (独立扩展)
 ├── .agents/skills/     # 面向 AI Coding Agent 的架构审查与自愈技能规范
 ├── .github/workflows/  # CI/CD 自动化门禁流水线
 ├── schemas/            # 标准 JSON Schema 结构定义文件 (sextant.schema.json)
