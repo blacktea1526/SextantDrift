@@ -7,7 +7,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "sextant-drift": "./dist/bin/sextant-drift.js"
+    "sextant-drift": "dist/bin/sextant-drift.js"
   },
   "files": [
     "dist",
@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/blacktea1526/SextantDrift.git",
+    "url": "git+https://github.com/blacktea1526/SextantDrift.git",
     "directory": "packages/cli"
   },
   "keywords": [
