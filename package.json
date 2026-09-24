@@ -12,7 +12,8 @@
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "bench": "pnpm --filter @sextant/core bench"
+    "bench": "pnpm --filter @sextant/core bench",
+    "release": "./scripts/publish-to-npm.sh"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",

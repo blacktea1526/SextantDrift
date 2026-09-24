@@ -195,6 +195,9 @@ SextantDrift/
     - id: MANDATORY_FALLBACK_TIMEOUT
       severity: warning
       desc: "所有第三方外部 API 调用必须设置超时时间与 catch 兜底处理"
+      pattern:
+        target: ["fetch", "axios.*"]
+        require_config: ["timeout"]
   ```
 - **工作机制**：在源码 AST 遍历对应函数的语句列表，校验关键动作的前提条件是否满足，直接捕捉致命的逻辑顺序漏洞。
 

@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/blacktea1526/SextantDriftV03/main/schemas/sextant.schema.json",
+  "title": "SextantDrift Architecture Specification Schema",
+  "description": "JSON Schema specification for SextantDrift target architecture definitions, C4 mappings, and semantic invariants.",
+  "type": "object",
+  "required": ["layers", "components"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL to the JSON Schema"
+    },
+    "name": {
+      "type": "string",
+      "description": "Project or architecture name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Specification version"
+    },
+    "description": {
+      "type": "string",
+      "description": "High-level description of the system architecture"
+    },
+    "systemContext": {
+      "type": "object",
+      "description": "C4 Level 1: System Context definitions",
+      "properties": {
+        "systemName": { "type": "string" },
+        "description": { "type": "string" },
+        "actors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "role"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "role": { "type": "string", "enum": ["human", "agent", "system"] },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "externalSystems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "containers": {
+      "type": "array",
+      "description": "C4 Level 2: Top-level containers / tiers",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "order"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "order": { "type": "integer" },
+          "technology": { "type": "string" },
+          "type": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "description": "Ordered layers from top to bottom (order 1 is highest / outermost)",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "order"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "order": { "type": "integer" },
+          "technology": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "description": "Components mapped to layers and file path globs",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "layerId", "paths"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "layerId": { "type": "string" },
+          "containerId": { "type": "string" },
+          "technology": { "type": "string" },
+          "description": { "type": "string" },
+          "paths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "forbiddenImports": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "allowDependencies": {
+      "type": "array",
+      "description": "Explicitly authorized dependencies between components or layers",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "protocol": { "type": "string" },
+          "technology": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "description": "Hard semantic invariant rules (must_precede, forbid_import, require_config)",
+      "items": {
+        "type": "object",
+        "required": ["id", "desc", "pattern"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "warning", "info"] },
+          "desc": { "type": "string" },
+          "pattern": {
+            "type": "object",
+            "properties": {
+              "must_precede": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "target": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "scope": { "type": "string" },
+              "forbid_import": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "in_path": { "type": "string" },
+              "require_config": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

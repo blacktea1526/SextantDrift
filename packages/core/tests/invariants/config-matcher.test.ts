@@ -18,11 +18,12 @@ describe('AST Config Matcher (require_config)', () => {
     },
   };
 
-  const heuristicTimeoutRule: InvariantRule = {
+  const targetedExternalCallRule: InvariantRule = {
     id: 'EXTERNAL_CALL_REQUIRE_TIMEOUT',
     severity: 'warning',
     desc: 'External network calls must configure timeout',
     pattern: {
+      target: ['fetch', 'httpClient.request', 'apiClient.call'],
       require_config: ['timeout'],
       scope: 'src/api/**',
     },
@@ -147,8 +148,8 @@ describe('AST Config Matcher (require_config)', () => {
     });
   });
 
-  describe('Heuristic mode (target is NOT specified)', () => {
-    it('should audit calls whose callee matches external keywords when object arg is provided', () => {
+  describe('Explicit target requirement (Zero False Positives)', () => {
+    it('should audit calls matching target patterns when object arg lacks required config', () => {
       const code = [
         "export async function test() {",
         "  await fetch('https://api.com', { method: 'POST' });",
@@ -157,7 +158,7 @@ describe('AST Config Matcher (require_config)', () => {
         "}",
       ].join('\n');
 
-      const violations = matchConfigInvariants(code, 'src/api/endpoint.ts', [heuristicTimeoutRule]);
+      const violations = matchConfigInvariants(code, 'src/api/endpoint.ts', [targetedExternalCallRule]);
       expect(violations).toHaveLength(3);
       expect(violations[0].line).toBe(2);
       expect(violations[0].snippet).toContain("fetch('https://api.com'");
@@ -167,22 +168,24 @@ describe('AST Config Matcher (require_config)', () => {
       expect(violations[2].snippet).toContain("apiClient.call");
     });
 
-    it('should pass when timeout is configured on external call', () => {
+    it('should pass when timeout is configured on targeted calls', () => {
       const code = `
         export async function test() {
           await fetch('https://api.com', { method: 'POST', timeout: 5000 });
           await httpClient.request({ url: '/test', timeout: 3000 });
         }
       `;
-      const violations = matchConfigInvariants(code, 'src/api/endpoint.ts', [heuristicTimeoutRule]);
+      const violations = matchConfigInvariants(code, 'src/api/endpoint.ts', [targetedExternalCallRule]);
       expect(violations).toHaveLength(0);
     });
 
-    it('should NOT produce false positives on normal function calls (Zero False Positives)', () => {
+    it('should NOT produce false positives on Map.get or Cache.get with options (Zero False Positives)', () => {
       const code = `
         export function normalOperations() {
-          // Functions matching get/post/call/etc. without object args must be skipped
-          const item = cache.get('user_123');
+          // Plain Map.get or Cache.get with options object MUST NOT be falsely flagged
+          const m = new Map<string, string>();
+          m.get('key', { ttlMs: 30 });
+          const item = cache.get('user_123', { force: true });
           const value = map.get(key);
           const header = req.get('Content-Type');
           const elem = list.get(0);
@@ -192,7 +195,25 @@ describe('AST Config Matcher (require_config)', () => {
           return item;
         }
       `;
-      const violations = matchConfigInvariants(code, 'src/api/service.ts', [heuristicTimeoutRule]);
+      const violations = matchConfigInvariants(code, 'src/api/service.ts', [targetedExternalCallRule]);
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should safely skip when target is not specified without guessing via regex heuristics', () => {
+      const untargetedRule: InvariantRule = {
+        id: 'UNSPECIFIED_TARGET_RULE',
+        severity: 'warning',
+        desc: 'Untargeted config rule',
+        pattern: {
+          require_config: ['timeout'],
+          scope: 'src/api/**',
+        },
+      };
+      const code = `
+        const m = new Map<string, string>();
+        m.get('k', { ttlMs: 30 });
+      `;
+      const violations = matchConfigInvariants(code, 'src/api/service.ts', [untargetedRule]);
       expect(violations).toHaveLength(0);
     });
   });

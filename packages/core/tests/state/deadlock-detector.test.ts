@@ -56,4 +56,17 @@ stateDiagram-v2
     expect(ids).toContain('DeadlockA');
     expect(ids).toContain('DeadlockB');
   });
+
+  it('should not flag semantic terminal states (Completed, Cancelled, Failed) as deadlocks', () => {
+    const code = `
+stateDiagram-v2
+    [*] --> Processing
+    Processing --> Completed: success
+    Processing --> Cancelled: user_abort
+    Processing --> Failed: timeout
+`;
+    const graph = parseStateDiagram(code);
+    const violations = detectDeadlockStates(graph);
+    expect(violations).toHaveLength(0);
+  });
 });

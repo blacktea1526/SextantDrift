@@ -47,56 +47,56 @@ flowchart TD
 ---
 
 ### 1.2 Level 2: Container Diagram (容器与分层拓扑视图 — 观分层)
-将 15+ 具体组件聚合为 5 大顶层架构容器（Tiers），确立严格的单向防腐依赖流水：
+将 15+ 具体组件聚合为 4 大顶层架构容器（Tiers），确立严格的单向防腐依赖流水（可视化架构图渲染模块已独立为 `@sextant/web-report` 扩展）：
 
 ```mermaid
 flowchart TD
     classDef c1 fill:#2C5282,stroke:#4299E1,stroke-width:2px,color:#FFFFFF;
-    classDef c2 fill:#2B6CB0,stroke:#63B3ED,stroke-width:2px,color:#FFFFFF;
-    classDef c3 fill:#234E52,stroke:#38B2AC,stroke-width:2px,color:#FFFFFF;
-    classDef c4 fill:#744210,stroke:#D69E2E,stroke-width:2px,color:#FFFFFF;
-    classDef c5 fill:#4A5568,stroke:#A0AEC0,stroke-width:2px,color:#FFFFFF;
+    classDef c2 fill:#234E52,stroke:#38B2AC,stroke-width:2px,color:#FFFFFF;
+    classDef c3 fill:#744210,stroke:#D69E2E,stroke-width:2px,color:#FFFFFF;
+    classDef c4 fill:#4A5568,stroke:#A0AEC0,stroke-width:2px,color:#FFFFFF;
+    classDef cExt fill:#4B5563,stroke:#9CA3AF,stroke-dasharray: 5 5,color:#FFFFFF;
 
-    subgraph MonorepoBoundary ["SextantDrift Monorepo 系统边界"]
+    subgraph MonorepoBoundary ["SextantDrift 开源核心 Monorepo 系统边界"]
         direction TB
 
         subgraph L1 ["Layer 1: CLI Presentation Tier [packages/cli]"]
             CLI["🖥️ CLI Gate\n[Container: Node.js / CAC / ANSI]\n命令行交互入口、退出码门禁与参数路由"]:::c1
         end
 
-        subgraph L2 ["Layer 2: Visual Reporting Tier [packages/web-report]"]
-            Reporting["📊 Visual Report Visualizer\n[Container: HTML5 / Native SVG]\n纯原生自包含离线双图差分报告生成器"]:::c2
+        subgraph L2 ["Layer 2: Core Engine Tier [packages/core - engine]"]
+            Engine["⚙️ Core Headless Engine\n[Container: Pure TypeScript (Headless)]\n架构规范解析、C4 差分对比、语义不变量与状态机引擎\n(戒律 3: 0 DOM, 0 CLI)"]:::c2
         end
 
-        subgraph L3 ["Layer 3: Core Engine Tier [packages/core - engine]"]
-            Engine["⚙️ Core Headless Engine\n[Container: Pure TypeScript (Headless)]\n架构规范解析、C4 差分对比、语义不变量与状态机引擎\n(戒律 3: 0 DOM, 0 CLI)"]:::c3
+        subgraph L3 ["Layer 3: AST & Graph Infrastructure Tier [packages/core - infra]"]
+            Infra["🧱 AST & Graph Infrastructure\n[Container: TypeScript Compiler API / Tarjan SCC]\n确凿 AST 语法提取、模块路径解析与图拓扑算法"]:::c3
         end
 
-        subgraph L4 ["Layer 4: AST & Graph Infrastructure Tier [packages/core - infra]"]
-            Infra["🧱 AST & Graph Infrastructure\n[Container: TypeScript Compiler API / Tarjan SCC]\n确凿 AST 语法提取、模块路径解析与图拓扑算法"]:::c4
-        end
-
-        subgraph L5 ["Layer 5: Types & Foundations Tier [packages/core - contracts]"]
-            Contracts["📐 Core Contracts & Foundations\n[Container: TypeScript Domain Types]\n领域架构实体契约、C4 报告模型与配置错误定义"]:::c5
+        subgraph L4 ["Layer 4: Types & Foundations Tier [packages/core - contracts]"]
+            Contracts["📐 Core Contracts & Foundations\n[Container: TypeScript Domain Types]\n领域架构实体契约、C4 报告模型与配置错误定义"]:::c4
         end
 
         CLI ==>|"调用差分与门禁"| Engine
-        CLI -.->|"触发报告生成"| Reporting
-        Reporting ==>|"读取分析结果"| Engine
-        Reporting -.->|"依赖基础契约"| Contracts
         Engine ==>|"委托语法分析与图算法"| Infra
         Engine ==>|"领域实体实现"| Contracts
         Infra ==>|"提供通用基础类型"| Contracts
     end
+
+    subgraph ExternalEcosystem ["独立扩展仓库生态 [Independent Repo]"]
+        WebReport["📊 @sextant/web-report\n[独立发布 / 私有或公开扩展]\n自研 100% 离线原生 SVG 矢量双图交互画布引擎"]:::cExt
+    end
+
+    CLI -.->|"可选动态加载"| WebReport
+    WebReport -.->|"读取分析结果"| Engine
 ```
 
 | 架构层级 (Tier / Container) | 序号 | 核心职责 | 技术栈 (Technology) |
 | :--- | :--- | :--- | :--- |
-| **`cli`** (Presentation Tier) | Layer 1 | 终端命令行交互、退出码门禁与参数解析 | Node.js / CAC / ANSI Terminal |
-| **`reporting`** (Visual Reporting) | Layer 2 | 纯原生离线 C4 架构差分审查报告生成 | HTML5 / Native SVG Engine |
-| **`engine`** (Core Engine) | Layer 3 | 确定性拓扑提取、C4 差分对比与不变量规则引擎 | Pure TypeScript (Headless, 0 DOM, 0 CLI) |
-| **`infrastructure`** (Infrastructure) | Layer 4 | 源码 AST 解析、路径解析与 Tarjan 强连通图算法 | TypeScript Compiler API / Tarjan SCC |
-| **`contracts`** (Foundations) | Layer 5 | 领域实体类型契约、C4 规范模型与配置错误定义 | Pure TypeScript Contract Types |
+| **`cli`** (Presentation Tier) | Layer 1 | 终端命令行交互、退出码门禁、JSON 导出与轻量报告 | Node.js / CAC / ANSI Terminal |
+| **`engine`** (Core Engine) | Layer 2 | 确定性拓扑提取、C4 差分对比与不变量规则引擎 | Pure TypeScript (Headless, 0 DOM, 0 CLI) |
+| **`infrastructure`** (Infrastructure) | Layer 3 | 源码 AST 解析、路径解析与 Tarjan 强连通图算法 | TypeScript Compiler API / Tarjan SCC |
+| **`contracts`** (Foundations) | Layer 4 | 领域实体类型契约、C4 规范模型与配置错误定义 | Pure TypeScript Contract Types |
+| **`reporting`** *(独立扩展)* | Extension | 原生 SVG 矢量双图交互渲染画布与离线报告模板 | HTML5 / Native SVG Engine (`@sextant/web-report`) |
 
 ---
 
@@ -149,7 +149,6 @@ flowchart TD
 | 组件 ID | 所属容器 | 技术栈 | 源码映射路径 (Paths) |
 | :--- | :--- | :--- | :--- |
 | `CliGate` | `cli` | CAC / ANSI | `packages/cli/src/**` |
-| `WebReport` | `reporting` | Native SVG | `packages/web-report/src/**` |
 | `CoreFacade` | `engine` | TypeScript | `packages/core/src/index.ts` |
 | `C4Engine` | `engine` | C4 Model | `packages/core/src/c4/**` |
 | `SpecParser` | `engine` | JSON / YAML | `packages/core/src/parser/**` |
@@ -215,13 +214,13 @@ stateDiagram-v2
 ## 2. 核心架构不变量守则 (Architecture Invariants)
 
 1. **戒律 3：Core-First 零外壳污染 (`CORE_ZERO_CLI_DOM`)**
-   - `@sextant/core` 严禁引用任何终端 CLI 库（`cac`, `picocolors`, `commander`, `chalk`）或外部上层包（`@sextant/cli`, `@sextant/web-report`）；
+   - `@sextant/core` 严禁引用任何终端 CLI 库（`cac`, `picocolors`, `commander`, `chalk`）或外部上层包（`sextant-drift`, `@sextant/cli`, `@sextant/web-report`）；
    - 保证内核在任何纯 Node.js / CI / 隔离沙箱环境中零额外依赖秒级执行。
 
-2. **视图与报告隔离 (`REPORT_ZERO_CLI`)**
-   - `@sextant/web-report` 仅负责纯数据到静态 HTML 的单向无状态渲染，严禁引入 CLI 解析或终端交互逻辑。
+2. **图渲染与视图隔离 (Independent Visual Extension)**
+   - 架构图渲染器作为独立仓库生态（`@sextant/web-report`）维护与发布；CLI 采用动态探测方式可选加载，未安装时自动生成自包含轻量 HTML/终端诊断报告。
 
 3. **依赖单向流动与分层防御**
-   - 上层（`cli`, `reporting`）单向调用下层（`engine`）；
+   - 命令行上层（`cli`）单向调用下层（`engine`）；
    - 引擎层依赖底层 AST 语法分析与图算法基础设施（`infrastructure`）；
    - 所有通用数据结构与错误类收敛于基底层（`contracts`），杜绝循环引用与反向依赖。

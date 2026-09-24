@@ -23,8 +23,13 @@ export async function runReport(
   try {
     const rootDir = path.resolve(process.cwd(), dir);
     const outputPath = options.output
-      ? path.resolve(rootDir, options.output)
+      ? (path.isAbsolute(options.output) ? options.output : path.resolve(process.cwd(), options.output))
       : path.resolve(rootDir, 'drift-report.html');
+
+    const outputDir = path.dirname(outputPath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
 
     const report = await analyzeModuleDrift({
       rootDir,
@@ -33,20 +38,42 @@ export async function runReport(
       baselinePath: options.baseline,
     });
 
-    const { generateHtmlReport } = await import('@sextant/web-report');
     const lang = options.lang === 'en' ? 'en' : 'zh';
-    const html = generateHtmlReport(report, { lang });
+    let html: string;
+    let isFullVisual = false;
+
+    try {
+      const { generateHtmlReport } = await import('@sextant/web-report');
+      html = generateHtmlReport(report, { lang });
+      isFullVisual = true;
+    } catch {
+      const { formatLightweightHtmlReport } = await import('../formatters/html.js');
+      html = formatLightweightHtmlReport(report, { lang });
+    }
 
     fs.writeFileSync(outputPath, html, 'utf-8');
 
     if (options.json) {
-      console.log(JSON.stringify({ reportPath: outputPath, violations: report.violations.length }));
+      console.log(JSON.stringify({ reportPath: outputPath, violations: report.violations.length, fullVisual: isFullVisual }));
     } else {
-      console.log(
-        pc.green(
-          `✔ Dual-diagram inspection report generated: ${path.relative(process.cwd(), outputPath)}`
-        )
-      );
+      if (isFullVisual) {
+        console.log(
+          pc.green(
+            `✔ Dual-diagram inspection report generated: ${path.relative(process.cwd(), outputPath)}`
+          )
+        );
+      } else {
+        console.log(
+          pc.green(
+            `✔ Architecture inspection report generated: ${path.relative(process.cwd(), outputPath)}`
+          )
+        );
+        console.log(
+          pc.dim(
+            `  Note: Install optional @sextant/web-report extension for interactive C4 SVG visual diagrams.`
+          )
+        );
+      }
       console.log(
         pc.dim(
           `  Open this file in any browser (100% offline, zero network requests required).`

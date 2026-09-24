@@ -48,6 +48,66 @@ export function parseMarkdownContract(
       continue;
     }
 
+    // Markdown Table endpoint declaration: e.g. "| GET | /api/users | ..." or "| /users | POST | ..."
+    if (trimmed.startsWith('|') && trimmed.includes('|', 1)) {
+      if (/^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/.test(trimmed)) {
+        continue;
+      }
+
+      const rawCells = trimmed.split('|').map((c) => c.trim());
+      const cells = rawCells.filter((c, i) => {
+        if (i === 0 && trimmed.startsWith('|') && c === '') return false;
+        if (i === rawCells.length - 1 && trimmed.endsWith('|') && c === '') return false;
+        return true;
+      });
+
+      let methodIdx = -1;
+      let pathIdx = -1;
+
+      for (let i = 0; i < cells.length; i++) {
+        const upper = cells[i].toUpperCase();
+        if (VALID_METHODS.has(upper) && methodIdx === -1) {
+          methodIdx = i;
+        } else if (cells[i].startsWith('/') && pathIdx === -1) {
+          pathIdx = i;
+        }
+      }
+
+      if (methodIdx !== -1 && pathIdx !== -1) {
+        if (currentEndpoint) {
+          endpoints.push(currentEndpoint);
+          currentEndpoint = null;
+        }
+
+        const method = cells[methodIdx].toUpperCase() as HttpMethod;
+        const routePath = normalizeHttpPath(cells[pathIdx]);
+        const tableEndpoint: ContractEndpoint = {
+          id: `${method} ${routePath}`,
+          method,
+          path: routePath,
+          specFile: filePath,
+          specLine: lineNumber,
+          params: [],
+          statuses: [],
+        };
+
+        for (let i = 0; i < cells.length; i++) {
+          if (i !== methodIdx && i !== pathIdx) {
+            const statusMatch = cells[i].match(/\b([1-5]\d{2})\b/);
+            if (statusMatch) {
+              tableEndpoint.statuses.push({
+                code: parseInt(statusMatch[1], 10),
+                specLine: lineNumber,
+              });
+            }
+          }
+        }
+
+        endpoints.push(tableEndpoint);
+        continue;
+      }
+    }
+
     // Header endpoint declaration: e.g. "### POST /api/v1/orders"
     const headerMatch = trimmed.match(/^#{2,4}\s+(?:\[[^\]]+\]\s+)?(GET|POST|PUT|DELETE|PATCH|ALL)\s+(\S+)/i);
     if (headerMatch) {

@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { TargetArchitecture } from '../types/architecture.js';
 import { parseJsonSpec } from './json-spec-parser.js';
-import { extractMermaidFromMarkdown, parseMermaidArchitecture } from './mermaid-adapter.js';
+import {
+  extractMermaidFromMarkdown,
+  extractMermaidBlocksFromMarkdown,
+  parseMermaidArchitecture,
+} from './mermaid-adapter.js';
 import { extractInvariantsFromMarkdown } from '../invariants/parser.js';
 import { ConfigValidationError } from '../errors/config-error.js';
 
@@ -62,14 +66,18 @@ export function resolveTargetArchitecture(
       attachMarkdownInvariants(arch, ...getRootDirMarkdownContents(rootDir));
       return arch;
     }
-    const mermaid = extractMermaidFromMarkdown(content);
-    if (mermaid) {
-      const arch = parseMermaidArchitecture(mermaid);
-      attachMarkdownInvariants(arch, content, ...getRootDirMarkdownContents(rootDir));
-      return arch;
+    const candidateBlocks = extractMermaidBlocksFromMarkdown(content);
+    for (const mermaid of candidateBlocks) {
+      try {
+        const arch = parseMermaidArchitecture(mermaid);
+        attachMarkdownInvariants(arch, content, ...getRootDirMarkdownContents(rootDir));
+        return arch;
+      } catch {
+        continue;
+      }
     }
     throw new ConfigValidationError(
-      `File ${fullPath} is neither valid JSON nor contains a Mermaid diagram`
+      `File ${fullPath} is neither valid JSON nor contains a valid Mermaid architecture diagram`
     );
   }
 
@@ -97,14 +105,14 @@ export function resolveTargetArchitecture(
   for (const mdPath of fallbackMarkdownPaths) {
     if (fs.existsSync(mdPath)) {
       const content = fs.readFileSync(mdPath, 'utf-8');
-      const mermaid = extractMermaidFromMarkdown(content);
-      if (mermaid) {
+      const candidateBlocks = extractMermaidBlocksFromMarkdown(content);
+      for (const mermaid of candidateBlocks) {
         try {
           const arch = parseMermaidArchitecture(mermaid);
           attachMarkdownInvariants(arch, content, ...getRootDirMarkdownContents(rootDir));
           return arch;
         } catch {
-          // If markdown contains an unrelated mermaid diagram, continue to next fallback
+          // If this block is not an architecture diagram, try next
           continue;
         }
       }

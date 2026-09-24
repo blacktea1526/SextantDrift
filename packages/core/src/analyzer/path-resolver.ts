@@ -6,9 +6,8 @@ export interface TsConfigPaths {
   paths?: Record<string, string[]>;
 }
 
-export type ResolvedTarget =
-  | { type: 'internal'; targetPath: string }
-  | { type: 'external'; packageName: string; rawSpecifier: string };
+import { resolveModuleWithTsCompiler, clearTsResolverCache, ResolvedTarget } from './ts-project-resolver.js';
+export { ResolvedTarget } from './ts-project-resolver.js';
 
 /**
  * Loads compilerOptions baseUrl and paths from tsconfig.json
@@ -104,107 +103,95 @@ const resolutionCache = new Map<string, ResolvedTarget>();
 
 export function clearResolutionCache(): void {
   resolutionCache.clear();
+  clearTsResolverCache();
 }
 
 /**
- * Resolves a module specifier to an internal relative file path or external package
+ * Resolves a module specifier to an internal relative file path, external package, or unresolved diagnostic
  */
 export function resolveModulePath(
   rootDir: string,
   sourceFilePath: string,
   rawSpecifier: string,
-  tsConfigPaths?: TsConfigPaths | null
+  tsConfigPaths?: TsConfigPaths | null,
+  options?: { customTsconfigPath?: string }
 ): ResolvedTarget {
-  const cacheKey = `${sourceFilePath}\0${rawSpecifier}`;
+  const normRootDir = rootDir.split('\\').join('/');
+  const normSource = sourceFilePath.split('\\').join('/');
+  const pathsKey = tsConfigPaths ? `${tsConfigPaths.baseUrl || ''}:${JSON.stringify(tsConfigPaths.paths || {})}` : '';
+  const cacheKey = `${normRootDir}\0${normSource}\0${rawSpecifier}\0${pathsKey}\0${options?.customTsconfigPath || ''}`;
   const cached = resolutionCache.get(cacheKey);
   if (cached) return cached;
 
-  const result = doResolveModulePath(rootDir, sourceFilePath, rawSpecifier, tsConfigPaths);
-  resolutionCache.set(cacheKey, result);
-  return result;
-}
+  // 1. If explicit in-memory tsConfigPaths is provided (e.g. In synthetic tests), try paths first
+  if (tsConfigPaths?.paths) {
+    const matched = resolveFromTsConfigPaths(rootDir, rawSpecifier, tsConfigPaths);
+    if (matched) {
+      resolutionCache.set(cacheKey, matched);
+      return matched;
+    }
+  }
 
-function doResolveModulePath(
-  rootDir: string,
-  sourceFilePath: string,
-  rawSpecifier: string,
-  tsConfigPaths?: TsConfigPaths | null
-): ResolvedTarget {
-  // 1. Relative paths: ./ or ../
-  if (rawSpecifier.startsWith('./') || rawSpecifier.startsWith('../')) {
-    const normSource = sourceFilePath.split('\\').join('/');
-    const sourceDir = path.posix.dirname(normSource);
+  // 2. Delegate to official TypeScript Compiler API module resolution
+  const tsResult = resolveModuleWithTsCompiler(rootDir, sourceFilePath, rawSpecifier, {
+    customTsconfigPath: options?.customTsconfigPath,
+  });
+
+  // If tsResult is unresolved but in-memory relative resolution is possible (e.g. synthetic non-disk tests)
+  if (tsResult.type === 'unresolved' && (rawSpecifier.startsWith('./') || rawSpecifier.startsWith('../'))) {
+    const normSourceRel = sourceFilePath.split('\\').join('/');
+    const sourceDir = path.posix.dirname(normSourceRel);
     const resolvedRel = path.posix.normalize(path.posix.join(sourceDir, rawSpecifier));
-    return {
+    const fallback: ResolvedTarget = {
       type: 'internal',
       targetPath: normalizePath(resolvedRel),
     };
+    resolutionCache.set(cacheKey, fallback);
+    return fallback;
   }
 
-  // 2. tsconfig paths mapping
-  if (tsConfigPaths?.paths) {
-    const baseUrl = tsConfigPaths.baseUrl || '.';
-    for (const [pattern, mappings] of Object.entries(tsConfigPaths.paths)) {
-      if (pattern === rawSpecifier) {
+  resolutionCache.set(cacheKey, tsResult);
+  return tsResult;
+}
+
+function resolveFromTsConfigPaths(
+  rootDir: string,
+  rawSpecifier: string,
+  tsConfigPaths: TsConfigPaths
+): ResolvedTarget | null {
+  if (!tsConfigPaths.paths) return null;
+  const baseUrl = tsConfigPaths.baseUrl || '.';
+
+  for (const [pattern, mappings] of Object.entries(tsConfigPaths.paths)) {
+    if (pattern === rawSpecifier) {
+      if (mappings.length > 0) {
+        const mapped = mappings[0];
+        const resolved = path.join(baseUrl, mapped);
+        return {
+          type: 'internal',
+          targetPath: normalizePath(resolved),
+        };
+      }
+    } else if (pattern.endsWith('/*')) {
+      const prefix = pattern.slice(0, -2);
+      if (rawSpecifier.startsWith(prefix + '/')) {
+        const suffix = rawSpecifier.slice(prefix.length + 1);
         if (mappings.length > 0) {
-          const mapped = mappings[0];
-          const resolved = path.join(baseUrl, mapped);
+          const mappedPattern = mappings[0];
+          const mappedPrefix = mappedPattern.endsWith('/*')
+            ? mappedPattern.slice(0, -2)
+            : mappedPattern;
+          const resolved = path.join(baseUrl, mappedPrefix, suffix);
           return {
             type: 'internal',
             targetPath: normalizePath(resolved),
           };
         }
-      } else if (pattern.endsWith('/*')) {
-        const prefix = pattern.slice(0, -2);
-        if (rawSpecifier.startsWith(prefix + '/')) {
-          const suffix = rawSpecifier.slice(prefix.length + 1);
-          if (mappings.length > 0) {
-            const mappedPattern = mappings[0];
-            const mappedPrefix = mappedPattern.endsWith('/*')
-              ? mappedPattern.slice(0, -2)
-              : mappedPattern;
-            const resolved = path.join(baseUrl, mappedPrefix, suffix);
-            return {
-              type: 'internal',
-              targetPath: normalizePath(resolved),
-            };
-          }
-        }
       }
     }
   }
 
-  // 3. baseUrl resolution without explicit paths
-  if (tsConfigPaths?.baseUrl) {
-    const candidatePath = path.resolve(rootDir, tsConfigPaths.baseUrl, rawSpecifier);
-    // If candidate exists with common extensions or as dir
-    const extensions = ['.ts', '.tsx', '.js', '.jsx', ''];
-    for (const ext of extensions) {
-      if (fs.existsSync(candidatePath + ext) || fs.existsSync(path.join(candidatePath, 'index.ts'))) {
-        const relativeTarget = path.relative(rootDir, candidatePath);
-        return {
-          type: 'internal',
-          targetPath: normalizePath(relativeTarget),
-        };
-      }
-    }
-  }
-
-  // 4. Monorepo workspace package resolution (e.g. @sextant/core -> packages/core/src/index.ts)
-  const workspacePkgs = loadWorkspacePackages(rootDir);
-  const matchedTarget = workspacePkgs.get(rawSpecifier);
-  if (matchedTarget) {
-    return {
-      type: 'internal',
-      targetPath: matchedTarget,
-    };
-  }
-
-  // 5. Otherwise, it is an external package
-  return {
-    type: 'external',
-    packageName: getPackageName(rawSpecifier),
-    rawSpecifier,
-  };
+  return null;
 }
+
 

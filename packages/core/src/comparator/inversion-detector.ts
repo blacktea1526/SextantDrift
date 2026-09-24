@@ -75,7 +75,7 @@ export function detectForbiddenImports(
         ) {
           isForbidden = true;
         }
-      } else {
+      } else if (resolved.type === 'internal') {
         // Internal target path
         if (matchesPatterns(resolved.targetPath, [forbidden])) {
           isForbidden = true;

@@ -9,9 +9,16 @@ describe('@sextant/cli entrypoint', () => {
     expect(typeof cli.generateActualMermaid).toBe('function');
   });
 
-  it('should export graph utilities from core', () => {
-    expect(cli.detectCycles).toBeDefined();
-    expect(typeof cli.detectCycles).toBe('function');
-    expect(cli.DirectedGraph).toBeDefined();
+  it('should export CLI commands and formatters', () => {
+    expect(cli.runCheck).toBeDefined();
+    expect(typeof cli.runCheck).toBe('function');
+    expect(cli.runBaseline).toBeDefined();
+    expect(typeof cli.runBaseline).toBe('function');
+    expect(cli.runInit).toBeDefined();
+    expect(typeof cli.runInit).toBe('function');
+    expect(cli.runReport).toBeDefined();
+    expect(typeof cli.runReport).toBe('function');
+    expect(cli.formatTerminalReport).toBeDefined();
+    expect(typeof cli.formatTerminalReport).toBe('function');
   });
 });

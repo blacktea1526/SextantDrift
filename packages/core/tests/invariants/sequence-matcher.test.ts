@@ -425,5 +425,32 @@ function test() {
       const violations = matchSequenceInvariants(code, 'src/test.ts', [nonSequenceRule]);
       expect(violations).toHaveLength(0);
     });
+
+    it('should detect violation when target call is nested inside must_precede call arguments', () => {
+      // In JS evaluation order: llmService.call(input.prompt) runs BEFORE db.save()!
+      const code = `
+async function handle(input: any) {
+  await db.save(await llmService.call(input.prompt));
+}
+      `.trim();
+
+      const violations = matchSequenceInvariants(code, 'src/controllers/user.controller.ts', [persistBeforeExternalRule]);
+      expect(violations).toHaveLength(1);
+      expect(violations[0].ruleId).toBe('PERSIST_BEFORE_EXTERNAL');
+      expect(violations[0].type).toBe('INVARIANT_BROKEN');
+      expect(violations[0].message).toContain('inverted order');
+    });
+
+    it('should allow when must_precede call is nested inside target call arguments', () => {
+      // In JS evaluation order: db.save(input) runs BEFORE llmService.call()!
+      const code = `
+async function handle(input: any) {
+  await llmService.call(await db.save(input.prompt));
+}
+      `.trim();
+
+      const violations = matchSequenceInvariants(code, 'src/controllers/user.controller.ts', [persistBeforeExternalRule]);
+      expect(violations).toHaveLength(0);
+    });
   });
 });

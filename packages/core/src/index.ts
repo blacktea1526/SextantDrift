@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import ts from 'typescript';
+import { ConfigValidationError } from './errors/config-error.js';
 import { TargetArchitecture, Component, Layer } from './types/architecture.js';
 import { DriftReport, DriftSummary, DriftViolation, AnalyzeOptions } from './types/report.js';
 import { resolveTargetArchitecture } from './parser/spec-resolver.js';
@@ -35,7 +36,7 @@ import { buildC4GraphData } from './c4/index.js';
 import { generateActualMermaid, generateUnifiedMermaid } from './parser/mermaid-generator.js';
 import type { ExecutionTrace } from './trace/types.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '2.0.0';
 
 export * from './types/index.js';
 export * from './errors/config-error.js';
@@ -46,6 +47,13 @@ export * from './parser/spec-resolver.js';
 export * from './analyzer/file-scanner.js';
 export * from './analyzer/ast-extractor.js';
 export * from './analyzer/path-resolver.js';
+export {
+  resolveModuleWithTsCompiler,
+  clearTsResolverCache,
+  findNearestTsConfigFile,
+  getParsedTsConfig,
+} from './analyzer/ts-project-resolver.js';
+export * from './analyzer/barrel-tracer.js';
 export * from './analyzer/noise-filter.js';
 export * from './graph/directed-graph.js';
 export * from './graph/tarjan.js';
@@ -64,6 +72,8 @@ export * from './causality/index.js';
 export * from './contract/index.js';
 export * from './c4/index.js';
 
+import { clearBarrelCache, traceBarrelExports } from './analyzer/barrel-tracer.js';
+import { clearTsResolverCache } from './analyzer/ts-project-resolver.js';
 
 /**
  * Main Pure Analysis Entrypoint.
@@ -71,6 +81,8 @@ export * from './c4/index.js';
  */
 export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<DriftReport> {
   clearResolutionCache();
+  clearTsResolverCache();
+  clearBarrelCache();
   clearComponentLookupCache();
   const startTime = performance.now();
   const rootDir = path.resolve(options.rootDir);
@@ -102,14 +114,24 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
   let totalDependencies = 0;
   const componentFileCounts = new Map<string, number>();
   const fileContentMap = new Map<string, string>();
+  const resolutionWarnings: ViolationEvidence[] = [];
+  let unresolvedImportCount = 0;
+  let partialBarrelCount = 0;
+
+  // Pre-load all file contents into fileContentMap so barrel-tracer has full access
+  for (const relPath of filePaths) {
+    const fullPath = path.resolve(rootDir, relPath);
+    if (fs.existsSync(fullPath)) {
+      fileContentMap.set(relPath, fs.readFileSync(fullPath, 'utf-8'));
+    }
+  }
 
   // 4. Extract dependencies from each file
   for (const relPath of filePaths) {
     const fullPath = path.resolve(rootDir, relPath);
     if (!fs.existsSync(fullPath)) continue;
 
-    const content = fs.readFileSync(fullPath, 'utf-8');
-    fileContentMap.set(relPath, content);
+    const content = fileContentMap.get(relPath) || fs.readFileSync(fullPath, 'utf-8');
     const evidences = extractDependenciesFromSource(relPath, content);
     const sourceComp = findComponentForFile(relPath, arch.components);
 
@@ -119,7 +141,14 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
 
     for (const evidence of evidences) {
       totalDependencies++;
-      const resolved = resolveModulePath(rootDir, relPath, evidence.rawSpecifier, tsConfigPaths);
+      // Skip purely compile-time type imports for structural drift unless explicitly requested
+      if (evidence.isTypeOnly && !options.countTypeOnly) {
+        continue;
+      }
+
+      const resolved = resolveModulePath(rootDir, relPath, evidence.rawSpecifier, tsConfigPaths, {
+        customTsconfigPath: options.tsconfigPath,
+      });
 
       rawFileDependencies.push({
         sourceFile: relPath,
@@ -127,6 +156,23 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
         resolved,
         sourceComponent: sourceComp,
       });
+
+      if (resolved.type === 'unresolved') {
+        unresolvedImportCount++;
+        resolutionWarnings.push({
+          id: `unresolved-${relPath}-${evidence.line}-${evidence.column}`,
+          type: 'WARN_UNRESOLVED_IMPORT',
+          severity: 'warning',
+          message: `Unresolved module import: "${evidence.rawSpecifier}" imported by "${relPath}" could not be resolved by TypeScript Compiler API (${resolved.reason})`,
+          sourceFile: relPath,
+          line: evidence.line,
+          column: evidence.column,
+          snippet: evidence.snippet,
+          sourceComponent: sourceComp?.id,
+          suggestion: 'Check that the module or file exists and that tsconfig.json "paths" / "extends" mappings are properly configured.',
+        });
+        continue;
+      }
 
       if (resolved.type === 'internal' && sourceComp) {
         const targetComp = findComponentForFile(resolved.targetPath, arch.components);
@@ -147,9 +193,102 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
             componentGraph.addEdge(sourceComp.id, targetComp.id);
           }
         }
+
+        // Barrel Multi-Hop Tracing: trace re-exported dependencies through barrels
+        const barrelTrace = traceBarrelExports(
+          rootDir,
+          resolved.targetPath,
+          evidence.importedSymbols,
+          fileContentMap,
+          options.tsconfigPath
+        );
+        if (barrelTrace.isBarrel) {
+          // Record any unresolved hops in the barrel
+          for (const unres of barrelTrace.unresolvedHops) {
+            partialBarrelCount++;
+            resolutionWarnings.push({
+              id: `partial-barrel-${unres.sourceFile}-${unres.hop}`,
+              type: 'WARN_PARTIAL_BARREL_RESOLUTION',
+              severity: 'warning',
+              message: `Barrel file "${unres.sourceFile}" contains unresolvable re-export "${unres.rawSpecifier}" at hop ${unres.hop}: ${unres.reason}`,
+              sourceFile: unres.sourceFile,
+              line: 1,
+              column: 1,
+              snippet: `export * from '${unres.rawSpecifier}'`,
+              sourceComponent: sourceComp?.id,
+              suggestion: 'Verify intermediate re-export target. Partial barrel resolution means some underlying dependencies could not be verified.',
+            });
+          }
+
+          // For each traced underlying target:
+          for (const traced of barrelTrace.tracedTargets) {
+            if (traced.isTypeOnly && !options.countTypeOnly) {
+              continue;
+            }
+            const underlyingComp = findComponentForFile(traced.targetPath, arch.components);
+            if (underlyingComp && sourceComp.id !== underlyingComp.id) {
+              const sourceLayer = layerMap.get(sourceComp.layerId);
+              const targetLayer = layerMap.get(underlyingComp.layerId);
+              if (sourceLayer && targetLayer) {
+                componentDependencies.push({
+                  evidence: {
+                    ...evidence,
+                    snippet: `${evidence.snippet} (via barrel: ${traced.chain.join(' -> ')})`,
+                  },
+                  resolved: {
+                    type: 'internal',
+                    targetPath: traced.targetPath,
+                    fullPath: traced.fullPath,
+                  },
+                  sourceComponent: sourceComp,
+                  sourceLayer,
+                  targetComponent: underlyingComp,
+                  targetLayer,
+                });
+                componentGraph.addEdge(sourceComp.id, underlyingComp.id);
+              }
+            }
+          }
+        }
       }
     }
   }
+
+  // 4.1 Validate component coverage and empty component patterns
+  if (!options.files) {
+    for (const comp of arch.components) {
+      const count = componentFileCounts.get(comp.id) || 0;
+      if (count === 0) {
+        throw new ConfigValidationError(
+          `Architecture spec component "${comp.id}" matched 0 files with paths: [${comp.paths.join(', ')}]`,
+          { field: `components.${comp.id}.paths` }
+        );
+      }
+    }
+  }
+
+  const mappedFilesCount = Array.from(fileContentMap.keys()).filter((relPath) =>
+    Boolean(findComponentForFile(relPath, arch.components))
+  ).length;
+  const totalFilesCount = fileContentMap.size;
+  const unmappedFilesCount = totalFilesCount - mappedFilesCount;
+  const coveragePercentage = totalFilesCount > 0
+    ? Math.round((mappedFilesCount / totalFilesCount) * 10000) / 100
+    : 0;
+
+  if (options.unmappedFiles === 'forbid' && unmappedFilesCount > 0) {
+    throw new ConfigValidationError(
+      `Forbidden unmapped files detected: ${unmappedFilesCount} file(s) are not claimed by any component (${coveragePercentage}% coverage).`,
+      { field: 'components' }
+    );
+  }
+
+  const componentCoverage = {
+    totalFiles: totalFilesCount,
+    mappedFiles: mappedFilesCount,
+    unmappedFiles: unmappedFilesCount,
+    coveragePercentage,
+  };
 
   // 5. Run detectors
   // A. Tarjan cycles
@@ -306,6 +445,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     fileContentMap,
   });
   const contractViolations = contractResult.violations;
+  const contractEndpointCount = contractResult.actualEndpoints?.length || contractResult.targetSpec?.endpoints?.length || 0;
 
   // 6. Aggregate violations
   const allViolations: DriftViolation[] = [
@@ -317,6 +457,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     ...stateViolations,
     ...dynamicViolations,
     ...contractViolations,
+    ...resolutionWarnings,
   ];
 
   // 7. Ensure every violation has a deterministic semantic fingerprint
@@ -348,6 +489,10 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     stateViolationCount: stateViolations.length,
     dynamicViolationCount: dynamicViolations.length,
     contractViolationCount: contractViolations.length,
+    contractEndpointCount,
+    unresolvedImportCount,
+    partialBarrelCount,
+    componentCoverage,
   };
 
   const graphData = buildC4GraphData(arch, componentGraph, allViolations, {
@@ -358,7 +503,8 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
   const unifiedMermaid = generateUnifiedMermaid(arch, componentGraph, allViolations);
   const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
   const hasCritical = newViolations.some((v) => v.severity === 'critical');
-  const passed = !hasCritical && newViolations.length === 0;
+  const hasWarning = newViolations.some((v) => v.severity === 'warning');
+  const passed = options.strict ? (!hasCritical && !hasWarning) : !hasCritical;
 
   return {
     passed,
@@ -368,6 +514,8 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     exemptions,
     targetArchitecture: arch,
     graphData,
+    hasUnresolvedImports: unresolvedImportCount > 0,
+    hasPartialBarrels: partialBarrelCount > 0,
     actualMermaid,
     unifiedMermaid,
     durationMs,

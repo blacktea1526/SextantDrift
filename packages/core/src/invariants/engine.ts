@@ -28,6 +28,48 @@ export function executeInvariantsEngine(options: InvariantsEngineOptions): Viola
     return [];
   }
 
+  // 0. Validate rule completeness: catch rules missing explicit target to prevent silent skip (No Green Lies)
+  const ruleWarnings: ViolationEvidence[] = [];
+  const configSpecFile = fs.existsSync(path.resolve(rootDir, 'sextant.json'))
+    ? 'sextant.json'
+    : fs.existsSync(path.resolve(rootDir, 'ARCHITECTURE.md'))
+      ? 'ARCHITECTURE.md'
+      : 'sextant.json';
+
+  for (const rule of rules) {
+    const hasTarget = Boolean(rule.pattern.target && rule.pattern.target.length > 0);
+
+    if (rule.pattern.require_config && rule.pattern.require_config.length > 0 && !hasTarget) {
+      ruleWarnings.push({
+        id: `WARN_RULE_MISSING_TARGET_${rule.id}`,
+        type: 'WARN_RULE_MISSING_TARGET',
+        severity: 'warning',
+        ruleId: rule.id,
+        ruleDesc: rule.desc,
+        message: `Invariant rule "${rule.id}" specifies require_config [${rule.pattern.require_config.map((c) => `"${c}"`).join(', ')}] but lacks pattern.target. Specify explicit target calls (e.g. ['fetch', 'axios.*', '*.request']) so the rule can be verified deterministically without guessing.`,
+        sourceFile: configSpecFile,
+        line: 1,
+        column: 1,
+        snippet: `id: "${rule.id}"`,
+        suggestion: `Add "target: [\"functionName\"]" to invariant rule "${rule.id}" in your architecture specification.`,
+      });
+    } else if (rule.pattern.must_precede && rule.pattern.must_precede.length > 0 && !hasTarget) {
+      ruleWarnings.push({
+        id: `WARN_RULE_MISSING_TARGET_${rule.id}`,
+        type: 'WARN_RULE_MISSING_TARGET',
+        severity: 'warning',
+        ruleId: rule.id,
+        ruleDesc: rule.desc,
+        message: `Invariant rule "${rule.id}" specifies must_precede [${rule.pattern.must_precede.map((c) => `"${c}"`).join(', ')}] but lacks pattern.target. Specify explicit target calls to verify execution order deterministically.`,
+        sourceFile: configSpecFile,
+        line: 1,
+        column: 1,
+        snippet: `id: "${rule.id}"`,
+        suggestion: `Add "target: [\"functionName\"]" to invariant rule "${rule.id}" in your architecture specification.`,
+      });
+    }
+  }
+
   // Group rules by capability
   const sequenceRules = rules.filter(
     (r) =>
@@ -37,15 +79,15 @@ export function executeInvariantsEngine(options: InvariantsEngineOptions): Viola
     (r) => Boolean(r.pattern.forbid_import && r.pattern.forbid_import.length > 0)
   );
   const configRules = rules.filter(
-    (r) => Boolean(r.pattern.require_config && r.pattern.require_config.length > 0)
+    (r) => Boolean(r.pattern.require_config && r.pattern.require_config.length > 0 && r.pattern.target && r.pattern.target.length > 0)
   );
 
-  // If no executable rules in any category, return early
+  // If no executable rules in any category, return rule completeness warnings
   if (sequenceRules.length === 0 && importRules.length === 0 && configRules.length === 0) {
-    return [];
+    return ruleWarnings;
   }
 
-  const violations: ViolationEvidence[] = [];
+  const violations: ViolationEvidence[] = [...ruleWarnings];
 
   for (const relPath of filePaths) {
     // 0. Scope pre-filter: skip files that do not match ANY invariant rule

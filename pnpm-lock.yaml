@@ -13,7 +13,7 @@ importers:
         version: 22.20.3
       '@vitest/coverage-v8':
         specifier: 2.1.9
-        version: 2.1.9(supports-color@7.2.0)(vitest@2.1.9)
+        version: 2.1.9(vitest@2.1.9)
       '@vitest/ui':
         specifier: ^2.1.9
         version: 2.1.9(vitest@2.1.9)
@@ -22,28 +22,38 @@ importers:
         version: 9.15.9
       tsup:
         specifier: ^8.3.5
-        version: 8.5.1(postcss@8.5.28)(supports-color@7.2.0)(typescript@5.9.3)(yaml@2.9.1)
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
       vitest:
         specifier: ^2.1.8
-        version: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)(supports-color@7.2.0)
+        version: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)
 
   packages/cli:
     dependencies:
-      '@sextant/core':
-        specifier: workspace:*
-        version: link:../core
-      '@sextant/web-report':
-        specifier: workspace:*
-        version: link:../web-report
       cac:
         specifier: ^6.7.14
         version: 6.7.14
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      yaml:
+        specifier: ^2.4.2
+        version: 2.9.1
+    devDependencies:
+      '@sextant/core':
+        specifier: workspace:*
+        version: link:../core
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)
 
   packages/core:
     dependencies:
@@ -56,16 +66,29 @@ importers:
     devDependencies:
       tsup:
         specifier: ^8.3.5
-        version: 8.5.1(postcss@8.5.28)(supports-color@7.2.0)(typescript@5.9.3)(yaml@2.9.1)
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
       vitest:
         specifier: ^2.1.8
-        version: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)(supports-color@7.2.0)
+        version: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)
 
   packages/web-report:
     dependencies:
       '@sextant/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.3
+        version: 22.20.3
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)
 
 packages:
 
@@ -1445,21 +1468,21 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@vitest/coverage-v8@2.1.9(supports-color@7.2.0)(vitest@2.1.9)':
+  '@vitest/coverage-v8@2.1.9(vitest@2.1.9)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
-      istanbul-lib-source-maps: 5.0.6(supports-color@7.2.0)
+      istanbul-lib-source-maps: 5.0.6
       istanbul-reports: 3.2.0
       magic-string: 0.30.21
       magicast: 0.3.5
       std-env: 3.10.0
       test-exclude: 7.0.2
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)(supports-color@7.2.0)
+      vitest: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)
     transitivePeerDependencies:
       - supports-color
 
@@ -1506,7 +1529,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)(supports-color@7.2.0)
+      vitest: 2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)
 
   '@vitest/utils@2.1.9':
     dependencies:
@@ -1581,11 +1604,9 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  debug@4.4.3(supports-color@7.2.0):
+  debug@4.4.3:
     dependencies:
       ms: 2.1.3
-    optionalDependencies:
-      supports-color: 7.2.0
 
   deep-eql@5.0.2: {}
 
@@ -1705,10 +1726,10 @@ snapshots:
       make-dir: 4.0.0
       supports-color: 7.2.0
 
-  istanbul-lib-source-maps@5.0.6(supports-color@7.2.0):
+  istanbul-lib-source-maps@5.0.6:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       istanbul-lib-coverage: 3.2.2
     transitivePeerDependencies:
       - supports-color
@@ -1954,13 +1975,13 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsup@8.5.1(postcss@8.5.28)(supports-color@7.2.0)(typescript@5.9.3)(yaml@2.9.1):
+  tsup@8.5.1(postcss@8.5.28)(typescript@5.9.3)(yaml@2.9.1):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.7)
       cac: 6.7.14
       chokidar: 4.0.3
       consola: 3.4.2
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       esbuild: 0.27.7
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
@@ -1988,10 +2009,10 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  vite-node@2.1.9(@types/node@22.20.3)(supports-color@7.2.0):
+  vite-node@2.1.9(@types/node@22.20.3):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 1.1.2
       vite: 5.4.21(@types/node@22.20.3)
@@ -2015,7 +2036,7 @@ snapshots:
       '@types/node': 22.20.3
       fsevents: 2.3.3
 
-  vitest@2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9)(supports-color@7.2.0):
+  vitest@2.1.9(@types/node@22.20.3)(@vitest/ui@2.1.9):
     dependencies:
       '@vitest/expect': 2.1.9
       '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.3))
@@ -2025,7 +2046,7 @@ snapshots:
       '@vitest/spy': 2.1.9
       '@vitest/utils': 2.1.9
       chai: 5.3.3
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       expect-type: 1.4.0
       magic-string: 0.30.21
       pathe: 1.1.2
@@ -2035,7 +2056,7 @@ snapshots:
       tinypool: 1.1.1
       tinyrainbow: 1.2.0
       vite: 5.4.21(@types/node@22.20.3)
-      vite-node: 2.1.9(@types/node@22.20.3)(supports-color@7.2.0)
+      vite-node: 2.1.9(@types/node@22.20.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.20.3

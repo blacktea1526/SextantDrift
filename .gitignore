@@ -33,3 +33,13 @@ Thumbs.db
 !.vscode/settings.json
 *.sw?
 *.bak
+
+# Standalone extracted repositories
+standalone/
+
+# Local caches & artifacts
+.local/
+.cache/
+.config/
+*.tgz
+

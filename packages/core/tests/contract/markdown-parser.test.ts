@@ -98,4 +98,31 @@ describe('Markdown Contract Parser (Line-by-Line Spec)', () => {
     expect(ep.statuses[0]).toMatchObject({ code: 204, description: 'No Content' });
     expect(ep.statuses[1]).toMatchObject({ code: 404 });
   });
+
+  it('should parse Markdown tables defining API endpoints', () => {
+    const markdown = `# API Spec Table
+
+| Method | Endpoint | Status | Description |
+| :--- | :--- | :--- | :--- |
+| GET | /api/v1/health | 200 | Health check |
+| POST | /api/v1/auth/login | 200 | User login |
+| DELETE | /api/v1/users/:id | 204 | Delete user |
+`;
+
+    const spec = parseMarkdownContract(markdown, 'docs/api.md');
+    expect(spec.endpoints).toHaveLength(3);
+
+    expect(spec.endpoints[0].method).toBe('GET');
+    expect(spec.endpoints[0].path).toBe('/api/v1/health');
+    expect(spec.endpoints[0].statuses[0].code).toBe(200);
+
+    expect(spec.endpoints[1].method).toBe('POST');
+    expect(spec.endpoints[1].path).toBe('/api/v1/auth/login');
+    expect(spec.endpoints[1].statuses[0].code).toBe(200);
+
+    expect(spec.endpoints[2].method).toBe('DELETE');
+    expect(spec.endpoints[2].path).toBe('/api/v1/users/:id');
+    expect(spec.endpoints[2].statuses[0].code).toBe(204);
+  });
 });
+

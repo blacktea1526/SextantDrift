@@ -61,20 +61,45 @@ export function formatTerminalReport(
 
   const exemptedCount = exemptions?.length || summary.exemptedViolations || 0;
   const newDriftCount = violations.length;
+  const criticals = violations.filter((v) => v.severity === 'critical');
+  const warnings = violations.filter((v) => v.severity === 'warning');
 
-  if (report.passed) {
+  // If there are warnings/unresolved imports/partial barrels, NEVER print false Clean!
+  if (criticals.length === 0 && (warnings.length > 0 || report.hasUnresolvedImports || report.hasPartialBarrels)) {
+    lines.push(
+      pc.yellow(
+        `⚠ ${warnings.length} warning(s) / resolution issue(s) detected (0 critical drifts):`
+      )
+    );
+    lines.push('');
+    for (const v of warnings) {
+      lines.push(formatViolation(v));
+    }
+    lines.push('');
+    lines.push(
+      pc.dim(`  Scanned in ${report.durationMs}ms. (Resolution warnings prevent a false Clean status)`)
+    );
+    return lines.join('\n');
+  }
+
+  if (report.passed && criticals.length === 0 && warnings.length === 0) {
+    const contractSuffix =
+      summary.contractEndpointCount && summary.contractEndpointCount > 0
+        ? `, ${summary.contractEndpointCount} API contract endpoint${summary.contractEndpointCount > 1 ? 's' : ''} verified`
+        : '';
+
     if (exemptedCount > 0) {
       lines.push(
         pc.green(
           `✔ Clean: 0 architectural drifts detected (${exemptedCount} historical debt${
             exemptedCount > 1 ? 's' : ''
-          } exempted in baseline)`
+          } exempted in baseline${contractSuffix})`
         )
       );
     } else {
       lines.push(
         pc.green(
-          `✔ Clean: 0 architectural drifts detected across ${summary.totalFiles} files (${summary.totalDependencies} dependencies verified)`
+          `✔ Clean: 0 architectural drifts detected across ${summary.totalFiles} files (${summary.totalDependencies} dependencies verified${contractSuffix})`
         )
       );
     }
@@ -108,6 +133,12 @@ export function formatTerminalReport(
     `${summary.forbiddenImportCount} forbidden`,
     `${summary.invariantViolationCount} invariant`,
   ];
+  if (summary.unresolvedImportCount && summary.unresolvedImportCount > 0) {
+    summaryTokens.push(`${summary.unresolvedImportCount} unresolved`);
+  }
+  if (summary.partialBarrelCount && summary.partialBarrelCount > 0) {
+    summaryTokens.push(`${summary.partialBarrelCount} partial barrel`);
+  }
   if (summary.stateViolationCount && summary.stateViolationCount > 0) {
     summaryTokens.push(`${summary.stateViolationCount} state`);
   }

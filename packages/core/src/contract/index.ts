@@ -119,17 +119,8 @@ export function verifyContractAlignment(
     const absPath = path.isAbsolute(file) ? file : path.resolve(rootDir, file);
     const relPath = path.isAbsolute(file) ? path.relative(rootDir, file) : file;
 
-    // Fast heuristic: only files that might be controllers/routes
-    const lower = file.toLowerCase();
-    const isControllerLike =
-      lower.includes('controller') ||
-      lower.includes('route') ||
-      lower.includes('api') ||
-      lower.includes('handler') ||
-      lower.includes('server') ||
-      lower.includes('app');
-
-    if (!isControllerLike && files.length > 50) {
+    const ext = path.extname(file);
+    if (!['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'].includes(ext)) {
       continue;
     }
 
@@ -141,16 +132,19 @@ export function verifyContractAlignment(
 
       if (!sourceCode) continue;
 
-      // Short-circuit: if file doesn't contain route keywords, skip AST creation
-      if (
-        !sourceCode.includes('router.') &&
-        !sourceCode.includes('app.') &&
-        !sourceCode.includes('@Controller') &&
-        !sourceCode.includes('@Get') &&
-        !sourceCode.includes('@Post') &&
-        !sourceCode.includes('export async function GET') &&
-        !sourceCode.includes('export async function POST')
-      ) {
+      // Fast check: if file doesn't contain route method calls or decorators, skip AST creation
+      const hasRouteSignatures =
+        /\.(get|post|put|delete|patch)\s*\(/i.test(sourceCode) ||
+        sourceCode.includes('@Controller') ||
+        sourceCode.includes('@Get') ||
+        sourceCode.includes('@Post') ||
+        sourceCode.includes('@Put') ||
+        sourceCode.includes('@Delete') ||
+        sourceCode.includes('@Patch') ||
+        sourceCode.includes('export async function GET') ||
+        sourceCode.includes('export async function POST');
+
+      if (!hasRouteSignatures) {
         continue;
       }
 

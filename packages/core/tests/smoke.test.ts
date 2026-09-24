@@ -4,7 +4,7 @@ import { VirtualProject } from './helpers/test-project.js';
 
 describe('Core Engine Smoke Test', () => {
   it('should export version correctly', () => {
-    expect(VERSION).toBe('0.1.0');
+    expect(VERSION).toBe('2.0.0');
   });
 
   it('should create virtual project in memory with sub-millisecond overhead', () => {

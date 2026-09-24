@@ -21,6 +21,7 @@ export interface CheckOptions {
   lang?: 'zh' | 'en';
   fixManifest?: boolean;
   aiPrompt?: boolean;
+  countTypeOnly?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
       baselinePath: options.baseline,
       tracePath: options.trace,
       contractPath: options.contract,
+      countTypeOnly: options.countTypeOnly,
     });
 
     if (options.strict && report.passed) {
@@ -76,16 +78,38 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
     // Lazy load web-report only if requested
     if (options.report) {
       const reportRelPath = typeof options.report === 'string' ? options.report : 'drift-report.html';
-      const absReportPath = path.resolve(rootDir, reportRelPath);
+      const absReportPath = path.isAbsolute(reportRelPath)
+        ? reportRelPath
+        : path.resolve(rootDir, reportRelPath);
+
+      const reportDir = path.dirname(absReportPath);
+      if (!fs.existsSync(reportDir)) {
+        fs.mkdirSync(reportDir, { recursive: true });
+      }
 
       try {
-        const { generateHtmlReport } = await import('@sextant/web-report');
         const lang = options.lang === 'en' ? 'en' : 'zh';
-        const html = generateHtmlReport(report, { lang });
+        let html: string;
+        let isFullVisual = false;
+
+        try {
+          const { generateHtmlReport } = await import('@sextant/web-report');
+          html = generateHtmlReport(report, { lang });
+          isFullVisual = true;
+        } catch {
+          const { formatLightweightHtmlReport } = await import('../formatters/html.js');
+          html = formatLightweightHtmlReport(report, { lang });
+        }
+
         fs.writeFileSync(absReportPath, html, 'utf-8');
 
         if (!options.json) {
-          console.log(pc.cyan(`\n  Dual-diagram report saved to: ${absReportPath}`));
+          if (isFullVisual) {
+            console.log(pc.cyan(`\n  Dual-diagram visual report saved to: ${absReportPath}`));
+          } else {
+            console.log(pc.cyan(`\n  Architecture report saved to: ${absReportPath}`));
+            console.log(pc.dim(`  (Install optional @sextant/web-report for interactive C4 SVG diagrams)`));
+          }
         }
       } catch (err: any) {
         console.error(pc.yellow(`  Failed to generate HTML report: ${err.message}`));

@@ -119,10 +119,10 @@ Why choose SextantDrift over standard Linters or LLM-based code reviewers?
 - **Ultra-Low Token Overhead**: Terminal diagnostic outputs are compressed for maximum signal-to-noise ratio. A single drift diagnostic consumes only **50 to 200 Tokens**, preventing AI Agent context window exhaustion.
 - **Actionable AI Fix Prompts**: Each violation comes with an instant "Copy AI Fix Prompt" payload, empowering Claude Code or Cursor to resolve the architectural drift in a single autonomous turn.
 
-### 2.3 100% Offline & Air-Gapped Native SVG Visualizer
+### 2.3 100% Offline & Air-Gapped HTML Review Report
 - **Zero External Network Requests**: The generated `drift-report.html` is an entirely self-contained single file with **zero external CDN scripts, stylesheets, or web fonts**.
-- **Air-Gapped Intranet Safe**: Ideal for finance, healthcare, defense, and high-security enterprise enterprise environments.
-- **Rich Interactive Capabilities**: Renders crisp native vector SVGs, supporting C4 Level 2 (Containers) and Level 3 (Components) drill-down, infinite canvas Pan & Zoom, Contracts line filtering, and instant English/Chinese language toggling.
+- **Air-Gapped Intranet Safe**: Ideal for finance, healthcare, defense, and high-security enterprise environments.
+- **Built-in & Extensible Experiences**: Provides out-of-the-box lightweight HTML diagnostic reports; installing the standalone extension `@sextant/web-report` seamlessly unlocks an industrial-grade interactive C4 dual-diagram canvas (with Container/Component drill-downs, infinite Pan & Zoom, Contracts filtering, and instant English/Chinese switching).
 
 ### 2.4 Brownfield Graceful Onboarding (Baseline: No New Drift)
 - **Stop Refactoring Dread**: Legacy projects often start with hundreds of preexisting architectural violations.
@@ -139,7 +139,7 @@ Why choose SextantDrift over standard Linters or LLM-based code reviewers?
 
 ### 2.7 Rigorous Self-Dogfooding Verification
 - **Verified on Itself**: SextantDrift enforces its own architectural boundaries across its monorepo on every build and test cycle.
-- **Comprehensive Test Suite**: Ships with 44 test suites and 229 tests, guaranteeing rock-solid stability and zero regressions.
+- **Comprehensive Test Suite**: Ships with 49 test suites and 250 tests, guaranteeing rock-solid stability and zero regressions.
 
 ---
 
@@ -153,14 +153,17 @@ Why choose SextantDrift over standard Linters or LLM-based code reviewers?
 You can run SextantDrift on-demand via `npx`, or install it as a project devDependency:
 
 ```bash
-# Recommended: Install as devDependency in your project
-pnpm add -D @sextant/cli @sextant/core
+# Recommended: Install CLI tool as devDependency in your project
+pnpm add -D sextant-drift
 
 # Or using npm
-npm install --save-dev @sextant/cli @sextant/core
+npm install --save-dev sextant-drift
 
 # Or run instantly without installation via npx
 npx sextant-drift --help
+
+# To import and invoke the core engine programmatically in Node.js / CI:
+pnpm add -D @sextant/core
 ```
 
 ---
@@ -303,15 +306,12 @@ npx sextant-drift baseline
 
 ---
 
-#### Step 5: Interactive Dual-Diagram Visual Report (`report`)
-Generate an offline visual review report to inspect your system topology:
+#### Step 5: Visual Architecture Report (`report`)
+Generate an offline HTML report to inspect system topology and drift diagnostics:
 
 ```bash
 # Generate standalone offline report (outputs drift-report.html)
 npx sextant-drift report
-
-# Specify display language (default: zh, supports en)
-npx sextant-drift report --lang en
 
 # Specify custom report output path
 npx sextant-drift report -o ./dist/architecture-report.html
@@ -320,12 +320,18 @@ npx sextant-drift report -o ./dist/architecture-report.html
 npx sextant-drift check --report
 ```
 
-Open `drift-report.html` in any browser to experience:
-1. **Pure Native SVG Rendering**: Zero external network downloads, rendering instantly.
-2. **C4 Multi-Level Drill-Down**: Switch seamlessly between **Level 2 Containers** and **Level 3 Components**.
-3. **Red/Green Diff Highlighting**: Compliant calls appear in steady teal/blue, while drift violations blink in high-contrast red dashed arrows.
-4. **Interactive Filters**: Hover to inspect component dependencies; click to toggle low-level contract lines.
-5. **One-Click AI Fix Prompt**: Click "Copy AI Fix Prompt" on any violation card to copy structured context ready for Cursor or Claude Code.
+- **Out-of-the-Box (Built-in Light Report)**: Produces a clean, concise, offline HTML diagnostic card summarizing drift statistics, detailed violation locations, and copyable AI Fix Prompts.
+- **Standalone Extension (Interactive C4 SVG Dual-Diagram Canvas)**: To unlock the full industrial-grade C4 interactive visual canvas, simply install the standalone extension `@sextant/web-report`:
+  ```bash
+  pnpm add -D @sextant/web-report
+  # Or npm install --save-dev @sextant/web-report
+  ```
+  Once installed, rerun `npx sextant-drift report` and open `drift-report.html` in any browser to experience:
+  1. **Pure Native SVG Rendering**: Zero external network downloads, rendering instantly.
+  2. **C4 Multi-Level Drill-Down**: Switch seamlessly between **Level 2 Containers** and **Level 3 Components**.
+  3. **Red/Green Diff Highlighting**: Compliant calls appear in steady teal/blue, while drift violations blink in high-contrast red dashed arrows.
+  4. **Interactive Filters**: Hover to inspect component dependencies; click to toggle low-level contract lines.
+  5. **One-Click AI Fix Prompt**: Click "Copy AI Fix Prompt" on any violation card to copy structured context ready for Cursor or Claude Code.
 
 ---
 
@@ -451,10 +457,11 @@ SextantDrift includes a unified developer task runner `./start.sh`:
 
 ```bash
 ./start.sh            # Launch local Visual Workbench (@ port 3000)
-./start.sh --test     # Run full Vitest test suite (44 suites, 229 tests passing)
+./start.sh --test     # Run full Vitest test suite (49 suites, 250 tests passing)
 ./start.sh --ui       # Open Vitest interactive UI dashboard
 ./start.sh --check    # Run architectural drift verification (including self-dogfooding)
-./start.sh --build    # Build all packages (@sextant/core, @sextant/cli, @sextant/web-report)
+./start.sh --build    # Build all packages (@sextant/core, sextant-drift)
+./start.sh --release  # Build, test, and publish packages to npm registry
 ./start.sh --bench    # Run AST extraction & Tarjan SCC performance benchmarks
 ./start.sh --coverage # Run tests and generate V8 code coverage report
 ```
@@ -543,8 +550,9 @@ SextantDrift is structured as a clean, decoupled pnpm Monorepo:
 SextantDrift/
 ├── packages/
 │   ├── core/           # @sextant/core: Pure headless engine (TS AST, Tarjan SCC, Invariants, Trace)
-│   ├── cli/            # @sextant/cli: Ultra-lightweight CLI gate (< 50KB, cac + picocolors)
-│   └── web-report/     # @sextant/web-report: Standalone 100% offline native SVG report generator
+│   └── cli/            # sextant-drift: Ultra-lightweight CLI gate (< 50KB, cac + picocolors)
+├── standalone/         # Standalone ecosystem projects (can be pushed to separate GitHub repos)
+│   └── sextant-web-report/ # @sextant/web-report: Standalone 100% offline native SVG report generator
 ├── .agents/skills/     # Standardized AI Agent architecture review skill
 ├── .github/workflows/  # Continuous integration and PR verification pipelines
 ├── schemas/            # JSON Schema definitions (sextant.schema.json)

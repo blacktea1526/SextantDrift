@@ -35,7 +35,7 @@
       {
         "id": "HTMLViewer",
         "name": "Offline Report Browser",
-        "description": "Static HTML5 browser viewing platform for drift-report.html"
+        "description": "Static HTML5 browser viewing platform for architecture reports"
       }
     ]
   },
@@ -49,17 +49,9 @@
       "description": "Terminal entrypoint and CI gate controller"
     },
     {
-      "id": "reporting",
-      "name": "Visual Reporting Tier",
-      "order": 2,
-      "technology": "HTML5 / Native SVG",
-      "type": "ui",
-      "description": "Interactive offline C4 architecture diff visualizer"
-    },
-    {
       "id": "engine",
       "name": "Core Engine Tier",
-      "order": 3,
+      "order": 2,
       "technology": "TypeScript / Headless",
       "type": "service",
       "description": "Pure headless analysis, invariants and C4 diff engine"
@@ -67,7 +59,7 @@
     {
       "id": "infrastructure",
       "name": "AST & Graph Infrastructure Tier",
-      "order": 4,
+      "order": 3,
       "technology": "TypeScript AST / Tarjan SCC",
       "type": "library",
       "description": "AST extraction and graph topology infrastructure"
@@ -75,7 +67,7 @@
     {
       "id": "contracts",
       "name": "Types & Foundations Tier",
-      "order": 5,
+      "order": 4,
       "technology": "TypeScript Contract Types",
       "type": "library",
       "description": "Core architecture definitions and domain errors"
@@ -88,24 +80,19 @@
       "order": 1
     },
     {
-      "id": "reporting",
-      "name": "Visual Reporting Layer",
-      "order": 2
-    },
-    {
       "id": "engine",
       "name": "Core Engine & Parsing Layer",
-      "order": 3
+      "order": 2
     },
     {
       "id": "infrastructure",
       "name": "AST & Graph Infrastructure Layer",
-      "order": 4
+      "order": 3
     },
     {
       "id": "contracts",
       "name": "Types & Foundations Layer",
-      "order": 5
+      "order": 4
     }
   ],
   "components": [
@@ -117,16 +104,6 @@
       "description": "CLI command dispatcher and quality gates",
       "paths": [
         "packages/cli/src/**"
-      ]
-    },
-    {
-      "id": "WebReport",
-      "name": "Visual Report Generator",
-      "layerId": "reporting",
-      "technology": "HTML5 / Native SVG",
-      "description": "Offline C4 visual diff inspection report generator",
-      "paths": [
-        "packages/web-report/src/**"
       ]
     },
     {
@@ -251,19 +228,7 @@
   "allowDependencies": [
     {
       "from": "cli",
-      "to": "reporting"
-    },
-    {
-      "from": "cli",
       "to": "engine"
-    },
-    {
-      "from": "reporting",
-      "to": "engine"
-    },
-    {
-      "from": "reporting",
-      "to": "contracts"
     },
     {
       "from": "engine",
@@ -290,24 +255,10 @@
           "commander",
           "chalk",
           "@sextant/cli",
+          "sextant-drift",
           "@sextant/web-report"
         ],
         "in_path": "packages/core/src/**"
-      }
-    },
-    {
-      "id": "REPORT_ZERO_CLI",
-      "severity": "critical",
-      "desc": "Web report package must not depend on CLI or command parsing libraries",
-      "pattern": {
-        "forbid_import": [
-          "cac",
-          "picocolors",
-          "commander",
-          "chalk",
-          "@sextant/cli"
-        ],
-        "in_path": "packages/web-report/src/**"
       }
     }
   ]

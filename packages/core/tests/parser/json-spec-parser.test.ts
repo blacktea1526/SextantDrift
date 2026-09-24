@@ -94,21 +94,27 @@ describe('JSON Spec Parser', () => {
     expect(arch.invariants?.[0].pattern.forbid_import).toEqual(['@prisma/client']);
   });
 
-  it('should throw ConfigValidationError when invariants in JSON spec is invalid', () => {
-    const jsonWithInvalidInvariants = JSON.stringify({
-      layers: [{ id: 'UI', name: 'UI', order: 1 }],
-      components: [{ id: 'CompA', name: 'CompA', layerId: 'UI', paths: ['src/**'] }],
-      allowDependencies: [],
-      invariants: [
-        {
-          id: 'rule-missing-pattern',
-          severity: 'critical',
-          desc: 'No pattern key',
-          pattern: {},
-        },
-      ],
+  it('should unwrap target object and synthesize components from layer patterns', () => {
+    const wrappedJson = JSON.stringify({
+      target: {
+        layers: [
+          { id: 'UI', name: 'UI Layer', order: 1, patterns: ['src/ui/**'] },
+          { id: 'Domain', name: 'Domain Layer', order: 2, paths: ['src/domain/**'] },
+        ],
+        allowedDependencies: [
+          { from: 'UI', to: 'Domain' },
+        ],
+      },
     });
 
-    expect(() => parseJsonSpec(jsonWithInvalidInvariants)).toThrow(ConfigValidationError);
+    const arch = parseJsonSpec(wrappedJson);
+    expect(arch.layers).toHaveLength(2);
+    expect(arch.components).toHaveLength(2);
+    expect(arch.components[0].id).toBe('UI');
+    expect(arch.components[0].paths).toEqual(['src/ui/**']);
+    expect(arch.components[1].id).toBe('Domain');
+    expect(arch.components[1].paths).toEqual(['src/domain/**']);
+    expect(arch.allowDependencies).toEqual([{ from: 'UI', to: 'Domain' }]);
   });
 });
+

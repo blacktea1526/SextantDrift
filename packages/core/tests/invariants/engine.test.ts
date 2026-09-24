@@ -362,4 +362,60 @@ export async function diskAction() {
       expect(violations).toHaveLength(0);
     });
   });
+
+  describe('Rule Completeness & Zero Silent Drop (WARN_RULE_MISSING_TARGET)', () => {
+    it('should emit WARN_RULE_MISSING_TARGET when require_config rule lacks pattern.target', () => {
+      const incompleteConfigRule: InvariantRule = {
+        id: 'MANDATORY_TIMEOUT',
+        severity: 'critical',
+        desc: 'All HTTP calls must declare timeout',
+        pattern: {
+          require_config: ['timeout'],
+          scope: 'src/services/**',
+        },
+      };
+
+      const violations = executeInvariantsEngine({
+        rootDir: '/test/root',
+        filePaths: ['src/services/api.ts'],
+        rules: [incompleteConfigRule],
+        fileContentMap: new Map([['src/services/api.ts', 'fetch("url");']]),
+      });
+
+      expect(violations).toHaveLength(1);
+      const warn = violations[0];
+      expect(warn.type).toBe('WARN_RULE_MISSING_TARGET');
+      expect(warn.severity).toBe('warning');
+      expect(warn.ruleId).toBe('MANDATORY_TIMEOUT');
+      expect(warn.message).toContain('specifies require_config ["timeout"] but lacks pattern.target');
+      expect(warn.suggestion).toContain('Add "target: ["functionName"]"');
+    });
+
+    it('should emit WARN_RULE_MISSING_TARGET when must_precede rule lacks pattern.target', () => {
+      const incompletePrecedeRule: InvariantRule = {
+        id: 'AUTH_FIRST',
+        severity: 'critical',
+        desc: 'Auth check must happen first',
+        pattern: {
+          must_precede: ['auth.verify'],
+          scope: 'src/controllers/**',
+        },
+      };
+
+      const violations = executeInvariantsEngine({
+        rootDir: '/test/root',
+        filePaths: ['src/controllers/user.ts'],
+        rules: [incompletePrecedeRule],
+        fileContentMap: new Map([['src/controllers/user.ts', 'handle();']]),
+      });
+
+      expect(violations).toHaveLength(1);
+      const warn = violations[0];
+      expect(warn.type).toBe('WARN_RULE_MISSING_TARGET');
+      expect(warn.severity).toBe('warning');
+      expect(warn.ruleId).toBe('AUTH_FIRST');
+      expect(warn.message).toContain('specifies must_precede ["auth.verify"] but lacks pattern.target');
+    });
+  });
 });
+

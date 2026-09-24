@@ -41,13 +41,40 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     throw new ConfigValidationError('Architecture spec root must be a valid JSON object');
   }
 
-  const spec = parsed as Record<string, unknown>;
+  let spec = parsed as Record<string, unknown>;
+  // Gracefully unwrap { "target": { "layers": ... } } if present
+  if (spec.target && typeof spec.target === 'object' && !Array.isArray(spec.target)) {
+    spec = { ...spec, ...(spec.target as Record<string, unknown>) };
+  }
 
   // Validate layers
   if (!Array.isArray(spec.layers) || spec.layers.length === 0) {
     throw new ConfigValidationError('Architecture spec must define a non-empty "layers" array', {
       field: 'layers',
     });
+  }
+
+  // Synthesize components from layer patterns if components array is not provided
+  if (!Array.isArray(spec.components) || spec.components.length === 0) {
+    const synthesized: any[] = [];
+    for (const l of spec.layers) {
+      if (typeof l === 'object' && l !== null) {
+        const lObj = l as Record<string, any>;
+        const patterns = lObj.patterns || lObj.paths;
+        if (Array.isArray(patterns) && patterns.length > 0) {
+          synthesized.push({
+            id: lObj.id,
+            name: lObj.name || lObj.id,
+            layerId: lObj.id,
+            paths: patterns,
+            forbiddenImports: lObj.forbiddenImports,
+          });
+        }
+      }
+    }
+    if (synthesized.length > 0) {
+      spec.components = synthesized;
+    }
   }
 
   const layerIds = new Set<string>();
@@ -76,8 +103,8 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
   }
 
   // Validate components
-  if (!Array.isArray(spec.components)) {
-    throw new ConfigValidationError('Architecture spec must define a "components" array', {
+  if (!Array.isArray(spec.components) || spec.components.length === 0) {
+    throw new ConfigValidationError('Architecture spec must define a non-empty "components" array (or layer "patterns")', {
       field: 'components',
     });
   }
@@ -118,8 +145,9 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     }
   }
 
-  // Validate allowDependencies
-  const allowDependencies = Array.isArray(spec.allowDependencies) ? spec.allowDependencies : [];
+  // Validate allowDependencies (supports both allowDependencies and allowedDependencies)
+  const rawDeps = spec.allowDependencies ?? spec.allowedDependencies;
+  const allowDependencies = Array.isArray(rawDeps) ? rawDeps : [];
   for (let i = 0; i < allowDependencies.length; i++) {
     const dep = allowDependencies[i];
     if (typeof dep !== 'object' || dep === null) {
@@ -145,6 +173,12 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     $schema: typeof spec.$schema === 'string' ? spec.$schema : undefined,
     name: typeof spec.name === 'string' ? spec.name : undefined,
     version: typeof spec.version === 'string' ? spec.version : undefined,
+    description: typeof spec.description === 'string' ? spec.description : undefined,
+    containers: Array.isArray(spec.containers) ? (spec.containers as TargetArchitecture['containers']) : undefined,
+    systemContext:
+      typeof spec.systemContext === 'object' && spec.systemContext !== null
+        ? (spec.systemContext as TargetArchitecture['systemContext'])
+        : undefined,
     layers: spec.layers as TargetArchitecture['layers'],
     components: spec.components as TargetArchitecture['components'],
     allowDependencies: allowDependencies as TargetArchitecture['allowDependencies'],

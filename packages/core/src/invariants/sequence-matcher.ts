@@ -129,7 +129,7 @@ function findCallsInStatement(stmt: ts.Statement): ts.CallExpression[] {
   }
 
   walk(stmt);
-  return calls.sort((a, b) => a.getStart() - b.getStart());
+  return calls;
 }
 
 interface StatementCallOccurrence {
@@ -137,6 +137,7 @@ interface StatementCallOccurrence {
   calleeName: string;
   matchedPattern: string;
   statementIndex: number;
+  callOrder: number;
 }
 
 interface StatementBlockInfo {
@@ -253,11 +254,13 @@ export function matchSequenceInvariants(
       const mustPrecedeOccurrences: StatementCallOccurrence[] = [];
       const targetOccurrences: StatementCallOccurrence[] = [];
 
+      let callOrderCounter = 0;
       for (let i = 0; i < block.statements.length; i++) {
         const stmt = block.statements[i];
         const calls = findCallsInStatement(stmt);
 
         for (const call of calls) {
+          const currentOrder = callOrderCounter++;
           const calleeName = getCalleeExpressionName(call.expression);
           if (!calleeName) continue;
 
@@ -268,6 +271,7 @@ export function matchSequenceInvariants(
               calleeName,
               matchedPattern: precedeMatch,
               statementIndex: i,
+              callOrder: currentOrder,
             });
           }
 
@@ -278,6 +282,7 @@ export function matchSequenceInvariants(
               calleeName,
               matchedPattern: targetMatch,
               statementIndex: i,
+              callOrder: currentOrder,
             });
           }
         }
@@ -287,27 +292,15 @@ export function matchSequenceInvariants(
       for (const targetOcc of targetOccurrences) {
         const targetPos = targetOcc.call.getStart(sourceFile);
 
-        const hasPreceding = mustPrecedeOccurrences.some((mp) => {
-          if (mp.statementIndex < targetOcc.statementIndex) {
-            return true;
-          }
-          if (mp.statementIndex === targetOcc.statementIndex) {
-            return mp.call.getStart(sourceFile) < targetPos;
-          }
-          return false;
-        });
+        const hasPreceding = mustPrecedeOccurrences.some(
+          (mp) => mp.callOrder < targetOcc.callOrder
+        );
 
         if (!hasPreceding) {
           // Check if must_precede occurs after target (inverted order)
-          const followingPrecede = mustPrecedeOccurrences.find((mp) => {
-            if (mp.statementIndex > targetOcc.statementIndex) {
-              return true;
-            }
-            if (mp.statementIndex === targetOcc.statementIndex) {
-              return mp.call.getStart(sourceFile) > targetPos;
-            }
-            return false;
-          });
+          const followingPrecede = mustPrecedeOccurrences.find(
+            (mp) => mp.callOrder > targetOcc.callOrder
+          );
 
           const { line, character } = sourceFile.getLineAndCharacterOfPosition(targetPos);
           const lineNumber = line + 1;

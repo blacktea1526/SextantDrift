@@ -124,5 +124,35 @@ export { AppService, type AppConfig } from './app.service.js';
       line: 5,
     });
   });
+
+  it('should extract importedSymbols precisely for static imports and dynamic destructuring', () => {
+    const code = `
+import { foo, bar as baz } from './module-a.js';
+import DefaultItem from './module-b.js';
+import * as AllItems from './module-c.js';
+
+export async function load() {
+  const { helper1, helper2: aliased } = await import('./dynamic-module.js');
+  const { legacyUtil } = require('./legacy-module.js');
+  const entireModule = await import('./wildcard-dynamic.js');
+  return { helper1, aliased, legacyUtil, entireModule };
+}
+`;
+    const evidences = extractDependenciesFromSource('src/test-symbols.ts', code);
+    expect(evidences).toHaveLength(6);
+
+    // Named imports
+    expect(evidences[0].importedSymbols).toEqual(['foo', 'bar']);
+    // Default import
+    expect(evidences[1].importedSymbols).toEqual(['default']);
+    // Namespace import
+    expect(evidences[2].importedSymbols).toEqual(['*']);
+    // Dynamic import with destructuring
+    expect(evidences[3].importedSymbols).toEqual(['helper1', 'helper2']);
+    // Require with destructuring
+    expect(evidences[4].importedSymbols).toEqual(['legacyUtil']);
+    // Wildcard dynamic import (no destructuring)
+    expect(evidences[5].importedSymbols).toEqual(['*']);
+  });
 });
 

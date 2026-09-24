@@ -36,6 +36,7 @@ describe('CLI report Command & --report Flag (Task 4.5)', () => {
     expect(html).toContain('<!DOCTYPE html>');
     expect(html).toContain('SextantDrift');
     expect(html).toContain('架构差分审查报告');
+    expect(html).toContain('@sextant/web-report');
   });
 
   it('should support explicit English language in runReport', async () => {

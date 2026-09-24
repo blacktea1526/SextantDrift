@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SextantDrift — 架构 X 光机与偏航检测罗盘 (Reference Architecture UI Edition)</title>
+<style>
+  /* ===== 基础重置与系统原生等宽字体（100% 离线，零 CDN 依赖，符合项目宪章） ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --border: #E2E5E9;
+    --border-strong: #CBD2D9;
+    --text-primary: #1A1D21;
+    --text-secondary: #6B7280;
+    --text-tertiary: #9CA3AF;
+
+    --c-access: #3B82F6;
+    --c-access-bg: #EFF6FF;
+    --c-gateway: #8B5CF6;
+    --c-gateway-bg: #F5F3FF;
+    --c-service: #10B981;
+    --c-service-bg: #ECFDF5;
+    --c-data: #F97316;
+    --c-data-bg: #FFF7ED;
+    --c-infra: #64748B;
+    --c-infra-bg: #F1F5F9;
+
+    --c-drift: #EF4444;
+    --c-drift-bg: #FEF2F2;
+    --c-drift-border: #FCA5A5;
+
+    --line: #94A3B8;
+    --line-drift: #EF4444;
+    --radius: 10px;
+  }
+
+  html { font-size: 15px; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Cascadia Code', Menlo, Monaco, Consolas, monospace;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 32px 64px;
+  }
+
+  /* ===== 头部与心跳看板 ===== */
+  .header {
+    margin-bottom: 28px;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .header .eyebrow {
+    font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header .eyebrow .badge-pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10B981;
+    box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
+  }
+  .header .eyebrow .badge-pulse.drifted {
+    background: #EF4444;
+    box-shadow: 0 0 0 2px rgba(239,68,68,0.3);
+  }
+  .header h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  .header p {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 680px;
+  }
+
+  /* 三态分段开关 (Target / Actual / Diff) */
+  .view-switch {
+    display: inline-flex;
+    background: #E5E7EB;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .view-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .view-btn:hover {
+    color: var(--text-primary);
+  }
+  .view-btn.active {
+    background: #FFFFFF;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* 状态指标条 */
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+  }
+  .stats-bar .stat b {
+    font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .stat-sep {
+    width: 1px; height: 14px;
+    background: var(--border-strong);
+  }
+  .health-badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FCA5A5;
+  }
+  .health-badge.clean {
+    background: #ECFDF5;
+    color: #059669;
+    border-color: #6EE7B7;
+  }
+
+  /* ===== 架构图画布 ===== */
+  .diagram {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 28px 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  }
+
+  /* SVG 连线层 */
+  .svg-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* SVG 连线状态 */
+  .svg-layer path { transition: opacity .2s, stroke .2s, stroke-width .2s; }
+  .svg-layer.paths-active path { opacity: 0.12; }
+  .svg-layer.paths-active path.path-related {
+    opacity: 1;
+    stroke: #475569;
+    stroke-width: 2.4;
+  }
+  .svg-layer.paths-active path.path-related.path-drift {
+    stroke: var(--c-drift) !important;
+    stroke-width: 2.8 !important;
+  }
+
+  /* 偏航红线发光脉冲 */
+  path.path-drift {
+    stroke: var(--c-drift);
+    stroke-width: 2.2;
+    stroke-dasharray: 6,4;
+    filter: drop-shadow(0 0 4px rgba(239,68,68,0.45));
+    animation: driftPulse 2.5s infinite;
+  }
+  @keyframes driftPulse {
+    0%, 100% { stroke-opacity: 1; }
+    50% { stroke-opacity: 0.65; }
+  }
+
+  /* ===== 架构层 ===== */
+  .layer {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    margin-bottom: 28px;
+    z-index: 2;
+  }
+  .layer:last-child { margin-bottom: 0; }
+
+  .layer-label {
+    flex-shrink: 0;
+    width: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 8px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .layer-label .layer-num {
+    font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.8;
+  }
+  .layer-label .layer-name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .layer-access .layer-label   { background: var(--c-access-bg);   color: var(--c-access); }
+  .layer-gateway .layer-label  { background: var(--c-gateway-bg);  color: var(--c-gateway); }
+  .layer-service .layer-label  { background: var(--c-service-bg);  color: var(--c-service); }
+  .layer-data .layer-label     { background: var(--c-data-bg);     color: var(--c-data); }
+  .layer-infra .layer-label    { background: var(--c-infra-bg);    color: var(--c-infra); }
+
+  /* 卡片行 */
+  .cards {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+
+  /* ===== 模块卡片 ===== */
+  .card {
+    position: relative;
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px 12px;
+    min-width: 154px;
+    transition: border-color .2s, box-shadow .2s, transform .2s;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+  }
+  .card .card-hint {
+    display: none;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+  .card:hover .card-hint { display: block; }
+
+  /* 顶部层色条 */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 12px; right: 12px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+  }
+  .layer-access   .card::before { background: var(--c-access); }
+  .layer-gateway  .card::before { background: var(--c-gateway); }
+  .layer-service  .card::before { background: var(--c-service); }
+  .layer-data     .card::before { background: var(--c-data); }
+  .layer-infra    .card::before { background: var(--c-infra); }
+
+  /* 违规卡片警告样式 */
+  .card.has-drift {
+    border-color: #F87171;
+    background: #FFFBFB;
+  }
+  .card.has-drift::after {
+    content: '🚨 偏航';
+    position: absolute;
+    top: 8px; right: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #DC2626;
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .card-head svg {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .card-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+
+  .card-gateway {
+    min-width: 240px;
+    text-align: center;
+  }
+  .card-gateway .card-head { justify-content: center; }
+
+  /* ===== 图例 ===== */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .legend-line {
+    width: 32px;
+    height: 0;
+    border-top: 2px solid var(--line);
+    position: relative;
+  }
+  .legend-line.dashed {
+    border-top-style: dashed;
+  }
+  .legend-line.drift {
+    border-top-color: var(--line-drift);
+    border-top-style: dashed;
+    border-top-width: 2.2px;
+  }
+  .legend-line::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -4px;
+    border-left: 6px solid var(--line);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+  .legend-line.drift::after {
+    border-left-color: var(--line-drift);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+  }
+
+  /* ===== 侧边栏抽屉 ===== */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 24, 28, 0.38);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .25s, visibility .25s;
+    z-index: 100;
+  }
+  .overlay.active { opacity: 1; visibility: visible; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; right: 0;
+    width: 460px;
+    max-width: 94vw;
+    height: 100vh;
+    background: #FFFFFF;
+    box-shadow: -8px 0 32px rgba(0,0,0,0.14);
+    transform: translateX(100%);
+    transition: transform .3s cubic-bezier(.22,1,.36,1);
+    z-index: 101;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar.active { transform: translateX(0); }
+
+  .sidebar-header {
+    padding: 22px 26px 18px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .sidebar-layer-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .sidebar-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .sidebar-header .sidebar-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .close-btn {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 32px; height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+  }
+  .close-btn:hover { background: #F3F4F6; color: var(--text-primary); }
+
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 26px 36px;
+  }
+  .sidebar-body h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* 偏航审计区 */
+  .drift-section {
+    background: #FEF2F2;
+    border: 1px solid #FCA5A5;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 22px;
+  }
+  .drift-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .drift-badge {
+    background: #DC2626;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .drift-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #991B1B;
+  }
+  .drift-card {
+    background: #FFFFFF;
+    border: 1px solid #FECACA;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .drift-loc {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: #B91C1C;
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+  .drift-msg {
+    color: #374151;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+  .code-snippet {
+    background: #1E293B;
+    color: #F8FAFC;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    overflow-x: auto;
+    margin-bottom: 8px;
+  }
+  .btn-ai-prompt {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #111827;
+    color: #F9FAFB;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-ai-prompt:hover {
+    background: #374151;
+  }
+
+  /* 元信息网格 */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .meta-item {
+    background: #F9FAFB;
+    border: 1px solid #F3F4F6;
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .meta-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 2px;
+  }
+  .meta-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* 内部调用链路 */
+  .arch-container { margin-bottom: 22px; }
+  .arch-step {
+    background: #F9FAFB;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 12px;
+  }
+  .arch-step-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    margin-bottom: 3px;
+  }
+  .arch-step-items {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  .arch-arrow {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1;
+    padding: 3px 0;
+  }
+  .arch-note {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #F9FAFB;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .arch-note b { color: var(--text-primary); font-weight: 600; }
+
+  /* 上下游依赖 */
+  .dep-section { margin-bottom: 22px; }
+  .dep-list { list-style: none; }
+  .dep-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .dep-list li:hover { background: #F9FAFB; }
+  .dep-arrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .dep-name { color: var(--text-primary); font-weight: 500; }
+  .dep-type {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: #F3F4F6;
+    color: var(--text-secondary);
+  }
+  .dep-type.sync { background: #EFF6FF; color: #2563EB; }
+  .dep-type.async { background: #F5F3FF; color: #7C3AED; }
+  .dep-type.drift { background: #FEF2F2; color: #DC2626; font-weight: 600; }
+  .dep-empty { font-size: 12px; color: var(--text-tertiary); padding: 4px 10px; }
+
+  /* 目录树 */
+  .tree { list-style: none; }
+  .tree li { position: relative; }
+  .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .tree-row:hover { background: #F3F4F6; }
+  .tree-row.folder { cursor: pointer; }
+  .tree-row .tree-icon {
+    width: 15px; height: 15px;
+    flex-shrink: 0;
+  }
+  .tree-row.has-drift .tree-name {
+    color: #DC2626 !important;
+    font-weight: 600;
+  }
+  .tree-children {
+    list-style: none;
+    padding-left: 16px;
+    border-left: 1px dashed var(--border-strong);
+    margin-left: 12px;
+    overflow: hidden;
+  }
+  .tree-children.collapsed { display: none; }
+
+  /* Toast 提示 */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #111827;
+    color: #F9FAFB;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform .25s ease, opacity .25s ease;
+    z-index: 200;
+  }
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  /* 响应式 */
+  @media (max-width: 768px) {
+    .page { padding: 24px 16px 48px; }
+    .header h1 { font-size: 24px; }
+    .diagram { padding: 20px 14px 16px; }
+    .layer { flex-direction: column; gap: 8px; margin-bottom: 18px; }
+    .layer-label { width: 100%; flex-direction: row; justify-content: center; gap: 8px; padding: 6px; }
+    .cards { justify-content: center; }
+    .card { min-width: 130px; flex: 1 1 140px; }
+    .svg-layer { display: none; }
+    .sidebar { width: 100vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- 头部与心跳指标 -->
+  <header class="header">
+    <div class="header-top">
+      <div class="eyebrow">
+        <span class="badge-pulse drifted" id="pulseDot"></span>
+        SextantDrift · 架构 X 光机与偏航检测罗盘
+      </div>
+      <!-- 视角切换器 (Target vs Actual vs Diff) -->
+      <div class="view-switch" role="tablist">
+        <button class="view-btn" id="btnTarget" onclick="switchView('target')">Target (设计蓝图)</button>
+        <button class="view-btn" id="btnActual" onclick="switchView('actual')">Actual (源码实况)</button>
+        <button class="view-btn active" id="btnDiff" onclick="switchView('diff')">Diff (偏航差分)</button>
+      </div>
+    </div>
+
+    <h1>系统架构全景与偏航雷达</h1>
+    <p>五层确定性分层拓扑。实线为合规同步调用，虚线为异步消息。红色发光虚线表示 AST 提取捕获的跨层旁路与架构偏航。</p>
+
+    <!-- 状态心跳栏 -->
+    <div class="stats-bar">
+      <span class="stat"><b>5</b> 层拓扑</span>
+      <span class="stat-sep"></span>
+      <span class="stat"><b>12</b> 模块</span>
+      <span class="stat-sep"></span>
+      <span class="stat" id="statConnections"><b>12</b> 连线</span>
+      <span class="stat-sep"></span>
+      <span class="stat" id="statSync"><b>9</b> 同步</span>
+      <span class="stat-sep"></span>
+      <span class="stat" id="statAsync"><b>3</b> 异步</span>
+      <div class="health-badge" id="healthBadge">
+        🚨 架构偏航检测: 2 处违规 (Health: 88/100)
+      </div>
+    </div>
+  </header>
+
+  <!-- 架构图画布 -->
+  <div class="diagram" id="diagram">
+
+    <!-- 动态 SVG 连线层 -->
+    <svg class="svg-layer" id="svgLayer"></svg>
+
+    <!-- L1 接入层 -->
+    <div class="layer layer-access">
+      <div class="layer-label">
+        <span class="layer-num">L1</span>
+        <span class="layer-name">接入层</span>
+      </div>
+      <div class="cards">
+        <div class="card has-drift" id="card-web">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-access)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="18" x2="12" y2="21"/>
+            </svg>
+            <span class="card-title">Web 前端</span>
+          </div>
+          <div class="card-desc">React 18 · SPA 应用</div>
+        </div>
+        <div class="card" id="card-app">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-access)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="7" y="2" width="10" height="20" rx="2"/>
+              <line x1="11" y1="18" x2="13" y2="18"/>
+            </svg>
+            <span class="card-title">移动端 App</span>
+          </div>
+          <div class="card-desc">React Native 跨端</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- L2 网关层 -->
+    <div class="layer layer-gateway">
+      <div class="layer-label">
+        <span class="layer-num">L2</span>
+        <span class="layer-name">网关层</span>
+      </div>
+      <div class="cards">
+        <div class="card card-gateway" id="card-gateway">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-gateway)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/>
+            </svg>
+            <span class="card-title">API 网关</span>
+          </div>
+          <div class="card-desc">鉴权 · 限流 · 路由 · 协议转换</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- L3 业务服务层 -->
+    <div class="layer layer-service">
+      <div class="layer-label">
+        <span class="layer-num">L3</span>
+        <span class="layer-name">业务服务层</span>
+      </div>
+      <div class="cards">
+        <div class="card" id="card-user">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-service)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span class="card-title">用户服务</span>
+          </div>
+          <div class="card-desc">注册 · 登录 · 权限</div>
+        </div>
+        <div class="card has-drift" id="card-core">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-service)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+              <line x1="12" y1="22" x2="12" y2="15.5"/>
+              <polyline points="22 8.5 12 15.5 2 8.5"/>
+              <line x1="12" y1="2" x2="12" y2="8.5"/>
+            </svg>
+            <span class="card-title">核心业务服务</span>
+          </div>
+          <div class="card-desc">领域逻辑 · 业务编排</div>
+        </div>
+        <div class="card" id="card-task">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-service)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span class="card-title">任务调度服务</span>
+          </div>
+          <div class="card-desc">定时任务 · 异步作业</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- L4 数据层 -->
+    <div class="layer layer-data">
+      <div class="layer-label">
+        <span class="layer-num">L4</span>
+        <span class="layer-name">数据层</span>
+      </div>
+      <div class="cards">
+        <div class="card has-drift" id="card-mysql">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-data)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+            <span class="card-title">MySQL</span>
+          </div>
+          <div class="card-desc">主从复制 · 关系数据</div>
+        </div>
+        <div class="card" id="card-redis">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-data)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 5v6c0 1.66-4 3-9 3s-9-1.34-9-3V5"/>
+              <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+            </svg>
+            <span class="card-title">Redis</span>
+          </div>
+          <div class="card-desc">缓存 · 会话 · 锁</div>
+        </div>
+        <div class="card" id="card-mq">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-data)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="10" rx="2"/>
+              <path d="M6 12h.01M10 12h.01M14 12h.01"/>
+            </svg>
+            <span class="card-title">消息队列</span>
+          </div>
+          <div class="card-desc">Kafka / RabbitMQ</div>
+        </div>
+        <div class="card" id="card-oss">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-data)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span class="card-title">对象存储</span>
+          </div>
+          <div class="card-desc">文件 · 静态资源</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- L5 基础设施层 -->
+    <div class="layer layer-infra">
+      <div class="layer-label">
+        <span class="layer-num">L5</span>
+        <span class="layer-name">基础设施层</span>
+      </div>
+      <div class="cards">
+        <div class="card" id="card-k8s">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-infra)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="1"/>
+              <rect x="2" y="14" width="20" height="8" rx="1"/>
+              <line x1="6" y1="6" x2="6.01" y2="6"/>
+              <line x1="6" y1="18" x2="6.01" y2="18"/>
+            </svg>
+            <span class="card-title">容器集群</span>
+          </div>
+          <div class="card-desc">Kubernetes · 弹性伸缩</div>
+        </div>
+        <div class="card" id="card-monitor">
+          <div class="card-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-infra)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <span class="card-title">监控 & 日志</span>
+          </div>
+          <div class="card-desc">Prometheus · Grafana</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-line"></div>
+        <span>合规同步调用</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line dashed"></div>
+        <span>合规异步消息</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line drift"></div>
+        <span style="color:#DC2626;font-weight:600;">🚨 架构偏航违规 (Drift)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--c-access)"></div>
+        <span>接入层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--c-gateway)"></div>
+        <span>网关层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--c-service)"></div>
+        <span>业务层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--c-data)"></div>
+        <span>数据层</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--c-infra)"></div>
+        <span>基础设施</span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- 侧边栏抽屉与遮罩 -->
+<div class="overlay" id="overlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-layer-tag" id="sidebarLayerTag"></span>
+    <h2 id="sidebarTitle"></h2>
+    <p class="sidebar-sub" id="sidebarSub"></p>
+    <button class="close-btn" id="closeBtn" aria-label="关闭">&times;</button>
+  </div>
+  <div class="sidebar-body">
+    <!-- 偏航审计区 -->
+    <div id="driftSectionContainer"></div>
+
+    <div class="meta-grid" id="metaGrid"></div>
+
+    <h3>内部调用链路</h3>
+    <div class="arch-container" id="archContainer"></div>
+
+    <div class="dep-section">
+      <h3>下游依赖</h3>
+      <ul class="dep-list" id="outgoingList"></ul>
+    </div>
+    <div class="dep-section">
+      <h3>上游调用方</h3>
+      <ul class="dep-list" id="incomingList"></ul>
+    </div>
+
+    <h3>代码目录结构</h3>
+    <ul class="tree" id="treeContainer"></ul>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var svg = document.getElementById('svgLayer');
+  var diagram = document.getElementById('diagram');
+
+  // 当前激活视图: 'diff' | 'actual' | 'target'
+  var currentView = 'diff';
+
+  // 依赖拓扑数据源 (包含正常连线与 AST 捕获的偏航连线)
+  var allConnections = [
+    // 合规基线连接
+    { from: 'card-web',     to: 'card-gateway', type: 'sync',  isDrift: false },
+    { from: 'card-app',     to: 'card-gateway', type: 'sync',  isDrift: false },
+    { from: 'card-gateway', to: 'card-user',    type: 'sync',  isDrift: false },
+    { from: 'card-gateway', to: 'card-core',    type: 'sync',  isDrift: false },
+    { from: 'card-core',    to: 'card-task',    type: 'async', isDrift: false },
+    { from: 'card-user',    to: 'card-mysql',   type: 'sync',  isDrift: false },
+    { from: 'card-core',    to: 'card-mysql',   type: 'sync',  isDrift: false },
+    { from: 'card-core',    to: 'card-redis',   type: 'sync',  isDrift: false },
+    { from: 'card-task',    to: 'card-mq',      type: 'async', isDrift: false },
+    { from: 'card-core',    to: 'card-oss',     type: 'sync',  isDrift: false },
+
+    // 🚨 偏航连线 1: Web 前端越界直连 MySQL (CRITICAL_BYPASS)
+    { 
+      from: 'card-web', to: 'card-mysql', type: 'sync', isDrift: true,
+      ruleId: 'CRITICAL_BYPASS',
+      desc: '表现层直连数据库驱动，绕过了网关与领域服务防腐层'
+    },
+    // 🚨 偏航连线 2: 核心业务服务反向调用 Web 前端组件类型 (LAYER_INVERSION)
+    { 
+      from: 'card-core', to: 'card-web', type: 'async', isDrift: true,
+      ruleId: 'LAYER_INVERSION',
+      desc: '核心业务层直接反向 import 前端组件类型，造成逆向耦合'
+    }
+  ];
+
+  // 模块偏航审计明细数据
+  var moduleDrifts = {
+    'card-web': [
+      {
+        id: 'V1',
+        type: 'CRITICAL_BYPASS',
+        severity: 'critical',
+        file: 'src/pages/Dashboard.tsx:14:1',
+        message: 'Presentation 层 (Web前端) 越界直连 Data 层 (MySQL)，绕过了中间 Gateway 与 Domain 层。',
+        snippet: "import { mysqlPool } from '../../data/mysql/pool';\nconst query = await mysqlPool.execute('SELECT * FROM users');",
+        suggestion: '移除对底层 MySQL 驱动的直接 import，改为通过 API Client 请求网关接口 /api/v1/users。'
+      }
+    ],
+    'card-core': [
+      {
+        id: 'V2',
+        type: 'LAYER_INVERSION',
+        severity: 'warning',
+        file: 'src/domain/services/report.service.ts:8:1',
+        message: 'Domain 层 (核心业务服务) 逆向引用了 Presentation 层 (Web 前端) 的组件与 Props。',
+        snippet: "import type { DashboardProps } from '../../../../frontend/src/pages/Dashboard';",
+        suggestion: '将通用的数据结构下沉至基础 Contracts/DTO 层，杜绝底层核心反向依赖上层 UI。'
+      }
+    ],
+    'card-mysql': [
+      {
+        id: 'V1_TARGET',
+        type: 'UNAUTHORIZED_ACCESS',
+        severity: 'critical',
+        file: 'schemas/users.sql',
+        message: '收到来自非授信 Presentation 层 (Web 前端) 的直接网络连接请求。',
+        snippet: 'Incoming connection from Dashboard.tsx bypassing application gateway.',
+        suggestion: '请配置网络策略阻断前端直连，仅放行业务服务层连接池。'
+      }
+    ]
+  };
+
+  // 模块详情完整数据
+  var moduleDetails = {
+    'card-web': {
+      layer: 'L1 接入层', color: 'var(--c-access)', bg: 'var(--c-access-bg)',
+      title: 'Web 前端', sub: 'React 18 · SPA 现代单页应用',
+      meta: [
+        { label: '技术栈', value: 'React 18 + TS' },
+        { label: '构建工具', value: 'Vite 5.x' },
+        { label: '状态管理', value: 'Zustand' },
+        { label: '架构健康度', value: '⚠️ 偏航 (1 处违规)' }
+      ],
+      internalArch: [
+        { label: '页面层', items: 'pages/ — Home.tsx, Dashboard.tsx (⚠️ 含有违规调用)' },
+        { label: '组件层', items: 'components/ — Button, Modal, Header, Sidebar' },
+        { label: '状态/Hook', items: 'hooks/ — useAuth, useRequest; store/ — Zustand' },
+        { label: 'API 客户端', items: 'api/client.ts — axios 拦截器, Token 注入' },
+        { label: '合规流向', items: '→ HTTPS → API 网关 (:8080)' }
+      ],
+      archNote: '<b>标准数据流：</b>用户交互 → 组件触发 Hook → API Client 发起 HTTP → 网关路由至微服务。当前 <code>Dashboard.tsx</code> 存在违规直连数据库旁路！',
+      tree: [
+        { name: 'src', type: 'folder', children: [
+          { name: 'components', type: 'folder', children: [
+            { name: 'Button.tsx', type: 'file' },
+            { name: 'Modal.tsx', type: 'file' }
+          ]},
+          { name: 'pages', type: 'folder', children: [
+            { name: 'Home.tsx', type: 'file' },
+            { name: 'Dashboard.tsx (🚨 跨层旁路)', type: 'file', hasDrift: true }
+          ]},
+          { name: 'api', type: 'folder', children: [
+            { name: 'client.ts', type: 'file' }
+          ]},
+          { name: 'App.tsx', type: 'file' }
+        ]}
+      ]
+    },
+    'card-app': {
+      layer: 'L1 接入层', color: 'var(--c-access)', bg: 'var(--c-access-bg)',
+      title: '移动端 App', sub: 'React Native 跨端客户端',
+      meta: [
+        { label: '技术栈', value: 'React Native' },
+        { label: '导航库', value: 'React Navigation' },
+        { label: '状态管理', value: 'Redux Toolkit' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: '屏幕层', items: 'screens/ — HomeScreen, ProfileScreen' },
+        { label: '导航层', items: 'navigation/ — RootNavigator' },
+        { label: '服务层', items: 'services/api.ts — 请求封装' },
+        { label: '网络请求', items: '→ HTTPS → API 网关 (:8080)' }
+      ],
+      archNote: '<b>数据流：</b>Screen 调用 Service → API 请求经网关 → 后端返回 JSON → Redux 更新状态。',
+      tree: [
+        { name: 'src', type: 'folder', children: [
+          { name: 'screens', type: 'folder', children: [
+            { name: 'HomeScreen.tsx', type: 'file' },
+            { name: 'ProfileScreen.tsx', type: 'file' }
+          ]},
+          { name: 'services', type: 'folder', children: [
+            { name: 'api.ts', type: 'file' }
+          ]}
+        ]}
+      ]
+    },
+    'card-gateway': {
+      layer: 'L2 网关层', color: 'var(--c-gateway)', bg: 'var(--c-gateway-bg)',
+      title: 'API 网关', sub: '统一微服务流量入口与鉴权总线',
+      meta: [
+        { label: '技术栈', value: 'Node.js + Express' },
+        { label: '鉴权策略', value: 'JWT + OAuth2' },
+        { label: '限流算法', value: 'Redis 滑动窗口' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: '路由入口', items: 'routes/proxy.ts — 动态路由转发' },
+        { label: '中间件链', items: 'auth → rateLimit → cors → logger' },
+        { label: '鉴权模块', items: 'jwt.strategy.ts — 非对称公钥验签' },
+        { label: '转发流向', items: '→ user-service:3001 / core-service:3002' }
+      ],
+      archNote: '<b>请求流：</b>客户端请求 → 验证 JWT → IP 限流核验 → 路径匹配转发 → 结果回传。',
+      tree: [
+        { name: 'src', type: 'folder', children: [
+          { name: 'routes', type: 'folder', children: [
+            { name: 'proxy.ts', type: 'file' }
+          ]},
+          { name: 'middleware', type: 'folder', children: [
+            { name: 'auth.ts', type: 'file' },
+            { name: 'rate-limit.ts', type: 'file' }
+          ]}
+        ]}
+      ]
+    },
+    'card-user': {
+      layer: 'L3 业务服务层', color: 'var(--c-service)', bg: 'var(--c-service-bg)',
+      title: '用户服务', sub: '用户生命周期 · 认证与权限',
+      meta: [
+        { label: '技术栈', value: 'NestJS + TS' },
+        { label: 'ORM', value: 'Prisma' },
+        { label: '数据库', value: 'MySQL' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: 'Controller', items: 'user.controller.ts, auth.controller.ts' },
+        { label: 'Service', items: 'user.service.ts, auth.service.ts' },
+        { label: 'Repository', items: 'user.repo.ts — Prisma 数据访问' },
+        { label: '持久化', items: '→ MySQL:3306 (users 表)' }
+      ],
+      archNote: '<b>调用流程：</b>Controller 接收网关转发 → Service 处理逻辑 → Repo 操作 MySQL。',
+      tree: [
+        { name: 'src', type: 'folder', children: [
+          { name: 'controllers', type: 'folder', children: [
+            { name: 'user.controller.ts', type: 'file' }
+          ]},
+          { name: 'services', type: 'folder', children: [
+            { name: 'user.service.ts', type: 'file' }
+          ]}
+        ]}
+      ]
+    },
+    'card-core': {
+      layer: 'L3 业务服务层', color: 'var(--c-service)', bg: 'var(--c-service-bg)',
+      title: '核心业务服务', sub: 'DDD 领域模型 · 核心业务编排',
+      meta: [
+        { label: '技术栈', value: 'NestJS' },
+        { label: '架构模式', value: 'DDD 领域驱动设计' },
+        { label: '缓存集成', value: 'Redis 哨兵' },
+        { label: '架构健康度', value: '⚠️ 偏航 (1 处逆向依赖)' }
+      ],
+      internalArch: [
+        { label: '接口层', items: 'api/controllers/ — 接收请求' },
+        { label: '应用层', items: 'application/use-cases/ — 领域编排' },
+        { label: '领域层', items: 'domain/models/, services/ (⚠️ 存在逆向引用)' },
+        { label: '基础设施', items: 'infrastructure/persistence/' },
+        { label: '外部调用', items: '→ MySQL / Redis / Kafka' }
+      ],
+      archNote: '<b>DDD 流程：</b>Controller → UseCase → Domain Service → Infra Repo。当前 <code>report.service.ts</code> 逆向导入了前端 DashboardProps！',
+      tree: [
+        { name: 'src', type: 'folder', children: [
+          { name: 'domain', type: 'folder', children: [
+            { name: 'models', type: 'folder', children: [] },
+            { name: 'services', type: 'folder', children: [
+              { name: 'report.service.ts (🚨 逆向依赖)', type: 'file', hasDrift: true }
+            ]}
+          ]},
+          { name: 'application', type: 'folder', children: [] },
+          { name: 'infrastructure', type: 'folder', children: [] }
+        ]}
+      ]
+    },
+    'card-task': {
+      layer: 'L3 业务服务层', color: 'var(--c-service)', bg: 'var(--c-service-bg)',
+      title: '任务调度服务', sub: '定时 Cron · 分布式异步作业',
+      meta: [
+        { label: '技术栈', value: 'BullMQ + Redis' },
+        { label: '消息中间件', value: 'Kafka' },
+        { label: '重试策略', value: '指数退避 (Max 3)' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: '调度器', items: 'scheduler/cron.registry.ts' },
+        { label: 'Worker', items: 'workers/processor.ts' },
+        { label: '队列', items: 'queues/ — BullMQ 任务分发' },
+        { label: '投递流向', items: '→ 消息队列 Kafka' }
+      ],
+      archNote: '<b>异步作业：</b>Cron 触发 → 写入 BullMQ → Worker 消费并派发领域事件至 Kafka。',
+      tree: [
+        { name: 'src', type: 'folder', children: [
+          { name: 'jobs', type: 'folder', children: [] },
+          { name: 'workers', type: 'folder', children: [] }
+        ]}
+      ]
+    },
+    'card-mysql': {
+      layer: 'L4 数据层', color: 'var(--c-data)', bg: 'var(--c-data-bg)',
+      title: 'MySQL', sub: '一主两从 · 关系型持久化存储',
+      meta: [
+        { label: '版本', value: '8.0' },
+        { label: '拓扑', value: '一主两从' },
+        { label: '存储引擎', value: 'InnoDB' },
+        { label: '架构健康度', value: '⚠️ 收到非授权旁路访问' }
+      ],
+      internalArch: [
+        { label: '连接池', items: 'mysql2/pool — Max 20 连接' },
+        { label: '读写分离', items: '写走主库，读负载均衡到从库' },
+        { label: '核心表', items: 'users, orders, task_logs' }
+      ],
+      archNote: '<b>安全告警：</b>收到来自前端 <code>Dashboard.tsx</code> 的非授权直接查询，破坏分层隔离！',
+      tree: [
+        { name: 'schemas', type: 'folder', children: [
+          { name: 'users.sql', type: 'file' },
+          { name: 'orders.sql', type: 'file' }
+        ]}
+      ]
+    },
+    'card-redis': {
+      layer: 'L4 数据层', color: 'var(--c-data)', bg: 'var(--c-data-bg)',
+      title: 'Redis', sub: '分布式缓存 · 哨兵高可用',
+      meta: [
+        { label: '版本', value: '7.2' },
+        { label: '集群模式', value: '哨兵模式' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: '缓存模式', items: 'Cache-Aside 旁路缓存' },
+        { label: '会话存储', items: 'session:* — TTL 7 天' },
+        { label: '分布式锁', items: 'lock:* — SET NX EX' }
+      ],
+      archNote: '<b>缓存策略：</b>读优先查 Redis，未命中回源 DB；写更新 DB 并淘汰缓存。',
+      tree: [{ name: 'config', type: 'folder', children: [{ name: 'redis.conf', type: 'file' }] }]
+    },
+    'card-mq': {
+      layer: 'L4 数据层', color: 'var(--c-data)', bg: 'var(--c-data-bg)',
+      title: '消息队列', sub: 'Kafka 分布式事件发布订阅',
+      meta: [
+        { label: '中间件', value: 'Kafka 3.6' },
+        { label: '分区数', value: '12 分区' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: 'Topic 矩阵', items: 'task-events, order-events' },
+        { label: '持久化策略', items: '保留 7 天，副本因子 3' }
+      ],
+      archNote: '<b>事件流：</b>业务微服务发布事件 → 独立消费组 ACK 提交。',
+      tree: [{ name: 'topics', type: 'folder', children: [] }]
+    },
+    'card-oss': {
+      layer: 'L4 数据层', color: 'var(--c-data)', bg: 'var(--c-data-bg)',
+      title: '对象存储', sub: 'S3 兼容云存储 · 静态多媒体资源',
+      meta: [
+        { label: '协议', value: 'S3 兼容' },
+        { label: 'CDN 回源', value: 'CloudFront' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: '直传方案', items: 'Presigned URL 签名直传' },
+        { label: '存储桶', items: 'static-assets / media' }
+      ],
+      archNote: '<b>流程：</b>服务端下发签名直传 URL，客户端直传 OSS，避免打满应用带宽。',
+      tree: [{ name: 'buckets', type: 'folder', children: [] }]
+    },
+    'card-k8s': {
+      layer: 'L5 基础设施层', color: 'var(--c-infra)', bg: 'var(--c-infra-bg)',
+      title: '容器集群', sub: 'Kubernetes 1.29 · 弹性伸缩',
+      meta: [
+        { label: '平台', value: 'K8s 1.29' },
+        { label: 'CI/CD', value: 'ArgoCD' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: 'Ingress', items: 'Nginx Ingress + TLS 终止' },
+        { label: '弹性伸缩', items: 'HPA CPU > 70% 自动扩容' }
+      ],
+      archNote: '<b>编排：</b>滚动部署，健康探针探活，故障 Pod 自动摘除。',
+      tree: [{ name: 'deployments', type: 'folder', children: [] }]
+    },
+    'card-monitor': {
+      layer: 'L5 基础设施层', color: 'var(--c-infra)', bg: 'var(--c-infra-bg)',
+      title: '监控 & 日志', sub: 'Prometheus · Grafana · 飞书告警',
+      meta: [
+        { label: '指标', value: 'Prometheus' },
+        { label: '告警通道', value: '飞书 Webhook' },
+        { label: '架构健康度', value: '🟢 零偏航' }
+      ],
+      internalArch: [
+        { label: '采集', items: 'Scrape 各微服务 /metrics' },
+        { label: '告警', items: 'Alertmanager 路由' }
+      ],
+      archNote: '<b>监控链：</b>指标超阈值 → Alertmanager 分组 → 飞书机器人通知值班群。',
+      tree: [{ name: 'prometheus', type: 'folder', children: [] }]
+    }
+  };
+
+  var ns = 'http://www.w3.org/2000/svg';
+
+  function getBottomCenter(el) {
+    var r = el.getBoundingClientRect();
+    var dr = diagram.getBoundingClientRect();
+    return {
+      x: r.left - dr.left + r.width / 2,
+      y: r.bottom - dr.top
+    };
+  }
+
+  function getTopCenter(el) {
+    var r = el.getBoundingClientRect();
+    var dr = diagram.getBoundingClientRect();
+    return {
+      x: r.left - dr.left + r.width / 2,
+      y: r.top - dr.top
+    };
+  }
+
+  // 绘制动态 SVG 连线
+  function drawConnections() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    var dr = diagram.getBoundingClientRect();
+    svg.setAttribute('width', dr.width);
+    svg.setAttribute('height', dr.height);
+
+    var defs = document.createElementNS(ns, 'defs');
+
+    // 默认灰色箭头
+    var marker = document.createElementNS(ns, 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('viewBox', '0 0 10 7');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '3.5');
+    marker.setAttribute('markerWidth', '8');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('orient', 'auto');
+    var polygon = document.createElementNS(ns, 'polygon');
+    polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+    polygon.setAttribute('fill', '#94A3B8');
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+
+    // 🚨 偏航专属红色箭头
+    var markerDrift = document.createElementNS(ns, 'marker');
+    markerDrift.setAttribute('id', 'arrowhead-drift');
+    markerDrift.setAttribute('viewBox', '0 0 10 7');
+    markerDrift.setAttribute('refX', '9');
+    markerDrift.setAttribute('refY', '3.5');
+    markerDrift.setAttribute('markerWidth', '8');
+    markerDrift.setAttribute('markerHeight', '6');
+    markerDrift.setAttribute('orient', 'auto');
+    var polygonDrift = document.createElementNS(ns, 'polygon');
+    polygonDrift.setAttribute('points', '0 0, 10 3.5, 0 7');
+    polygonDrift.setAttribute('fill', '#EF4444');
+    markerDrift.appendChild(polygonDrift);
+    defs.appendChild(markerDrift);
+
+    svg.appendChild(defs);
+
+    // 根据视图筛选展示连线
+    var filteredConnections = allConnections.filter(function(conn) {
+      if (currentView === 'target') {
+        return !conn.isDrift; // 仅目标合规连线
+      }
+      return true; // actual 和 diff 显示所有实际连线
+    });
+
+    filteredConnections.forEach(function (conn) {
+      var fromEl = document.getElementById(conn.from);
+      var toEl = document.getElementById(conn.to);
+      if (!fromEl || !toEl) return;
+
+      var p1, p2;
+      // 处理逆向依赖连线方向
+      var isReverse = false;
+      var fromRect = fromEl.getBoundingClientRect();
+      var toRect = toEl.getBoundingClientRect();
+      if (fromRect.top > toRect.bottom) {
+        // 低层指向高层 (如 core -> web)
+        p1 = getTopCenter(fromEl);
+        p2 = getBottomCenter(toEl);
+        isReverse = true;
+      } else {
+        p1 = getBottomCenter(fromEl);
+        p2 = getTopCenter(toEl);
+      }
+
+      var midY = (p1.y + p2.y) / 2;
+
+      var pathData =
+        'M ' + p1.x + ' ' + p1.y +
+        ' L ' + p1.x + ' ' + midY +
+        ' L ' + p2.x + ' ' + midY +
+        ' L ' + p2.x + ' ' + (isReverse ? (p2.y + 3) : (p2.y - 2));
+
+      var path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', pathData);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-linejoin', 'round');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('data-from', conn.from);
+      path.setAttribute('data-to', conn.to);
+
+      if (conn.isDrift) {
+        // 偏航连线标红
+        path.setAttribute('class', 'path-drift');
+        path.setAttribute('stroke', '#EF4444');
+        path.setAttribute('stroke-width', '2.2');
+        path.setAttribute('marker-end', 'url(#arrowhead-drift)');
+        path.setAttribute('data-drift', 'true');
+      } else {
+        path.setAttribute('stroke', '#94A3B8');
+        path.setAttribute('stroke-width', '1.8');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        if (conn.type === 'async') {
+          path.setAttribute('stroke-dasharray', '6,5');
+        }
+      }
+
+      svg.appendChild(path);
+    });
+  }
+
+  // 视角切换逻辑
+  window.switchView = function(view) {
+    currentView = view;
+    document.querySelectorAll('.view-btn').forEach(function(b) { b.classList.remove('active'); });
+    if (view === 'target') document.getElementById('btnTarget').classList.add('active');
+    if (view === 'actual') document.getElementById('btnActual').classList.add('active');
+    if (view === 'diff') document.getElementById('btnDiff').classList.add('active');
+
+    // 动态更新卡片与徽标状态
+    var pulse = document.getElementById('pulseDot');
+    var health = document.getElementById('healthBadge');
+    var cards = document.querySelectorAll('.card');
+
+    if (view === 'target') {
+      pulse.className = 'badge-pulse';
+      health.className = 'health-badge clean';
+      health.textContent = '🟢 设计蓝图基线: 100% 规则合规';
+      cards.forEach(function(c) { c.classList.remove('has-drift'); });
+    } else {
+      pulse.className = 'badge-pulse drifted';
+      health.className = 'health-badge';
+      health.textContent = '🚨 架构偏航检测: 2 处违规 (Health: 88/100)';
+      document.getElementById('card-web').classList.add('has-drift');
+      document.getElementById('card-core').classList.add('has-drift');
+      document.getElementById('card-mysql').classList.add('has-drift');
+    }
+
+    drawConnections();
+  };
+
+  // 复制 AI 自愈 Prompt
+  window.copyAiFixPrompt = function(cardId, e) {
+    if (e) e.stopPropagation();
+    var drifts = moduleDrifts[cardId];
+    if (!drifts || !drifts.length) return;
+    var d = drifts[0];
+
+    var promptText = [
+      'Please resolve the following architectural drift detected by SextantDrift:',
+      '- Location: ' + d.file,
+      '- Violation Type: [' + d.type + ']',
+      '- Description: ' + d.message,
+      '- Violation Code Snippet:',
+      '```typescript',
+      d.snippet,
+      '```',
+      '- Expected Fix Instruction: ' + d.suggestion,
+      '- Invariant: Presentation layer must strictly access Data layer via Gateway and Application Service layers.'
+    ].join('\n');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(promptText).then(function() {
+        showToast('✅ AI 自愈 Prompt 已复制！可直接在 Cursor Composer (Cmd+I) 粘贴执行修复。');
+      });
+    } else {
+      showToast('✅ 已生成自愈指令。');
+    }
+  };
+
+  function showToast(msg) {
+    var toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, 3200);
+  }
+
+  // 侧边栏交互
+  var overlay = document.getElementById('overlay');
+  var sidebar = document.getElementById('sidebar');
+  var closeBtn = document.getElementById('closeBtn');
+  var layerTag = document.getElementById('sidebarLayerTag');
+  var sidebarTitle = document.getElementById('sidebarTitle');
+  var sidebarSub = document.getElementById('sidebarSub');
+  var metaGrid = document.getElementById('metaGrid');
+  var treeContainer = document.getElementById('treeContainer');
+  var driftSectionContainer = document.getElementById('driftSectionContainer');
+
+  var cardNames = {};
+  document.querySelectorAll('.card').forEach(function (c) {
+    var t = c.querySelector('.card-title');
+    if (t) cardNames[c.id] = t.textContent.trim();
+  });
+
+  function renderTree(nodes, container) {
+    nodes.forEach(function (node) {
+      var li = document.createElement('li');
+      var row = document.createElement('div');
+      row.className = 'tree-row ' + node.type + (node.hasDrift ? ' has-drift' : '');
+
+      var iconSvg = document.createElementNS(ns, 'svg');
+      iconSvg.setAttribute('viewBox', '0 0 24 24');
+      iconSvg.setAttribute('fill', 'none');
+      iconSvg.setAttribute('stroke', node.hasDrift ? '#DC2626' : 'var(--text-tertiary)');
+      iconSvg.setAttribute('stroke-width', '2');
+      iconSvg.setAttribute('stroke-linecap', 'round');
+      iconSvg.setAttribute('stroke-linejoin', 'round');
+      iconSvg.setAttribute('class', 'tree-icon');
+
+      if (node.type === 'folder') {
+        iconSvg.innerHTML = '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>';
+      } else {
+        iconSvg.innerHTML = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
+      }
+
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'tree-name';
+      nameSpan.textContent = node.name;
+
+      row.appendChild(iconSvg);
+      row.appendChild(nameSpan);
+      li.appendChild(row);
+
+      if (node.type === 'folder' && node.children && node.children.length) {
+        var childUl = document.createElement('ul');
+        childUl.className = 'tree-children';
+        renderTree(node.children, childUl);
+        li.appendChild(childUl);
+
+        row.addEventListener('click', function () {
+          childUl.classList.toggle('collapsed');
+        });
+      }
+
+      container.appendChild(li);
+    });
+  }
+
+  function renderArch(steps, note) {
+    var c = document.getElementById('archContainer');
+    c.innerHTML = '';
+    steps.forEach(function (step, i) {
+      var box = document.createElement('div');
+      box.className = 'arch-step';
+      box.innerHTML =
+        '<div class="arch-step-label">' + step.label + '</div>' +
+        '<div class="arch-step-items">' + step.items + '</div>';
+      c.appendChild(box);
+      if (i < steps.length - 1) {
+        var arrow = document.createElement('div');
+        arrow.className = 'arch-arrow';
+        arrow.textContent = '↓';
+        c.appendChild(arrow);
+      }
+    });
+    if (note) {
+      var noteEl = document.createElement('div');
+      noteEl.className = 'arch-note';
+      noteEl.innerHTML = note;
+      c.appendChild(noteEl);
+    }
+  }
+
+  function renderDepList(listEl, conns, direction) {
+    listEl.innerHTML = '';
+    if (!conns.length) {
+      listEl.innerHTML = '<li class="dep-empty">无</li>';
+      return;
+    }
+    conns.forEach(function (c) {
+      var otherId = direction === 'out' ? c.to : c.from;
+      var label = cardNames[otherId] || otherId;
+      var li = document.createElement('li');
+      var arrow = direction === 'out' ? '→' : '←';
+      var badgeClass = c.isDrift ? 'drift' : c.type;
+      var badgeText = c.isDrift ? '🚨 违规旁路' : (c.type === 'async' ? '异步' : '同步');
+
+      li.innerHTML =
+        '<span class="dep-arrow">' + arrow + '</span>' +
+        '<span class="dep-name">' + label + '</span>' +
+        '<span class="dep-type ' + badgeClass + '">' + badgeText + '</span>';
+      listEl.appendChild(li);
+    });
+  }
+
+  function openSidebar(cardId) {
+    var data = moduleDetails[cardId];
+    if (!data) return;
+
+    layerTag.textContent = data.layer;
+    layerTag.style.background = data.bg;
+    layerTag.style.color = data.color;
+    sidebarTitle.textContent = data.title;
+    sidebarSub.textContent = data.sub;
+
+    // 渲染偏航审计区
+    var drifts = moduleDrifts[cardId];
+    driftSectionContainer.innerHTML = '';
+    if (drifts && drifts.length > 0 && currentView !== 'target') {
+      var driftHtml = '<div class="drift-section">' +
+        '<div class="drift-section-head">' +
+          '<span class="drift-badge">🚨 AST 捕获架构违规</span>' +
+          '<span class="drift-title">' + drifts.length + ' 处偏航需自愈</span>' +
+        '</div>';
+
+      drifts.forEach(function(d) {
+        driftHtml += '<div class="drift-card">' +
+          '<div class="drift-loc">📍 ' + d.file + ' [' + d.type + ']</div>' +
+          '<div class="drift-msg">' + d.message + '</div>' +
+          '<pre class="code-snippet">' + d.snippet + '</pre>' +
+          '<button class="btn-ai-prompt" onclick="copyAiFixPrompt(\'' + cardId + '\', event)">' +
+            '🤖 复制 AI 自愈 Prompt (Cursor Composer)' +
+          '</button>' +
+        '</div>';
+      });
+      driftHtml += '</div>';
+      driftSectionContainer.innerHTML = driftHtml;
+    }
+
+    // 渲染元信息
+    metaGrid.innerHTML = '';
+    data.meta.forEach(function (m) {
+      var item = document.createElement('div');
+      item.className = 'meta-item';
+      item.innerHTML = '<div class="meta-label">' + m.label + '</div><div class="meta-value">' + m.value + '</div>';
+      metaGrid.appendChild(item);
+    });
+
+    // 渲染上下游依赖
+    var currentConns = allConnections.filter(function(c) {
+      return currentView === 'target' ? !c.isDrift : true;
+    });
+    var outgoing = currentConns.filter(function (c) { return c.from === cardId; });
+    var incoming = currentConns.filter(function (c) { return c.to === cardId; });
+    renderDepList(document.getElementById('outgoingList'), outgoing, 'out');
+    renderDepList(document.getElementById('incomingList'), incoming, 'in');
+
+    renderArch(data.internalArch || [], data.archNote);
+
+    treeContainer.innerHTML = '';
+    renderTree(data.tree, treeContainer);
+
+    sidebar.classList.add('active');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // 绑定卡片交互
+  document.querySelectorAll('.card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      openSidebar(card.id);
+    });
+
+    // 悬停伴随式高亮
+    card.addEventListener('mouseenter', function () {
+      svg.classList.add('paths-active');
+      var allPaths = svg.querySelectorAll('path');
+      allPaths.forEach(function (p) {
+        var from = p.getAttribute('data-from');
+        var to = p.getAttribute('data-to');
+        p.classList.remove('path-related');
+        if (from === card.id || to === card.id) {
+          p.classList.add('path-related');
+        }
+      });
+    });
+
+    card.addEventListener('mouseleave', function () {
+      svg.classList.remove('paths-active');
+      svg.querySelectorAll('path').forEach(function (p) {
+        p.classList.remove('path-related');
+      });
+    });
+
+    var hint = document.createElement('div');
+    hint.className = 'card-hint';
+    hint.textContent = '点击查看详情';
+    card.appendChild(hint);
+  });
+
+  closeBtn.addEventListener('click', closeSidebar);
+  overlay.addEventListener('click', closeSidebar);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSidebar();
+  });
+
+  window.addEventListener('load', drawConnections);
+  window.addEventListener('resize', drawConnections);
+  setTimeout(drawConnections, 200);
+})();
+</script>
+
+</body>
+</html>

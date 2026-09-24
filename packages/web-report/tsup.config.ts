@@ -6,4 +6,6 @@ export default defineConfig({
   dts: true,
   clean: true,
   target: 'es2022',
+  noExternal: ['@sextant/core'],
+  external: ['typescript', 'yaml'],
 });

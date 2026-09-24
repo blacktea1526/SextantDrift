@@ -76,6 +76,7 @@ export interface TargetArchitecture {
   $schema?: string;
   name?: string;
   version?: string;
+  description?: string;
   systemName?: string;
   systemContext?: C4SystemContext;
   containers?: C4Container[];

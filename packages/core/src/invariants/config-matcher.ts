@@ -134,15 +134,14 @@ export function matchConfigInvariants(
 
     for (const rule of applicableRules) {
       const hasTarget = rule.pattern.target && rule.pattern.target.length > 0;
-      let isCalleeMatch = false;
 
-      if (hasTarget) {
-        isCalleeMatch = findMatchingPattern(calleeName, rule.pattern.target!) !== null;
-      } else {
-        // Heuristic: callee name matches external/network keywords
-        isCalleeMatch = /(fetch|request|get|post|client|call)/i.test(calleeName);
+      // Invariant: require_config MUST have an explicit target pattern (e.g. ['fetch', 'axios.*', '*.request'])
+      // Never guess based on heuristic regex (/(fetch|request|get|post|client|call)/i) to prevent false positives on Map.get, Cache.get, etc. (AGENTS.md 戒律 2)
+      if (!hasTarget) {
+        continue;
       }
 
+      const isCalleeMatch = findMatchingPattern(calleeName, rule.pattern.target!) !== null;
       if (!isCalleeMatch) {
         continue;
       }
@@ -154,12 +153,6 @@ export function matchConfigInvariants(
         if (ts.isObjectLiteralExpression(unwrapped)) {
           objectArgs.push(unwrapped);
         }
-      }
-
-      // If target was not explicitly configured, require at least one object literal argument
-      // to avoid false positives on non-config calls like cache.get(id) or map.get(key)
-      if (!hasTarget && objectArgs.length === 0) {
-        continue;
       }
 
       const requiredConfigs = rule.pattern.require_config!;

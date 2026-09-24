@@ -1,8 +1,11 @@
 import { StateMachineGraph, StateViolation } from './types.js';
 import { buildStateGraphTopology } from './graph-builder.js';
 
+const SEMANTIC_TERMINAL_PATTERN =
+  /^(completed|cancelled|canceled|finished|success|succeeded|failed|failure|rejected|closed|done|end|terminated|exit)$/i;
+
 /**
- * Detects black hole / deadlock states (in-degree >= 1 and out-degree == 0, excluding [*])
+ * Detects black hole / deadlock states (in-degree >= 1 and out-degree == 0, excluding [*] and semantic terminal states)
  */
 export function detectDeadlockStates(graph: StateMachineGraph): StateViolation[] {
   const violations: StateViolation[] = [];
@@ -11,6 +14,11 @@ export function detectDeadlockStates(graph: StateMachineGraph): StateViolation[]
   for (const [nodeId, node] of graph.nodes.entries()) {
     // [*] represents the initial / terminal anchor in Mermaid, not a business state
     if (nodeId === '[*]') {
+      continue;
+    }
+
+    // Semantic terminal states (e.g. Completed, Failed) are valid workflow termination sinks
+    if (SEMANTIC_TERMINAL_PATTERN.test(nodeId)) {
       continue;
     }
 

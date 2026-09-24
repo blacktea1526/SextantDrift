@@ -18,7 +18,10 @@ export interface ViolationEvidence {
     | 'CONTRACT_SHADOW_ENDPOINT'
     | 'CONTRACT_MISSING_PARAM'
     | 'CONTRACT_UNHANDLED_STATUS'
-    | 'CONTRACT_LINT_ERROR';
+    | 'CONTRACT_LINT_ERROR'
+    | 'WARN_UNRESOLVED_IMPORT'
+    | 'WARN_PARTIAL_BARREL_RESOLUTION'
+    | 'WARN_RULE_MISSING_TARGET';
   severity: 'critical' | 'warning' | 'info';
   message: string;
   sourceFile: string;
@@ -65,6 +68,13 @@ export interface BaselineData {
   fingerprints: BaselineFingerprint[];
 }
 
+export interface ComponentCoverage {
+  totalFiles: number;
+  mappedFiles: number;
+  unmappedFiles: number;
+  coveragePercentage: number;
+}
+
 export interface DriftSummary {
   totalFiles: number;
   totalDependencies: number;
@@ -79,6 +89,10 @@ export interface DriftSummary {
   stateViolationCount?: number;
   dynamicViolationCount?: number;
   contractViolationCount?: number;
+  contractEndpointCount?: number;
+  unresolvedImportCount?: number;
+  partialBarrelCount?: number;
+  componentCoverage?: ComponentCoverage;
 }
 
 export type C4NodeStatus = 'compliant' | 'drift';
@@ -154,6 +168,8 @@ export interface DriftReport {
   exemptions?: DriftViolation[];
   targetArchitecture: TargetArchitecture;
   graphData: C4GraphData;
+  hasUnresolvedImports?: boolean;
+  hasPartialBarrels?: boolean;
   /** @deprecated Kept for backward compatibility */
   actualMermaid?: string;
   /** @deprecated Kept for backward compatibility */
@@ -171,4 +187,7 @@ export interface AnalyzeOptions {
   contractPath?: string;
   contractContent?: string;
   files?: string[];
+  strict?: boolean;
+  countTypeOnly?: boolean;
+  unmappedFiles?: 'forbid' | 'warn' | 'allow';
 }

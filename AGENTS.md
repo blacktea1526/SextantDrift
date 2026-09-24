@@ -144,6 +144,7 @@ invariants:
     severity: warning
     desc: "所有第三方外部 API 调用必须配置明确的超时与异常兜底"
     pattern:
+      target: ["fetch", "axios.*", "*.request"]
       require_config: ["timeout"]
       scope: "src/services/integrations/**"
 ```

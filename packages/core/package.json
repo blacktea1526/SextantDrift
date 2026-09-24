@@ -1,7 +1,8 @@
 {
   "name": "@sextant/core",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "SextantDrift Core Engine — Pure headless architecture X-ray & drift detection engine",
+  "author": "blacktea1526 (https://github.com/blacktea1526)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +19,9 @@
     "bench": "vitest run tests/benchmark/"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -43,6 +46,9 @@
   "devDependencies": {
     "tsup": "^8.3.5",
     "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "license": "MIT"
 }

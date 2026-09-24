@@ -47,7 +47,7 @@ export function computeViolationFingerprint(violation: ViolationEvidence): strin
   } else if (violation.type === 'CRITICAL_BYPASS' || violation.type === 'CRITICAL_INVERSION') {
     const caller = violation.sourceComponent || 'UNKNOWN';
     const callee = violation.targetComponent || 'UNKNOWN';
-    rawKey = `${violation.type}:${caller}->${callee}:${normSnippet}`;
+    rawKey = `${violation.type}:${normFile}:${caller}->${callee}:${normSnippet}`;
   } else if (violation.type === 'CRITICAL_CYCLE') {
     const cycleNodes = violation.cycle && violation.cycle.length > 0
       ? violation.cycle.join('->')

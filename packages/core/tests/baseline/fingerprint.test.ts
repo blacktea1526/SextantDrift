@@ -139,4 +139,27 @@ describe('Baseline AST Semantic Fingerprinting (ADR-006)', () => {
     expect(record.targetComponent).toBe('DbInfra');
     expect(record.sourceFile).toBe('src/views/User.ts');
   });
+
+  it('should generate distinct fingerprints for bypasses in different source files with identical imports', () => {
+    const vFile1: ViolationEvidence = {
+      id: 'V1',
+      type: 'CRITICAL_BYPASS',
+      severity: 'critical',
+      message: 'Bypass detected',
+      sourceFile: 'src/controllers/order.controller.ts',
+      line: 10,
+      column: 1,
+      snippet: "import { db } from '../infra/db.js';",
+      sourceComponent: 'OrderController',
+      targetComponent: 'DbInfra',
+    };
+
+    const vFile2: ViolationEvidence = {
+      ...vFile1,
+      id: 'V2',
+      sourceFile: 'src/controllers/user.controller.ts', // Different source file!
+    };
+
+    expect(computeViolationFingerprint(vFile1)).not.toBe(computeViolationFingerprint(vFile2));
+  });
 });

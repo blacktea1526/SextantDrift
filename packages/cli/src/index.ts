@@ -3,7 +3,6 @@
  * Command line interface and CI quality gate for SextantDrift
  */
 
-export * from '@sextant/core';
 export * from './commands/check.js';
 export * from './commands/baseline.js';
 export * from './commands/init.js';
@@ -12,3 +11,6 @@ export * from './formatters/terminal.js';
 export * from './formatters/json.js';
 export * from './formatters/github.js';
 export * from './utils/exit.js';
+export { analyzeModuleDrift, generateActualMermaid } from '@sextant/core';
+export type { DriftReport, DriftViolation, DriftSummary } from '@sextant/core';
+

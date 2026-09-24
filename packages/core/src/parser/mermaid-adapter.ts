@@ -4,26 +4,56 @@ import { ConfigValidationError } from '../errors/config-error.js';
 /**
  * Extract Mermaid block from markdown string or return raw text if already Mermaid
  */
+/**
+ * Extract all Mermaid blocks from markdown string
+ */
+export function extractMermaidBlocksFromMarkdown(markdownText: string): string[] {
+  const blocks: string[] = [];
+  const codeBlockRegex = /```mermaid\s*([\s\S]*?)```/gi;
+  let match: RegExpExecArray | null;
+  while ((match = codeBlockRegex.exec(markdownText)) !== null) {
+    if (match[1] && match[1].trim()) {
+      blocks.push(match[1].trim());
+    }
+  }
+
+  if (blocks.length === 0) {
+    if (
+      markdownText.includes('graph ') ||
+      markdownText.includes('flowchart ')
+    ) {
+      blocks.push(markdownText.trim());
+    }
+  }
+
+  return blocks;
+}
+
+/**
+ * Extract best-matching architecture Mermaid block from markdown string
+ */
 export function extractMermaidFromMarkdown(markdownText: string): string | null {
-  const codeBlockRegex = /```mermaid\s*([\s\S]*?)```/i;
-  const match = markdownText.match(codeBlockRegex);
-  if (match && match[1]) {
-    return match[1].trim();
-  }
-
-  // Check if the text is direct mermaid diagram
-  if (markdownText.includes('graph TD') || markdownText.includes('flowchart TD') || markdownText.includes('graph LR') || markdownText.includes('flowchart LR')) {
-    return markdownText.trim();
-  }
-
-  return null;
+  const blocks = extractMermaidBlocksFromMarkdown(markdownText);
+  if (blocks.length === 0) return null;
+  // Prioritize blocks containing subgraphs (layers/components)
+  const archBlock = blocks.find((b) => /subgraph\s+/i.test(b));
+  return archBlock || blocks[0];
 }
 
 /**
  * Parses Mermaid flowchart/graph TD into TargetArchitecture
  */
 export function parseMermaidArchitecture(mermaidCode: string): TargetArchitecture {
-  const lines = mermaidCode.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('%%'));
+  const lines = mermaidCode
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(
+      (l) =>
+        l &&
+        !l.startsWith('%%') &&
+        !l.startsWith('classDef ') &&
+        !l.startsWith('linkStyle ')
+    );
 
   const layers: Layer[] = [];
   const components: Component[] = [];
@@ -32,11 +62,13 @@ export function parseMermaidArchitecture(mermaidCode: string): TargetArchitectur
   let currentLayer: Layer | null = null;
   let layerOrder = 1;
 
-  // Regex patterns
-  const subgraphRegex = /subgraph\s+([A-Za-z0-9_]+)(?:\s*\["([^"]+)"\])?/i;
+  // Regex patterns supporting various labels, quotes and classDef annotations
+  const subgraphRegex = /subgraph\s+([A-Za-z0-9_]+)(?:\s*\["([^"]+)"\]|\s*\[([^\]]+)\])?/i;
   const endRegex = /^end$/i;
-  const nodeRegex = /^([A-Za-z0-9_]+)(?:\["([^"]+)"\])?$/;
-  const edgeRegex = /([A-Za-z0-9_]+)\s*--+>\s*([A-Za-z0-9_]+)/;
+  const nodeRegex =
+    /^([A-Za-z0-9_]+)(?:\["([^"]+)"\]|\[([^\]]+)\]|\("([^"]+)"\)|\(([^\)]+)\))?(?::::([A-Za-z0-9_]+))?$/;
+  const edgeRegex =
+    /([A-Za-z0-9_]+)\s*(?:[-.=]+>\s*\|[^|]+\||[-.=]+(?:\s*\|[^|]+\|)?\s*[-.=]*>|[-.=]+>)\s*([A-Za-z0-9_]+)/;
 
   for (const line of lines) {
     if (line.startsWith('graph ') || line.startsWith('flowchart ')) {
@@ -46,7 +78,7 @@ export function parseMermaidArchitecture(mermaidCode: string): TargetArchitectur
     const subgraphMatch = line.match(subgraphRegex);
     if (subgraphMatch) {
       const id = subgraphMatch[1];
-      const name = subgraphMatch[2] || id;
+      const name = subgraphMatch[2] || subgraphMatch[3] || id;
       currentLayer = {
         id,
         name,
@@ -74,7 +106,7 @@ export function parseMermaidArchitecture(mermaidCode: string): TargetArchitectur
       const nodeMatch = line.match(nodeRegex);
       if (nodeMatch) {
         const id = nodeMatch[1];
-        const name = nodeMatch[2] || id;
+        const name = nodeMatch[2] || nodeMatch[3] || nodeMatch[4] || nodeMatch[5] || id;
         components.push({
           id,
           name,
@@ -87,6 +119,10 @@ export function parseMermaidArchitecture(mermaidCode: string): TargetArchitectur
 
   if (layers.length === 0) {
     throw new ConfigValidationError('No subgraphs (layers) found in Mermaid architecture diagram');
+  }
+
+  if (components.length === 0) {
+    throw new ConfigValidationError('No components found inside subgraphs in Mermaid architecture diagram');
   }
 
   return {

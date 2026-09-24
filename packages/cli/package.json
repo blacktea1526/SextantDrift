@@ -1,7 +1,8 @@
 {
-  "name": "@sextant/cli",
-  "version": "0.1.0",
-  "description": "SextantDrift CLI — Command-line interface and CI quality gate",
+  "name": "sextant-drift",
+  "version": "2.0.0",
+  "description": "SextantDrift CLI — Architecture X-Ray & Drift Compass CI Quality Gate",
+  "author": "blacktea1526 (https://github.com/blacktea1526)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,7 +10,9 @@
     "sextant-drift": "./dist/bin/sextant-drift.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -24,17 +27,26 @@
     "architecture-linter",
     "drift-detector",
     "c4-model",
-    "ci-gate"
+    "ci-gate",
+    "sextant-drift"
   ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run"
   },
   "dependencies": {
-    "@sextant/core": "workspace:*",
-    "@sextant/web-report": "workspace:*",
     "cac": "^6.7.14",
-    "picocolors": "^1.1.1"
+    "picocolors": "^1.1.1",
+    "typescript": "^5.6.3",
+    "yaml": "^2.4.2"
+  },
+  "devDependencies": {
+    "@sextant/core": "workspace:*",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "license": "MIT"
 }

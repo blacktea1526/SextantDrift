@@ -90,4 +90,21 @@ describe('Path Resolver', () => {
       rawSpecifier: '@prisma/client',
     });
   });
+
+  it('should isolate cache entries across different rootDirs and tsConfigPaths', () => {
+    clearResolutionCache();
+    const resA = resolveModulePath('/ROOT_A', 'src/x/y.ts', '@/widgets/Unique', {
+      baseUrl: '.',
+      paths: { '@/*': ['./src/*'] },
+    });
+    const resB = resolveModulePath('/ROOT_B', 'src/x/y.ts', '@/widgets/Unique', null);
+    const resC = resolveModulePath('/ROOT_C', 'src/x/y.ts', '@/widgets/Unique', {
+      baseUrl: '.',
+      paths: { '@/*': ['./GENERATED/*'] },
+    });
+
+    expect(resA).toEqual({ type: 'internal', targetPath: 'src/widgets/Unique' });
+    expect(resB).toEqual({ type: 'external', packageName: '@/widgets', rawSpecifier: '@/widgets/Unique' });
+    expect(resC).toEqual({ type: 'internal', targetPath: 'GENERATED/widgets/Unique' });
+  });
 });

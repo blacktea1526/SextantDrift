@@ -18,12 +18,13 @@ cli
   .option('--contract <path>', 'Path to API contract specification (e.g. api-contract.md)')
   .option('--json', 'Output machine-readable JSON')
   .option('--strict', 'Treat warnings as errors')
-  .option('--report [output]', 'Generate standalone dual-diagram HTML inspection report')
+  .option('--report [output]', 'Generate standalone HTML inspection report')
   .option('--github-summary', 'Output markdown report to GITHUB_STEP_SUMMARY')
   .option('--filter <package>', 'Filter target Monorepo package directory')
   .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
   .option('--fix-manifest', 'Output compact YAML Fix Manifest for AI remediation (token-optimized)')
   .option('--ai-prompt', 'Output ready-to-execute prompt for AI coding assistants')
+  .option('--count-type-only', 'Include type-only imports in architectural drift detection (default: false)')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -38,12 +39,13 @@ cli
   .option('--contract <path>', 'Path to API contract specification (e.g. api-contract.md)')
   .option('--json', 'Output machine-readable JSON')
   .option('--strict', 'Treat warnings as errors')
-  .option('--report [output]', 'Generate standalone dual-diagram HTML inspection report')
+  .option('--report [output]', 'Generate standalone HTML inspection report')
   .option('--github-summary', 'Output markdown report to GITHUB_STEP_SUMMARY')
   .option('--filter <package>', 'Filter target Monorepo package directory')
   .option('--lang <lang>', 'Report display language (zh or en, default: zh)')
   .option('--fix-manifest', 'Output compact YAML Fix Manifest for AI remediation (token-optimized)')
   .option('--ai-prompt', 'Output ready-to-execute prompt for AI coding assistants')
+  .option('--count-type-only', 'Include type-only imports in architectural drift detection (default: false)')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -71,7 +73,7 @@ cli
   });
 
 cli
-  .command('report [dir]', 'Generate offline dual-diagram HTML inspection report')
+  .command('report [dir]', 'Generate offline HTML inspection report')
   .option('-c, --config <path>', 'Path to custom sextant specification')
   .option('-o, --output <path>', 'Custom output HTML file path (default: drift-report.html)')
   .option('-b, --baseline <path>', 'Path to custom baseline.json')
@@ -93,6 +95,6 @@ cli.help((sections) => {
     ].join('\n'),
   });
 });
-cli.version('0.1.0');
+cli.version('2.0.0');
 
 cli.parse();
