@@ -1,5 +1,5 @@
 {
-  "name": "sextant-drift",
+  "name": "sextant-drift-monorepo",
   "version": "2.0.0",
   "description": "SextantDrift — 架构 X 光机与偏航检测罗盘 (Architecture X-Ray & Drift Compass)",
   "private": true,
