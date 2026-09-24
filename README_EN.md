@@ -139,7 +139,7 @@ Why choose SextantDrift over standard Linters or LLM-based code reviewers?
 
 ### 2.7 Rigorous Self-Dogfooding Verification
 - **Verified on Itself**: SextantDrift enforces its own architectural boundaries across its monorepo on every build and test cycle.
-- **Comprehensive Test Suite**: Ships with 57 test suites and 300 tests, guaranteeing rock-solid stability and zero regressions.
+- **Comprehensive Test Suite**: Ships with 55 test suites and 292 tests, guaranteeing rock-solid stability and zero regressions.
 
 ---
 
@@ -457,7 +457,7 @@ SextantDrift includes a unified developer task runner `./start.sh`:
 
 ```bash
 ./start.sh            # Launch local Visual Workbench (@ port 3000)
-./start.sh --test     # Run full Vitest test suite (57 suites, 300 tests passing)
+./start.sh --test     # Run full Vitest test suite (55 suites, 292 tests passing)
 ./start.sh --ui       # Open Vitest interactive UI dashboard
 ./start.sh --check    # Run architectural drift verification (including self-dogfooding)
 ./start.sh --build    # Build all packages (@sextant/core, sextant-drift, @sextant/web-report)

@@ -139,7 +139,7 @@ SextantDrift 构建了全方位的架构维度检测矩阵，全面拦截各类�
 
 ### 2.7 严苛的项目自举架构验证
 - **Self-Dogfooding 铁律**：SextantDrift Monorepo 自身全面遵循该规范约束，并在自身编译与测试流程中作为第一项验收标准；
-- **覆盖率与完备性**：内置 57 个测试套件、300 个测试用例，涵盖各类边界情况与极端图拓扑，代码质量经久耐用。
+- **覆盖率与完备性**：内置 55 个测试套件、292 个测试用例，涵盖各类边界情况与极端图拓扑，代码质量经久耐用。
 
 ---
 
@@ -457,7 +457,7 @@ SextantDrift 源码仓库自带跨平台的统一开发调度中枢 `./start.sh`
 
 ```bash
 ./start.sh            # 启动本地可视化审查工作台 (Workbench Web Server @ 3000)
-./start.sh --test     # 执行全套单元测试 (Vitest CLI, 57 个套件, 300 个用例全部通过)
+./start.sh --test     # 执行全套单元测试 (Vitest CLI, 55 个套件, 292 个用例全部通过)
 ./start.sh --ui       # 启动 Vitest UI 交互式测试仪表盘
 ./start.sh --check    # 执行三维架构门禁实测 (包含 SextantDrift 自身自举核验)
 ./start.sh --build    # 全量构建所有子包 (@sextant/core, sextant-drift, @sextant/web-report)
