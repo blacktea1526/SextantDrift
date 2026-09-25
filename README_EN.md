@@ -121,8 +121,7 @@ Why choose SextantDrift over standard Linters or LLM-based code reviewers?
 
 ### 2.3 100% Offline & Air-Gapped HTML Review Report
 - **Zero External Network Requests**: The generated `drift-report.html` is an entirely self-contained single file with **zero external CDN scripts, stylesheets, or web fonts**.
-- **Air-Gapped Intranet Safe**: Ideal for finance, healthcare, defense, and high-security enterprise environments.
-- **Built-in & Extensible Experiences**: Provides out-of-the-box lightweight HTML diagnostic reports; installing the standalone extension `@sextant/web-report` seamlessly unlocks an industrial-grade interactive C4 dual-diagram canvas (with Container/Component drill-downs, infinite Pan & Zoom, Contracts filtering, and instant English/Chinese switching).
+- **Built-in Industrial C4 Dual-Diagram Canvas**: `sextant-drift` now fully bundles the native SVG dual-diagram visual canvas engine out of the box with zero extra dependencies (supporting Container & Component drill-down, infinite Pan & Zoom, Contracts filtering, and instant English/Chinese switching).
 
 ### 2.4 Brownfield Graceful Onboarding (Baseline: No New Drift)
 - **Stop Refactoring Dread**: Legacy projects often start with hundreds of preexisting architectural violations.
@@ -320,14 +319,8 @@ npx sextant-drift report -o ./dist/architecture-report.html
 npx sextant-drift check --report
 ```
 
-- **Out-of-the-Box (Built-in Light Report)**: Produces a clean, concise, offline HTML diagnostic card summarizing drift statistics, detailed violation locations, and copyable AI Fix Prompts.
-- **Standalone Extension (Interactive C4 SVG Dual-Diagram Canvas)**: To unlock the full industrial-grade C4 interactive visual canvas, simply install the standalone extension `@sextant/web-report`:
-  ```bash
-  pnpm add -D @sextant/web-report
-  # Or npm install --save-dev @sextant/web-report
-  ```
-  Once installed, rerun `npx sextant-drift report` and open `drift-report.html` in any browser to experience:
-  1. **Pure Native SVG Rendering**: Zero external network downloads, rendering instantly.
+- **Out-of-the-Box (Built-in Industrial C4 SVG Dual-Diagram Canvas)**: No extra packages required. Run `npx sextant-drift report` and open `drift-report.html` in any browser to experience:
+  1. **Pure Native SVG Rendering**: Zero external network downloads, 100% offline self-contained, rendering instantly.
   2. **C4 Multi-Level Drill-Down**: Switch seamlessly between **Level 2 Containers** and **Level 3 Components**.
   3. **Red/Green Diff Highlighting**: Compliant calls appear in steady teal/blue, while drift violations blink in high-contrast red dashed arrows.
   4. **Interactive Filters**: Hover to inspect component dependencies; click to toggle low-level contract lines.

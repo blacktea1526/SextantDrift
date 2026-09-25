@@ -95,6 +95,9 @@ cli.help((sections) => {
     ].join('\n'),
   });
 });
-cli.version('2.0.0');
+
+declare const __CLI_VERSION__: string | undefined;
+
+cli.version(typeof __CLI_VERSION__ !== 'undefined' ? __CLI_VERSION__ : '2.0.2');
 
 cli.parse();

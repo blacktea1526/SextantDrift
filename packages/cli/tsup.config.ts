@@ -1,4 +1,7 @@
 import { defineConfig } from 'tsup';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
 export default defineConfig({
   entry: {
@@ -14,4 +17,7 @@ export default defineConfig({
     js: `import { createRequire as __createRequire } from 'node:module';\nconst require = __createRequire(import.meta.url);`,
   },
   noExternal: ['@sextant/core', 'yaml', 'cac', 'picocolors', '@sextant/web-report'],
+  define: {
+    __CLI_VERSION__: JSON.stringify(pkg.version),
+  },
 });

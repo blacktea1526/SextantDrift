@@ -121,8 +121,7 @@ SextantDrift 构建了全方位的架构维度检测矩阵，全面拦截各类�
 
 ### 2.3 100% 离线自包含 HTML 审查报告
 - **零外部 CDN 依赖**：生成的 `drift-report.html` 为完全自包含的单一 HTML 文件，**不发任何外部网络请求、不加载任何外部 JS/CSS/字体 CDN**；
-- **内网与气隙环境开箱即用**：金融、军工及企业私网完全安全隔离；
-- **内置与扩展双重体验**：默认提供开箱即用的轻量 HTML 架构诊断卡片；安装独立扩展包 `@sextant/web-report` 后，无缝升级为工业级交互式 C4 架构双图矢量画布（支持容器与组件双层下钻、无限画布 Pan & Zoom、契约过滤与中英即时切换）。
+- **工业级交互式 C4 架构双图内置**：`sextant-drift` 已将自研原生 SVG 矢量双图画布全量内联打包，无需安装任何额外依赖，直接开箱即用（支持容器与组件双层下钻、无限画布 Pan & Zoom、契约过滤与中英即时切换）。
 
 ### 2.4 存量老项目无痛纳管 (Baseline: No New Drift)
 - **拒绝“首日就要改 500 个 Bug”**：接手历史遗留老项目时，架构违规往往数以百计；
@@ -320,14 +319,8 @@ npx sextant-drift report -o ./dist/architecture-report.html
 npx sextant-drift check --report
 ```
 
-- **开箱即用（内置轻量报告）**：默认生成干净精炼的离线 HTML 架构诊断卡片，列出违规明细、统计概览与 AI 自愈 Prompt；
-- **独立扩展（交互式 C4 矢量拓扑双图）**：如需体验工业级 C4 双图矢量画布，仅需安装独立扩展包 `@sextant/web-report`：
-  ```bash
-  pnpm add -D @sextant/web-report
-  # 或 npm install --save-dev @sextant/web-report
-  ```
-  安装后再次执行 `npx sextant-drift report`，双击在任何浏览器打开 `drift-report.html` 即可享受：
-  1. **纯原生 SVG 矢量拓扑**：零外部 CDN 加载，毫秒级开启；
+- **开箱即用（全量内置交互式 C4 矢量拓扑双图）**：无需额外安装任何独立插件，执行 `npx sextant-drift report`，双击在任何浏览器打开 `drift-report.html` 即可享受：
+  1. **纯原生 SVG 矢量拓扑**：零外部 CDN 加载，零外部网络请求，100% 离线自包含；
   2. **C4 双层级下钻**：顶层点击切换 **Level 2 容器全景 (Containers)** 与 **Level 3 组件拓扑 (Components)**；
   3. **红绿高亮差分**：合规连线显示为沉稳蓝绿线，偏航违规显示为刺目红虚线并闪烁警报；
   4. **探针与过滤器**：鼠标悬停查看组件依赖详情；点击一键过滤底层系统 Contracts 连线；
