@@ -1,175 +1,339 @@
 ---
 name: sextant-drift
-description: Architecture X-Ray & Drift Compass for detecting architectural erosion, layer bypasses, circular dependencies, semantic invariant violations, state machine deadlocks, and runtime causality drifts using SextantDrift. Use when verifying architecture compliance, checking PRs for layer boundary breaches, auditing dependency graphs, reverse-engineering target architectures, or setting up zero-drift architectural CI gates.
+description: Architecture X-Ray & Drift Compass for detecting architectural erosion, layer bypasses, circular dependencies, semantic invariant violations, state machine deadlocks, API contract mismatches, and runtime causality drifts using SextantDrift. Use when verifying architecture compliance, checking PRs for layer boundary breaches, auditing dependency graphs, reverse-engineering target architectures, generating offline C4 SVG visual dual-diagram reports, or autonomously self-healing architectural drifts with AI coding agents.
 ---
 
 # SextantDrift — Architecture X-Ray & Drift Compass
 
 ## Overview
 
-SextantDrift is an architecture-level X-ray machine and drift compass designed for engineering teams and AI coding agents. It terminates blind, fragmented line-by-line PR reviews by comparing the **Target Architecture (Design Intent)** against the **Actual Code AST & Dynamic Trace (Real Topology)**.
+**SextantDrift** is an architecture-level X-ray machine and drift compass built for engineering teams and AI coding agents (Claude Code, Cursor, Copilot, Codex, Antigravity). It terminates blind, fragmented line-by-line PR reviews by comparing the **Target Architecture (Design Intent)** against the **Actual Code AST, API Contracts & Dynamic Traces (Real Topology)**.
 
-### The Core Mental Model: Design by Diagram, Diff by Diagram
-- **Left Screen (Target)**: Architecture intent defined in standard Mermaid diagrams and 3~5 semantic invariant rules.
-- **Right Screen (Actual)**: Machine-extracted physical dependency DAG and runtime execution traces.
-- **Red Alert (Drift Alert)**: Exact cross-layer bypasses, circular dependencies, inverted imports, state deadlocks, and broken invariants highlighted with red warning lines down to the exact file, line, and code snippet.
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │                    Design by Diagram, Diff by Diagram       │
+  ├──────────────────────────────┬──────────────────────────────┤
+  │ Target Intent (Design)       │ Actual Code Topology (AST)   │
+  │ • Defined in Mermaid / JSON  │ • Machine-extracted from AST │
+  │ • 3~5 Invariant Rules        │ • Dynamic runtime traces     │
+  └──────────────┬───────────────┴──────────────┬───────────────┘
+                 │                              │
+                 └──────────────► ◄─────────────┘
+                                 │
+                     ┌───────────▼───────────┐
+                     │   Drift Alert Angle   │
+                     │  Exact Red-Line Diff  │
+                     └───────────────────────┘
+```
 
 ### Core Guarantees (The Litmus Test)
-1. **The 5-Second Rule**: Scans 100,000 lines of code end-to-end in **≤ 3s** (typically < 700ms).
-2. **Zero False Positives**: 100% deterministic AST & trace evidence. No regex guessing, no LLM hallucinations.
-3. **Clean Token Economics**: Compact ANSI terminal output consuming **50 ~ 200 tokens**, engineered for AI agents to instantly comprehend and self-heal in a single turn.
+1. **The 5-Second Rule**: Scans 100,000 lines of code in **≤ 3s** (typically < 700ms).
+2. **Zero False Positives**: 100% deterministic AST & trace evidence. No regex guessing, zero LLM hallucinations.
+3. **AI-Native Token Economy**: ANSI terminal diagnostics consume only **50 ~ 200 tokens**. Compact YAML `--fix-manifest` delivers high-density signal at **< 15% raw tokens**.
+4. **Built-in 100% Offline C4 SVG Canvas**: Generates self-contained interactive dual-diagram reports with infinite pan/zoom, component hover probes, and one-click AI Fix Prompt copy.
 
 ---
 
 ## When to Use This Skill
 
 Activate this skill when:
-- **Architecture Verification**: You or the user want to check if the codebase complies with its architectural design.
-- **Pre-PR / Pre-Commit Inspection**: Reviewing code changes before merging to prevent architectural decay.
-- **Refactoring & Modularity**: Investigating circular dependencies, layer violations, or unwanted couplings.
-- **Adopting a New / Legacy Project**: Running "Reverse X-Ray" (`init`) to automatically deduce architecture topology and invariants.
-- **Establishing CI Gates**: Setting up GitHub Actions or pre-push gates with strict exit code enforcement.
-- **Fixing Drift Violations**: An agent receives a drift violation error from `sextant-drift check` and needs to resolve it cleanly.
+- **Pre-PR / Pre-Flight Architecture Verification**: Verifying code changes before commit or merge to prevent architectural erosion.
+- **AI Coding Agent Self-Healing**: Resolving architectural violations returned by `sextant-drift check` using `--fix-manifest` or `--ai-prompt`.
+- **Refactoring & Modularity Auditing**: Detecting layer bypasses, reverse dependencies, circular dependencies, or illegal cross-boundary imports.
+- **Cold Start on Brownfield / Legacy Projects**: Running "Reverse X-Ray" (`init`) to automatically deduce architecture topology and invariants.
+- **Graceful Adoption with Baseline**: Grandfathering legacy debts via `baseline` to enforce the **"No New Drift"** rule.
+- **API Contract Verification**: Auditing REST/RPC route controllers against `api-contract.md` (`--contract`).
+- **Visual Architecture Review**: Generating standalone offline interactive C4 SVG visual dual-diagram reports (`report`).
+
+**When NOT to use:**
+- Pure typo fixes or cosmetic text modifications that do not alter any imports, module boundaries, or function call sequences.
+- Projects without modular architectures or single-file scripts.
 
 ---
 
 ## Quick Command Reference
 
-All commands run via `npx sextant-drift` (or `node ./packages/cli/dist/bin/sextant-drift.js` in this repo):
+All commands run via `npx sextant-drift` (or `node ./packages/cli/dist/bin/sextant-drift.js` inside this repository):
 
 | Command | Purpose | When to Use |
 | :--- | :--- | :--- |
-| `npx sextant-drift check [dir]` | Run architectural drift gate | CI pipelines, pre-commit, agent verification |
-| `npx sextant-drift init [dir]` | Reverse X-Ray: auto-generate config | Cold start on new or legacy projects |
-| `npx sextant-drift baseline [dir]` | Snapshot debts into baseline | Adopting brownfield projects with existing debt |
-| `npx sextant-drift report [dir]` | Generate offline HTML dual-diagram report | PR reviews, visual architecture audits |
+| `npx sextant-drift check [dir]` | Run deterministic architectural drift gate | CI pipelines, pre-commit, agent verification |
+| `npx sextant-drift report [dir]` | Generate offline interactive C4 SVG dual-diagram report | PR reviews, visual audits, architecture documentation |
+| `npx sextant-drift init [dir]` | Reverse X-Ray: auto-generate `sextant.json` & Mermaid diagram | Cold start on new or existing repositories |
+| `npx sextant-drift baseline [dir]` | Snapshot existing debts into `.sextant/baseline.json` | Brownfield projects adopting "No New Drift" |
 
-### Common CLI Flags
-- `--json`: Output machine-readable JSON for programmatic agent processing.
-- `--strict`: Treat warnings (e.g. state machine missing fallbacks) as fatal errors (Exit Code 1).
-- `--report [path]`: Export self-contained offline dual-diagram HTML report (`drift-report.html`).
-- `--trace <path>`: Pass runtime execution trace JSON (`.sextant/trace.json`) for dynamic causality checks.
-- `--config <path>`: Specify custom configuration file (default: `sextant.json` or `ARCHITECTURE.md`).
-- `--baseline <path>`: Specify custom baseline file (default: `.sextant/baseline.json`).
+### Complete CLI Flag Matrix
+
+| Flag | Description | Default |
+| :--- | :--- | :--- |
+| `--fix-manifest` | Output compact YAML Fix Manifest optimized for AI context windows | `false` |
+| `--ai-prompt` | Output ready-to-execute prompt for AI coding assistants | `false` |
+| `--report [path]` | Generate standalone offline HTML inspection report (e.g. `drift-report.html`) | `false` |
+| `--contract <path>` | Path to API contract Markdown specification (e.g. `api-contract.md`) | Auto-detect |
+| `--trace <path>` | Path to runtime execution trace JSON (`.sextant/trace.json`) | None |
+| `--strict` | Treat warnings (e.g. state machine missing fallbacks) as fatal (Exit Code 1) | `false` |
+| `--count-type-only` | Include TypeScript type-only imports (`import type`) in drift detection | `false` |
+| `--filter <package>` | Filter target Monorepo package directory (e.g. `--filter packages/core`) | All |
+| `--json` | Output machine-readable JSON report | `false` |
+| `--github-summary` | Output formatted markdown report directly to `$GITHUB_STEP_SUMMARY` | `false` |
+| `--lang <zh\|en>` | Output language for terminal diagnostics and HTML report | `zh` |
+| `-c, --config <path>`| Path to custom specification (`sextant.json` or `ARCHITECTURE.md`) | `sextant.json` |
+| `-b, --baseline <path>`| Path to custom baseline file | `.sextant/baseline.json` |
+| `-t, --tsconfig <path>`| Path to custom `tsconfig.json` | `tsconfig.json` |
 
 ---
 
-## Standard Workflows
+## Standard Agent Workflows
 
-### Workflow 1: Pre-Flight Architecture Gate (`check`)
+### Workflow 1: Gated Pre-Flight Check (The Agent Quality Gate)
 
-Always run the check command before completing any code change touching module boundaries:
+Whenever you make changes to files involving imports, exports, or module boundaries, run the check gate:
 
 ```bash
 npx sextant-drift check .
 ```
 
 #### Interpreting Exit Codes
-- **`0` (Clean / Passed)**: No architectural drifts detected, or all existing issues are exempt in baseline.
-- **`1` (Drift Detected)**: New architectural violations found. **You must fix them before proceeding.**
-- **`2` (Fatal Error)**: Configuration syntax error, missing file, or broken AST parser.
+- **`0` (Clean / Passed)**: No architectural drifts detected, or all existing issues are grandfathered in baseline.
+- **`1` (Drift Detected)**: Architectural violations detected. **You must immediately apply Workflow 2 to self-heal.**
+- **`2` (Fatal Configuration Error)**: Syntax error in `sextant.json`, unparseable file, or missing paths.
 
 ---
 
-### Workflow 2: Cold Start on an Existing Project (`init`)
+### Workflow 2: Autonomous AI Self-Healing (`--fix-manifest`)
 
-When entering a repository without a `sextant.json`:
-
-1. Run the Reverse X-Ray scanner:
-   ```bash
-   npx sextant-drift init .
-   ```
-2. Inspect the generated `sextant.json` and `ARCHITECTURE.md` (with embedded Mermaid diagram).
-3. Review component boundaries with the human engineer or refine component mappings in 30 seconds.
-4. Run `npx sextant-drift check .` to verify.
-
----
-
-### Workflow 3: Brownfield Adoption with Baseline (`baseline`)
-
-If an existing legacy codebase already has architectural debts and you want to prevent **new** decay without blocking current delivery:
-
-1. Snapshot historical violations:
-   ```bash
-   npx sextant-drift baseline .
-   ```
-2. Commit `.sextant/baseline.json` into Git.
-3. Future `check` runs enforce the **"No New Drift"** policy: historical debts are exempted, but any newly introduced drift immediately triggers Exit Code 1.
-
----
-
-### Workflow 4: Visual PR Review Report (`--report`)
-
-To provide an executive visual inspection artifact for humans in PR reviews:
+When `npx sextant-drift check` exits with `1`, do not guess or write speculative code. Extract the compact YAML Fix Manifest:
 
 ```bash
-npx sextant-drift check . --report drift-report.html
+npx sextant-drift check . --fix-manifest
 ```
 
-Open `drift-report.html` in any browser. It is 100% self-contained (zero network dependencies, inline CSS and Mermaid renderer) with side-by-side Target vs Actual diagrams and collapsible violation cards.
+Example output:
+```yaml
+# SextantDrift AI Fix Manifest
+# Total drifts: 2 | High-density signal format (<15% raw tokens)
+fixes:
+  - type: CRITICAL_BYPASS
+    file: src/controllers/user.controller.ts:2
+    action: REMOVE_BYPASS
+    target: Repositories
+    fix: Route call through intermediate layer "Business Domain Layer"
+  - type: CRITICAL_FORBIDDEN_IMPORT
+    file: src/controllers/user.controller.ts:1
+    action: REMOVE_IMPORT
+    target: @prisma/client
+    fix: Remove import "@prisma/client" from "Controllers"
+```
+
+#### Deterministic Action Mapping Table
+| Action | Meaning | Remediation Technique |
+| :--- | :--- | :--- |
+| `REMOVE_BYPASS` | Direct cross-layer jump skipping intermediate layer | Delegate to intermediate Domain Service; call Service instead of Repository |
+| `INVERT_DEP` | Lower layer reverse-imports upper layer | Extract shared interface/DTO into `contracts` or lower types module (DIP) |
+| `BREAK_CYCLE` | Circular dependency between components (`A ↔ B`) | Extract shared types/utils into a leaf module or decouple via Event / DI |
+| `REMOVE_IMPORT` | Forbidden third-party package or driver imported | Encapsulate access in designated infrastructure adapter; export domain model |
+| `FIX_INVARIANT` | Required preceding operation omitted | Ensure `must_precede` method is called before target operation in same scope |
+| `REMOVE_ROUTE` | Undeclared shadow endpoint found in code | Delete unauthorized route handler or add it to `api-contract.md` if intentional |
+| `IMPLEMENT_ROUTE` | Contract-specified endpoint missing from code | Implement route controller handler matching path, method, and parameters |
+| `FIX_STATE_DEADLOCK`| Terminal-less state machine black hole | Add transition to `[*]` or error fallback state |
+| `ADD_TIMEOUT_FALLBACK`| Pending state lacks timeout/error branch | Add `--> Failed: timeout / error` transition |
+| `REORDER_CALLS` | Dynamic trace shows out-of-order execution | Await preceding asynchronous operation before triggering side effects |
+
+Once the fix is applied, rerun `npx sextant-drift check .` to confirm exit code 0.
 
 ---
 
-## Violation Diagnosis & Self-Healing Playbook
+### Workflow 3: Cold Start Reverse X-Ray (`init`)
 
-When `sextant-drift check` reports a violation, use this playbook to diagnose and fix it:
+When onboarded to a codebase that does not yet have architecture specifications:
+
+```bash
+npx sextant-drift init .
+```
+
+1. **Automatic Analysis**: Scans source directories (`src/`, `packages/`, `lib/`), detects layers based on folder conventions (`controllers`, `services`, `repos`, `models`, `contracts`), and builds dependency DAG.
+2. **Generates Artifacts**:
+   - `sextant.json`: Machine-readable architecture specification with layers, component path mappings, and candidate invariants.
+   - `ARCHITECTURE.md`: Human-readable documentation embedding Mermaid flowchart architecture diagram.
+3. **Verify**: Run `npx sextant-drift check .` immediately to establish the baseline.
+
+---
+
+### Workflow 4: Brownfield Adoption with Baseline (`baseline`)
+
+When introducing SextantDrift to an existing project with dozens or hundreds of legacy violations, do not attempt to refactor all debt on day one:
+
+```bash
+# 1. Snapshot all existing violations into SHA256 fingerprints
+npx sextant-drift baseline .
+
+# 2. Check will now report clean (0 new drifts)
+npx sextant-drift check .
+```
+
+- **"No New Drift" Principle**: The `.sextant/baseline.json` file is committed to Git. All legacy debts are grandfathered, but **any newly introduced violation in a PR or feature branch is strictly blocked**.
+- **Gradual Paydown**: As historical code is refactored, run `npx sextant-drift baseline .` to lock in the improvements.
+
+---
+
+### Workflow 5: Interactive C4 SVG Visual Dual-Diagram Report (`report`)
+
+When preparing PR reviews, design documents, or executive summaries:
+
+```bash
+# Generate standalone offline report (default: drift-report.html)
+npx sextant-drift report .
+
+# Custom output path and English language
+npx sextant-drift report . -o ./dist/architecture-report.html --lang en
+
+# Generate report as part of CI check
+npx sextant-drift check . --report drift-report.html --github-summary
+```
+
+#### Visual Report Capabilities (100% Offline, Zero CDN)
+- **C4 Multi-Level Drill-Down**: Toggle between **Level 2 Containers** (Presentation, Domain, Infra) and **Level 3 Components** (individual services, controllers, repositories).
+- **Red/Green Diff Highlighting**: Compliant architecture lines render in steady teal/blue; drift violations flash in vibrant red dashed arrows.
+- **Interactive Probes**: Hover over any component to highlight inbound/outbound couplings and dependency degrees.
+- **Contract Filter Drawer**: One-click toggle to isolate or hide shared low-level contract dependencies.
+- **One-Click AI Fix Prompt**: Click the "Copy AI Fix Prompt" button on any red violation card to copy ready-to-paste context for immediate remediation.
+
+---
+
+### Workflow 6: API Contract Alignment (`--contract`)
+
+To guarantee frontend/backend or microservice alignment between route code and API documentation:
+
+```bash
+npx sextant-drift check . --contract docs/api-contract.md
+```
+
+- Scans route controllers (Express, Fastify, NestJS, Next.js, Koa) and matches declared HTTP methods and paths against Markdown contract tables and headers.
+- Catches:
+  - `CONTRACT_SHADOW_ENDPOINT`: Controller introduces an undocumented endpoint.
+  - `CONTRACT_MISSING_ENDPOINT`: Documented endpoint is missing from implementation.
+  - `CONTRACT_LINT_ERROR`: Markdown contract syntax errors.
+
+---
+
+## Violation Diagnosis & Remediation Playbook
 
 ### 1. `[CRITICAL_BYPASS]` (跨层越界)
-- **Symptom**: Presentation/UI component directly imports Infrastructure/DB component, skipping Domain/Service layer.
-- **Root Cause**: Developer or AI took a shortcut and bypassed intermediate business logic layers.
+- **Error Example**:
+  ```
+  [CRITICAL_BYPASS] src/controllers/user.controller.ts:2:1
+    Layer bypass detected: "Controllers" in layer "Presentation" (order 1)
+    directly calls "Repositories" in layer "Infrastructure" (order 3),
+    bypassing "Business Domain Layer" (order 2).
+  ```
 - **Remediation**:
-  1. Move the data access or driver logic from Presentation into the appropriate Service or Repository.
-  2. Have Presentation call Domain Service; have Domain Service call Repository.
-  3. Remove the direct import from the upper layer.
+  1. Never import a repository or database client directly inside a controller/view.
+  2. Create or invoke a domain service in `src/services/` that encapsulates the business logic.
+  3. Have the controller call the domain service.
 
 ### 2. `[CRITICAL_INVERSION]` (逆向依赖)
-- **Symptom**: Lower-layer component (e.g. Business Domain or Infrastructure) imports an upper-layer component (e.g. Controller or CLI).
-- **Root Cause**: Inverted dependency coupling. Lower levels should never know about upper delivery mechanisms.
+- **Error Example**:
+  ```
+  [CRITICAL_INVERSION] src/services/user.service.ts:1:1
+    Layer inversion detected: "UserService" in lower layer "Domain" (order 2)
+    reverse-imports "UserController" in upper layer "Presentation" (order 1).
+  ```
 - **Remediation**:
-  1. Apply **Dependency Inversion Principle (DIP)**: Define an interface or type in the lower layer or a shared `contracts` layer.
-  2. Have the upper layer implement the interface.
-  3. Pass dependencies via constructor parameters or dependency injection.
+  1. Apply **Dependency Inversion Principle (DIP)**.
+  2. Extract shared types, response DTOs, or interfaces into a shared contracts layer (e.g. `src/contracts/user.dto.ts`).
+  3. Both the controller and the service import from `contracts`. Lower layers never import from upper layers.
 
 ### 3. `[CRITICAL_CYCLE]` (循环依赖)
-- **Symptom**: Component A imports Component B, which directly or indirectly imports Component A (`A -> B -> A`).
-- **Root Cause**: Circular coupling creates runtime `undefined` import bugs and prevents independent testing.
+- **Error Example**:
+  ```
+  [CRITICAL_CYCLE] src/services/service-b.ts:1:1
+    Circular dependency detected: ServiceB -> ServiceA -> ServiceB
+  ```
 - **Remediation**:
-  1. Identify the shared types or utility functions causing the cycle.
-  2. Extract the shared logic into a leaf utility/contract module that both components can import.
-  3. Alternatively, decouple using event emitter, callbacks, or dependency injection.
+  1. Locate the shared utility function, type, or constant causing the reciprocal import.
+  2. Extract it into a separate leaf module (e.g. `src/services/common.ts`).
+  3. If circular method invocation is required, decouple via dependency injection, callback functions, or event emitters.
 
 ### 4. `[CRITICAL_FORBIDDEN_IMPORT]` (违规导入)
-- **Symptom**: Component imports a prohibited external package (e.g. `@prisma/client`, `pg`, `mysql2`, or `fs` in presentation).
-- **Root Cause**: Breaking encapsulation or leaking infrastructure concerns.
+- **Error Example**:
+  ```
+  [CRITICAL_FORBIDDEN_IMPORT] src/controllers/user.controller.ts:1:1
+    Forbidden import detected: Component "Controllers" is forbidden from importing "@prisma/client".
+  ```
 - **Remediation**:
-  1. Encapsulate all driver/database interactions inside the designated repository/infrastructure layer.
-  2. Export clean domain models instead of database client handles.
+  1. Remove database client or ORM handles from presentation/controller layers.
+  2. Confine `@prisma/client`, `typeorm`, `pg`, or raw drivers to `src/repos/` or `src/infra/`.
 
 ### 5. `[INVARIANT_BROKEN]` (语义不变量违例)
-- **Symptom**: Function execution fails an AST pattern rule (e.g. `auth.verify` must precede `db.save`, or missing timeout configuration).
-- **Root Cause**: Critical business order or non-functional safety guard omitted.
+- **Error Example**:
+  ```
+  [INVARIANT_BROKEN] src/controllers/order.controller.ts:15:5
+    Invariant broken: Rule "PERSIST_BEFORE_EXTERNAL" requires "db.save"
+    to precede "paymentService.charge" in function "handleCheckout".
+  ```
 - **Remediation**:
-  1. Read the rule description and hint in the error snippet.
-  2. Ensure the required preceding call (`must_precede`) is executed before the target call in the same scope.
-  3. If missing configuration (`require_config`), add `{ timeout: ... }` to the options parameter.
+  1. Inspect the function containing the violation.
+  2. Reorder operations: persist initial order state with `status: 'PENDING'` first.
+  3. Only after the database record is safely committed, initiate the external API call.
 
-### 6. `[STATE_DEADLOCK]` & `[STATE_MISSING_FALLBACK]` (状态机缺陷)
-- **Symptom**: Mermaid state diagram in documentation contains a black hole state (in-degree $\ge 1$, out-degree $= 0$) or an async pending state lacking timeout/failure transitions.
-- **Root Cause**: Incomplete state machine modeling leaving systems prone to hanging.
+### 6. `[CONTRACT_SHADOW_ENDPOINT]` & `[CONTRACT_MISSING_ENDPOINT]`
+- **Error Example**:
+  ```
+  [CONTRACT_SHADOW_ENDPOINT] src/controllers/admin.controller.ts:12:3
+    Contract alignment broken: Undeclared shadow endpoint "DELETE /api/users/:id"
+    found in code, but not defined in contract docs/api-contract.md.
+  ```
 - **Remediation**:
-  1. Add an exit transition from the deadlocked state to `[*]` (terminal state) or an error state.
-  2. For `Pending`/`Waiting` states, add explicit `--> Failed: error / timeout` fallbacks.
-
-### 7. `[DYNAMIC_OUT_OF_ORDER]` (运行时因果偏航)
-- **Symptom**: Dynamic execution trace shows an operation (e.g. `PaymentGateway.charge`) was initiated before a preceding mandatory operation (e.g. `OrderRepo.save`) finished.
-- **Root Cause**: Missing `await`, broken Promise chaining, or out-of-order event emitter dispatch.
-- **Remediation**:
-  1. Verify async execution flow. Ensure `await this.repo.save()` resolves before calling external network endpoints.
+  1. If the endpoint is unauthorized or deprecated, remove the route handler.
+  2. If the endpoint is legitimate, document it in `api-contract.md` with parameters and return status codes.
 
 ---
 
-## Spec Authoring Standards
+## GitHub Actions CI Integration
 
-For detailed DSL and architecture specifications, consult:
-- [`references/invariants-dsl.md`](./references/invariants-dsl.md): Complete Invariant DSL syntax and examples.
-- [`references/remediation-patterns.md`](./references/remediation-patterns.md): Concrete TypeScript refactoring patterns.
+To establish an impenetrable zero-drift architectural gate in CI:
+
+```yaml
+name: Architecture Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  architecture-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run SextantDrift Architecture Gate
+        run: npx --yes sextant-drift check . --github-summary --report drift-report.html --strict
+
+      - name: Upload Visual Architecture Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-drift-report
+          path: drift-report.html
+```
+
+---
+
+## Detailed Reference Guides
+
+For deep-dive syntax specifications and architectural patterns:
+- [`references/invariants-dsl.md`](./references/invariants-dsl.md): Complete Invariants DSL specification, `sextant.json` schema, and Mermaid state/sequence diagram rules.
+- [`references/remediation-patterns.md`](./references/remediation-patterns.md): Concrete before-and-after TypeScript refactoring patterns for all 8 violation types.
+- [`references/api-contracts.md`](./references/api-contracts.md): Markdown API contract format, route extraction mechanics, and contract drift elimination.
