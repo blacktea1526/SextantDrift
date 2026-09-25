@@ -5,6 +5,17 @@ import { renderC4Svg, renderC4ContainerSvg } from './c4-svg-renderer.js';
 import { getReportCss } from './styles/report.css.js';
 import { getReportScript } from './scripts/report.js.js';
 import { escapeHtml, safeJsonStringify } from './utils/security.js';
+import {
+  REPORT_PALETTE,
+  bucketViolations,
+  buildVisibilitySegments,
+  categorySegments,
+  renderCategoryBars,
+  renderCompositionBar,
+  renderSeverityDonut,
+  type ChartSegment,
+} from './charts.js';
+import { applyDarkTokensToSvg } from './dark-theme.js';
 
 export { escapeHtml, safeJsonStringify };
 
@@ -27,15 +38,19 @@ export function renderHtmlTemplate(report: DriftReport, options?: RenderOptions)
   }
 
   // Generate Native SVG C4 Diagrams (100% Self-Contained, Zero External CDN)
+  // Neutral colour literals are tokenised so the dark theme can restyle the
+  // canvas without the renderer needing a second palette code path.
+  const svgOf = (result: { svg: string }) => applyDarkTokensToSvg(result.svg);
+
   // Level 3: Detailed Component SVGs
-  const unifiedComponentResult = renderC4Svg(graphData, 'unified', t);
-  const targetComponentResult = renderC4Svg(graphData, 'target', t);
-  const actualComponentResult = renderC4Svg(graphData, 'actual', t);
+  const unifiedComponentSvg = svgOf(renderC4Svg(graphData, 'unified', t));
+  const targetComponentSvg = svgOf(renderC4Svg(graphData, 'target', t));
+  const actualComponentSvg = svgOf(renderC4Svg(graphData, 'actual', t));
 
   // Level 2: Macro Container Architecture SVGs (0 Component Clutter)
-  const unifiedContainerResult = renderC4ContainerSvg(graphData, 'unified', t);
-  const targetContainerResult = renderC4ContainerSvg(graphData, 'target', t);
-  const actualContainerResult = renderC4ContainerSvg(graphData, 'actual', t);
+  const unifiedContainerSvg = svgOf(renderC4ContainerSvg(graphData, 'unified', t));
+  const targetContainerSvg = svgOf(renderC4ContainerSvg(graphData, 'target', t));
+  const actualContainerSvg = svgOf(renderC4ContainerSvg(graphData, 'actual', t));
 
   const statusColor = passed ? '#166534' : '#991B1B';
   const statusBg = passed ? '#F0FDF4' : '#FEF2F2';
@@ -51,6 +66,51 @@ export function renderHtmlTemplate(report: DriftReport, options?: RenderOptions)
 
   const componentsList = targetArchitecture.components || [];
   const sortedComponents = [...componentsList].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+
+  /* -------------------------------------------------- Overview analytics */
+  // Coverage is only ever reported from deterministic AST mapping output.
+  // Without `componentCoverage` in the summary we must not infer a mapping
+  // ratio, so coverage reports an explicit 0% instead of an estimate.
+  const coverage = summary?.componentCoverage;
+  const totalFiles = coverage ? coverage.totalFiles : summary?.totalFiles || 0;
+  const mappedFiles = coverage ? coverage.mappedFiles : 0;
+  const coveragePercentage = coverage ? coverage.coveragePercentage : 0;
+
+  const severitySegments: ChartSegment[] = [
+    { label: t.severityCriticalShort, value: criticalCount, color: REPORT_PALETTE.critical, i18nKey: 'severityCriticalShort' },
+    { label: t.severityWarningShort, value: warningCount, color: REPORT_PALETTE.warning, i18nKey: 'severityWarningShort' },
+  ];
+
+  const severityDonut = renderSeverityDonut(severitySegments, 'severityTotalLabel', t.severityTotalLabel);
+  const severityComposition = renderCompositionBar(
+    severitySegments,
+    t.overviewSeverity,
+    t.noSeverityData
+  );
+
+  const buckets = bucketViolations(violations);
+  const categoryBars = renderCategoryBars(
+    categorySegments(buckets, t, 6),
+    t.noCategories
+  );
+  const hiddenCategoryCount = Math.max(buckets.length - 6, 0);
+
+  const visibilitySegments = buildVisibilitySegments(
+    {
+      totalFiles,
+      totalDependencies: summary?.totalDependencies || 0,
+      mappedFiles,
+      coveragePercentage,
+      unresolvedImportCount: summary?.unresolvedImportCount || 0,
+      partialBarrelCount: summary?.partialBarrelCount || 0,
+    },
+    t
+  );
+  const visibilityChart = renderCompositionBar(
+    visibilitySegments,
+    t.overviewVisibility,
+    t.noSeverityData
+  );
 
   // Determine contract/foundation components (for clutter filtering)
   const maxLayerOrder = Math.max(...(targetArchitecture.layers || []).map((l) => l.order || 0), 0);
@@ -172,6 +232,13 @@ export function renderHtmlTemplate(report: DriftReport, options?: RenderOptions)
     contractCompIdsJson: safeJsonStringify(contractCompIds),
     dependencyMapJson: safeJsonStringify(dependencyMap),
     i18nJson: safeJsonStringify(I18N_DICTIONARIES),
+    summaryJson: safeJsonStringify(summary || {}),
+    targetArchitectureJson: safeJsonStringify({
+      name: projectName,
+      layers: targetArchitecture.layers || [],
+      components: componentsList,
+      allowDependencies: targetArchitecture.allowDependencies || [],
+    }),
     lang,
     passed,
   });
@@ -213,6 +280,9 @@ ${reportCss}
       </div>
       <div class="header-right-actions">
         <div class="stamp" id="status-stamp">${statusText}</div>
+        <button type="button" class="btn-lang" id="btn-export-json" onclick="exportEvidenceJson()" title="${lang === 'zh' ? '导出完整审计证据 JSON 以便 CI 归档' : 'Export full audit evidence JSON for CI archiving'}">
+          ${t.exportJson}
+        </button>
         <button type="button" class="btn-motion active" id="btn-toggle-motion" onclick="toggleMotionFx()" title="Toggle Web Motion FX">
           ${t.btnMotionOn}
         </button>
@@ -247,6 +317,12 @@ ${reportCss}
         <div class="stat-value">${componentsList.length}</div>
       </div>
       <div class="stat-box">
+        <div class="stat-label" data-i18n="statCoverage">${t.statCoverage}</div>
+        <div class="stat-value" style="color: ${coveragePercentage < 60 ? '#DC2626' : coveragePercentage < 80 ? '#D97706' : '#16A34A'};">
+          ${coveragePercentage.toFixed(1)}<span class="stat-unit">%</span>
+        </div>
+      </div>
+      <div class="stat-box">
         <div class="stat-label" data-i18n="statLayers">${t.statLayers}</div>
         <div class="stat-value">${targetArchitecture.layers ? targetArchitecture.layers.length : 0}</div>
       </div>
@@ -256,11 +332,11 @@ ${reportCss}
       </div>
     </div>
 
-    <!-- C4 Level Switcher (L2 Containers vs L3 Components) -->
-    <div class="c4-level-bar" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border: 1px solid #E2E8F0; padding: 10px 18px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">C4 视图层级:</span>
-        <div class="mode-group" style="margin-bottom: 0;">
+    <!-- Unified Control Bar: C4 level, layout mode, diff legend and graph actions -->
+    <div class="control-bar">
+      <div class="control-group">
+        <span class="control-label">${t.c4Badge}</span>
+        <div class="mode-group">
           <button type="button" class="mode-btn active" id="btn-level-container" onclick="setC4Level('container')" data-i18n="viewLevelL2">
             ${t.viewLevelL2}
           </button>
@@ -269,42 +345,46 @@ ${reportCss}
           </button>
         </div>
       </div>
-      <div id="c4-level-tip" style="font-size: 12px; color: #64748B; font-family: monospace;">
-        ${t.drillDownHint}
+
+      <div class="control-divider"></div>
+
+      <div class="control-group">
+        <span class="control-label">${lang === 'zh' ? '视图模式' : 'View'}</span>
+        <div class="mode-group">
+          <button type="button" class="mode-btn active" id="btn-mode-unified" onclick="setLayoutMode('unified')" data-i18n="tabUnified">
+            ${t.tabUnified}
+          </button>
+          <button type="button" class="mode-btn" id="btn-mode-target" onclick="setLayoutMode('target')" data-i18n="tabTarget">
+            ${t.tabTarget}
+          </button>
+          <button type="button" class="mode-btn" id="btn-mode-actual" onclick="setLayoutMode('actual')" data-i18n="tabActual">
+            ${t.tabActual}
+          </button>
+          <button type="button" class="mode-btn" id="btn-mode-side-by-side" onclick="setLayoutMode('side-by-side')" data-i18n="tabSideBySide">
+            ${t.tabSideBySide}
+          </button>
+        </div>
+      </div>
+
+      <div class="control-actions">
+        <button type="button" class="btn-action" id="btn-toggle-contracts-unified" onclick="toggleContractEdges()" title="${lang === 'zh' ? '过滤底层契约连线' : 'Filter foundation edges'}">
+          ${t.btnHideContracts}
+        </button>
+        <button type="button" class="btn-action" onclick="resetDiagramHighlight()" title="${lang === 'zh' ? '重置聚焦' : 'Reset focus'}">
+          ${t.btnResetFocus}
+        </button>
       </div>
     </div>
 
     <!-- Container Isolation Filter Bar (Shown in L3) -->
-    <div class="container-filter-bar" id="container-filter-bar" style="display: none; margin-bottom: 12px; align-items: center; gap: 8px; flex-wrap: wrap; background: #F8FAFC; border: 1px dashed #CBD5E1; padding: 8px 16px; border-radius: 6px;">
-      <span style="font-size: 12px; font-weight: 700; color: #334155;" data-i18n="filterByContainer">${t.filterByContainer}</span>
+    <div class="container-filter-bar" id="container-filter-bar" style="display: none;">
+      <span class="control-label" data-i18n="filterByContainer">${t.filterByContainer}</span>
       <button type="button" class="btn-action filter-chip active" id="chip-all-containers" onclick="filterByContainer('')" data-i18n="allContainers">${t.allContainers}</button>
       ${(graphData.containers || []).map((c) => `
         <button type="button" class="btn-action filter-chip" id="chip-container-${escapeHtml(c.id)}" onclick="filterByContainer('${escapeHtml(c.id)}')">
-          ${escapeHtml(c.name)} <span style="font-size: 10px; opacity: 0.8;">(${c.componentIds.length})</span>
+          ${escapeHtml(c.name)} <span class="chip-count">(${c.componentIds.length})</span>
         </button>
       `).join('')}
-    </div>
-
-    <!-- View Controls Bar -->
-    <div class="view-controls-bar">
-      <div class="mode-group">
-        <button type="button" class="mode-btn active" id="btn-mode-unified" onclick="setLayoutMode('unified')" data-i18n="tabUnified">
-          ${t.tabUnified}
-        </button>
-        <button type="button" class="mode-btn" id="btn-mode-target" onclick="setLayoutMode('target')" data-i18n="tabTarget">
-          ${t.tabTarget}
-        </button>
-        <button type="button" class="mode-btn" id="btn-mode-actual" onclick="setLayoutMode('actual')" data-i18n="tabActual">
-          ${t.tabActual}
-        </button>
-        <button type="button" class="mode-btn" id="btn-mode-side-by-side" onclick="setLayoutMode('side-by-side')" data-i18n="tabSideBySide">
-          ${t.tabSideBySide}
-        </button>
-      </div>
-
-      <div class="pan-tip">
-        <span>💡 ${lang === 'zh' ? '点击 C4 组件卡片查看详细依赖属性；滚轮缩放 / 拖拽平移' : 'Click component to inspect; Drag to pan / Scroll to zoom'}</span>
-      </div>
     </div>
 
     <!-- Red/Green Architecture Diff Visual Legend Bar -->
@@ -313,29 +393,61 @@ ${reportCss}
         <div class="legend-item">
           <span class="legend-line-sample" style="background: #16A34A;"></span>
           <strong style="color: #166534;" data-i18n="legendGreen">${t.legendGreen}</strong>
-          <span style="color: #64748B;">(Compliant Path)</span>
+          <span class="legend-muted">(Compliant Path)</span>
         </div>
         <div class="legend-item">
-          <span class="legend-line-sample" style="background: #DC2626; height: 4px; border: 1px dashed #991B1B;"></span>
+          <span class="legend-line-sample drift-sample"></span>
           <strong style="color: #991B1B;" data-i18n="legendRed">${t.legendRed}</strong>
-          <span style="color: #DC2626; font-weight: 700; font-family: monospace;">[DRIFT ALERT]</span>
+          <span class="legend-alert">[DRIFT ALERT]</span>
         </div>
         <div class="legend-item">
-          <span class="legend-line-sample" style="background: #94A3B8; border-top: 1px dashed #94A3B8; height: 2px;"></span>
+          <span class="legend-line-sample planned-sample"></span>
           <strong style="color: #475569;" data-i18n="legendGrey">${t.legendGrey}</strong>
-          <span style="color: #64748B;">(Planned Path)</span>
+          <span class="legend-muted">(Planned Path)</span>
         </div>
       </div>
-
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button type="button" class="btn-action" id="btn-toggle-contracts-unified" onclick="toggleContractEdges()" title="过滤底层契约连线">
-          ${t.btnHideContracts}
-        </button>
-        <button type="button" class="btn-action" onclick="resetDiagramHighlight()" title="重置聚焦">
-          ${t.btnResetFocus}
-        </button>
-      </div>
+      <div class="legend-tip" data-i18n="drillDownHint">💡 ${t.drillDownHint}</div>
     </div>
+
+    <!-- Architecture Health Overview Analytics -->
+    <section class="overview-panel" id="overview-panel">
+      <div class="overview-head">
+        <h2 class="overview-title" data-i18n="overviewTitle">${t.overviewTitle}</h2>
+        <span class="overview-hint" data-i18n="overviewVisibilityHint">${t.overviewVisibilityHint}</span>
+      </div>
+      <div class="overview-grid">
+        <div class="overview-card overview-card-severity">
+          <div class="overview-card-title" data-i18n="overviewSeverity">${t.overviewSeverity}</div>
+          <div class="overview-donut-wrap">${severityDonut}</div>
+          <div class="overview-donut-legend">
+            ${severitySegments
+              .map(
+                (segment) => `<div class="ov-legend-row">
+                  <span class="ov-legend-dot" style="background:${segment.color};"></span>
+                  <span class="ov-legend-name" data-i18n="${segment.i18nKey}">${escapeHtml(segment.label)}</span>
+                  <strong class="ov-legend-value">${segment.value}</strong>
+                </div>`
+              )
+              .join('')}
+          </div>
+        </div>
+
+        <div class="overview-card">
+          <div class="overview-card-title" data-i18n="overviewCategories">${t.overviewCategories}</div>
+          ${categoryBars}
+          ${hiddenCategoryCount > 0 ? `<div class="overview-more">${lang === 'zh' ? `另有 ${hiddenCategoryCount} 类违规见下方清单` : `${hiddenCategoryCount} more categories listed below`}</div>` : ''}
+        </div>
+
+        <div class="overview-card">
+          <div class="overview-card-title" data-i18n="overviewVisibility">${t.overviewVisibility}</div>
+          ${visibilityChart}
+          <div class="overview-visibility-meta">
+            <span>${mappedFiles} / ${totalFiles} ${lang === 'zh' ? '文件已映射' : 'files mapped'}</span>
+            <span>${summary?.totalDependencies || 0} ${lang === 'zh' ? '条依赖' : 'dependencies'}</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Mode 1: Unified Flagship Overlay Diff Panel (Default) -->
     <div class="unified-panel-container" id="unified-panel-container">
@@ -364,8 +476,8 @@ ${reportCss}
         </div>
         <div class="diagram-viewport" id="unified-viewport">
           <div class="panzoom-canvas" id="unified-canvas">
-            <div id="unified-container-view">${unifiedContainerResult.svg}</div>
-            <div id="unified-component-view" style="display: none;">${unifiedComponentResult.svg}</div>
+            <div id="unified-container-view">${unifiedContainerSvg}</div>
+            <div id="unified-component-view" style="display: none;">${unifiedComponentSvg}</div>
           </div>
           <div class="zoom-hud" id="unified-hud">100%</div>
         </div>
@@ -391,8 +503,8 @@ ${reportCss}
         </div>
         <div class="diagram-viewport" id="target-viewport">
           <div class="panzoom-canvas" id="target-canvas">
-            <div id="target-container-view">${targetContainerResult.svg}</div>
-            <div id="target-component-view" style="display: none;">${targetComponentResult.svg}</div>
+            <div id="target-container-view">${targetContainerSvg}</div>
+            <div id="target-component-view" style="display: none;">${targetComponentSvg}</div>
           </div>
           <div class="zoom-hud" id="target-hud">100%</div>
         </div>
@@ -422,8 +534,8 @@ ${reportCss}
         </div>
         <div class="diagram-viewport" id="actual-viewport">
           <div class="panzoom-canvas" id="actual-canvas">
-            <div id="actual-container-view">${actualContainerResult.svg}</div>
-            <div id="actual-component-view" style="display: none;">${actualComponentResult.svg}</div>
+            <div id="actual-container-view">${actualContainerSvg}</div>
+            <div id="actual-component-view" style="display: none;">${actualComponentSvg}</div>
           </div>
           <div class="zoom-hud" id="actual-hud">100%</div>
         </div>

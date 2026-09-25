@@ -43,3 +43,6 @@ standalone/
 .config/
 *.tgz
 
+
+# Local scratch harnesses & visual verification artifacts
+.scratch/

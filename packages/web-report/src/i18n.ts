@@ -62,6 +62,41 @@ export interface Translations {
   btnMotionOff: string;
   motionToggledOn: string;
   motionToggledOff: string;
+  /* Overview analytics */
+  overviewTitle: string;
+  overviewSeverity: string;
+  overviewCategories: string;
+  overviewVisibility: string;
+  overviewVisibilityHint: string;
+  statCoverage: string;
+  severityTotalLabel: string;
+  severityCriticalShort: string;
+  severityWarningShort: string;
+  noCategories: string;
+  noSeverityData: string;
+  visBlueprint: string;
+  visUntraced: string;
+  visUnresolved: string;
+  /* Violation category labels */
+  typeBypass: string;
+  typeInversion: string;
+  typeCycle: string;
+  typeForbiddenImport: string;
+  typeInvariantBroken: string;
+  typeStateDeadlock: string;
+  typeStateUnreachable: string;
+  typeStateMissingFallback: string;
+  typeDynamicOutOfOrder: string;
+  typeDynamicUnexpectedCall: string;
+  typeDynamicMissingCall: string;
+  typeContractMissingEndpoint: string;
+  typeContractShadowEndpoint: string;
+  typeContractMissingParam: string;
+  typeContractUnhandledStatus: string;
+  typeContractLintError: string;
+  typeWarnUnresolvedImport: string;
+  typeWarnPartialBarrel: string;
+  typeWarnRuleMissingTarget: string;
 }
 
 export const I18N_DICTIONARIES: Record<Lang, Translations> = {
@@ -127,6 +162,39 @@ export const I18N_DICTIONARIES: Record<Lang, Translations> = {
     btnMotionOff: '⚡ 动效: 暂停',
     motionToggledOn: '已启用架构动态流向与平滑运镜',
     motionToggledOff: '已切换为极简静态模式',
+    overviewTitle: '架构体检总览',
+    overviewSeverity: '违规严重度构成',
+    overviewCategories: '违规类型分布',
+    overviewVisibility: '代码可见度覆盖',
+    overviewVisibilityHint: '按确凿 AST 映射结果统计，非估算值',
+    statCoverage: '映射覆盖',
+    severityTotalLabel: '违规总数',
+    severityCriticalShort: '阻断',
+    severityWarningShort: '警告',
+    noCategories: '零违规，无需归类',
+    noSeverityData: '零偏航，无需统计',
+    visBlueprint: '已映射至蓝图',
+    visUntraced: '未纳入架构追踪',
+    visUnresolved: '导入未解析',
+    typeBypass: '跨层旁路',
+    typeInversion: '逆向依赖',
+    typeCycle: '循环依赖',
+    typeForbiddenImport: '违禁导入',
+    typeInvariantBroken: '不变量违背',
+    typeStateDeadlock: '状态机死锁',
+    typeStateUnreachable: '状态孤岛不可达',
+    typeStateMissingFallback: '缺失降级回路',
+    typeDynamicOutOfOrder: '运行时时序倒置',
+    typeDynamicUnexpectedCall: '运行时意外调用',
+    typeDynamicMissingCall: '运行时缺失调用',
+    typeContractMissingEndpoint: '契约缺失端点',
+    typeContractShadowEndpoint: '契约影子端点',
+    typeContractMissingParam: '契约缺失参数',
+    typeContractUnhandledStatus: '契约未处理状态码',
+    typeContractLintError: '契约校验错误',
+    typeWarnUnresolvedImport: '导入未解析',
+    typeWarnPartialBarrel: 'Barrel 部分解析',
+    typeWarnRuleMissingTarget: '规则缺少目标',
   },
   en: {
     appName: 'SextantDrift Architecture Compass',
@@ -190,6 +258,39 @@ export const I18N_DICTIONARIES: Record<Lang, Translations> = {
     btnMotionOff: '⚡ Motion: OFF',
     motionToggledOn: 'Dynamic topology flow & smooth camera enabled',
     motionToggledOff: 'Static rendering mode enabled',
+    overviewTitle: 'Architecture Health Overview',
+    overviewSeverity: 'Severity Composition',
+    overviewCategories: 'Violation Categories',
+    overviewVisibility: 'Code Visibility Coverage',
+    overviewVisibilityHint: 'Exact counts from AST mapping — never an estimate',
+    statCoverage: 'Coverage',
+    severityTotalLabel: 'Violations',
+    severityCriticalShort: 'Critical',
+    severityWarningShort: 'Warning',
+    noCategories: 'Zero violations to classify',
+    noSeverityData: 'Zero drift, nothing to plot',
+    visBlueprint: 'Mapped into blueprint',
+    visUntraced: 'Outside architecture tracing',
+    visUnresolved: 'Unresolved imports',
+    typeBypass: 'Layer Bypass',
+    typeInversion: 'Layer Inversion',
+    typeCycle: 'Circular Dependency',
+    typeForbiddenImport: 'Forbidden Import',
+    typeInvariantBroken: 'Invariant Broken',
+    typeStateDeadlock: 'State Deadlock',
+    typeStateUnreachable: 'Unreachable State',
+    typeStateMissingFallback: 'Missing Fallback',
+    typeDynamicOutOfOrder: 'Dynamic Out Of Order',
+    typeDynamicUnexpectedCall: 'Dynamic Unexpected Call',
+    typeDynamicMissingCall: 'Dynamic Missing Call',
+    typeContractMissingEndpoint: 'Contract Missing Endpoint',
+    typeContractShadowEndpoint: 'Contract Shadow Endpoint',
+    typeContractMissingParam: 'Contract Missing Param',
+    typeContractUnhandledStatus: 'Contract Unhandled Status',
+    typeContractLintError: 'Contract Lint Error',
+    typeWarnUnresolvedImport: 'Unresolved Import',
+    typeWarnPartialBarrel: 'Partial Barrel Resolution',
+    typeWarnRuleMissingTarget: 'Rule Missing Target',
   },
 };
 

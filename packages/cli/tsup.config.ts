@@ -13,6 +13,5 @@ export default defineConfig({
   banner: {
     js: `import { createRequire as __createRequire } from 'node:module';\nconst require = __createRequire(import.meta.url);`,
   },
-  noExternal: ['@sextant/core', 'yaml', 'cac', 'picocolors'],
-  external: ['@sextant/web-report'],
+  noExternal: ['@sextant/core', 'yaml', 'cac', 'picocolors', '@sextant/web-report'],
 });

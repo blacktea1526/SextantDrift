@@ -6,6 +6,8 @@ export interface ReportScriptOptions {
   i18nJson: string;
   lang: string;
   passed: boolean;
+  summaryJson?: string;
+  targetArchitectureJson?: string;
 }
 
 /**
@@ -20,6 +22,8 @@ export function getReportScript(options: ReportScriptOptions): string {
     i18nJson,
     lang,
     passed,
+    summaryJson = 'null',
+    targetArchitectureJson = 'null',
   } = options;
 
   return `
@@ -28,6 +32,8 @@ export function getReportScript(options: ReportScriptOptions): string {
     const contractCompIds = ${contractCompIdsJson};
     const dependencyMap = ${dependencyMapJson};
     const I18N = ${i18nJson};
+    const REPORT_SUMMARY = ${summaryJson};
+    const TARGET_ARCHITECTURE = ${targetArchitectureJson};
     let currentLang = '${lang}';
     let currentLayoutMode = 'unified';
     let isContractsHidden = false;
@@ -691,7 +697,42 @@ export function getReportScript(options: ReportScriptOptions): string {
         motionBtn.textContent = isMotionEnabled ? dict.btnMotionOn : dict.btnMotionOff;
       }
 
+      // SVG <text> nodes are not matched by textContent-only swaps on data-i18n parents,
+      // so localise the chart hole label explicitly.
+      const donutLabel = document.querySelector('.rpt-donut-label');
+      if (donutLabel && dict.severityTotalLabel) {
+        donutLabel.textContent = dict.severityTotalLabel;
+      }
+
       showToast(currentLang === 'zh' ? '已切换为中文显示' : 'Language switched to English');
+    }
+
+    /**
+     * Downloads the deterministically extracted evidence as a JSON artifact so a
+     * CI job can archive or diff it. Purely client-side: no network, no upload.
+     */
+    function exportEvidenceJson() {
+      const payload = {
+        tool: 'SextantDrift',
+        kind: 'architecture-drift-evidence',
+        generatedAt: new Date().toISOString(),
+        language: currentLang,
+        passed: ${passed},
+        summary: REPORT_SUMMARY,
+        targetArchitecture: TARGET_ARCHITECTURE,
+        violations: violationsData
+      };
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'sextant-drift-evidence.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(currentLang === 'zh' ? '✔ 已导出审计证据 JSON' : '✔ Audit evidence JSON exported');
     }
 
     function setFilter(type, value, btnElem) {
@@ -823,5 +864,6 @@ export function getReportScript(options: ReportScriptOptions): string {
     window.setFilter = setFilter;
     window.applyFilters = applyFilters;
     window.copyAiFixPrompt = copyAiFixPrompt;
+    window.exportEvidenceJson = exportEvidenceJson;
 `;
 }

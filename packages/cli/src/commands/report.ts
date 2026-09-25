@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
 import { analyzeModuleDrift } from '@sextant/core';
+import { generateHtmlReport } from '@sextant/web-report';
 import { EXIT_CODE_FATAL_ERROR, EXIT_CODE_SUCCESS } from '../utils/exit.js';
 
 export interface ReportOptions {
@@ -43,7 +44,6 @@ export async function runReport(
     let isFullVisual = false;
 
     try {
-      const { generateHtmlReport } = await import('@sextant/web-report');
       html = generateHtmlReport(report, { lang });
       isFullVisual = true;
     } catch {

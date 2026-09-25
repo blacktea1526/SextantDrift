@@ -1,6 +1,6 @@
 {
   "name": "sextant-drift",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "SextantDrift CLI — Architecture X-Ray & Drift Compass CI Quality Gate",
   "author": "blacktea1526 (https://github.com/blacktea1526)",
   "type": "module",
@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@sextant/core": "workspace:*",
+    "@sextant/web-report": "workspace:*",
     "tsup": "^8.3.5",
     "vitest": "^2.1.8"
   },

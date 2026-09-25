@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import pc from 'picocolors';
 import { analyzeModuleDrift, DriftReport } from '@sextant/core';
+import { generateHtmlReport } from '@sextant/web-report';
 import { formatTerminalReport } from '../formatters/terminal.js';
 import { formatJsonReport } from '../formatters/json.js';
 import { formatGitHubSummary, writeGitHubStepSummary } from '../formatters/github.js';
@@ -93,7 +94,6 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
         let isFullVisual = false;
 
         try {
-          const { generateHtmlReport } = await import('@sextant/web-report');
           html = generateHtmlReport(report, { lang });
           isFullVisual = true;
         } catch {
