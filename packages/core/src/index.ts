@@ -8,7 +8,9 @@ import { DriftReport, DriftSummary, DriftViolation, AnalyzeOptions } from './typ
 import { resolveTargetArchitecture } from './parser/spec-resolver.js';
 import { scanSourceFiles } from './analyzer/file-scanner.js';
 import { extractDependenciesFromSource, ImportEvidence } from './analyzer/ast-extractor.js';
+import { extractPythonDependencies } from './analyzer/python-ast-extractor.js';
 import { loadTsConfigPaths, resolveModulePath, clearResolutionCache } from './analyzer/path-resolver.js';
+import { resolvePythonModulePath, PYTHON_STDLIB_MODULES } from './analyzer/python-resolver.js';
 import { findComponentForFile, clearComponentLookupCache } from './analyzer/noise-filter.js';
 import { DirectedGraph } from './graph/directed-graph.js';
 import { detectCycles } from './graph/tarjan.js';
@@ -46,7 +48,9 @@ export * from './parser/mermaid-generator.js';
 export * from './parser/spec-resolver.js';
 export * from './analyzer/file-scanner.js';
 export * from './analyzer/ast-extractor.js';
+export * from './analyzer/python-ast-extractor.js';
 export * from './analyzer/path-resolver.js';
+export * from './analyzer/python-resolver.js';
 export {
   resolveModuleWithTsCompiler,
   clearTsResolverCache,
@@ -126,13 +130,18 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
     }
   }
 
+  const scannedFileSet = new Set(filePaths);
+
   // 4. Extract dependencies from each file
   for (const relPath of filePaths) {
     const fullPath = path.resolve(rootDir, relPath);
     if (!fs.existsSync(fullPath)) continue;
 
     const content = fileContentMap.get(relPath) || fs.readFileSync(fullPath, 'utf-8');
-    const evidences = extractDependenciesFromSource(relPath, content);
+    const isPython = relPath.endsWith('.py');
+    const evidences = isPython
+      ? extractPythonDependencies(relPath, content)
+      : extractDependenciesFromSource(relPath, content);
     const sourceComp = findComponentForFile(relPath, arch.components);
 
     if (sourceComp) {
@@ -146,9 +155,13 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
         continue;
       }
 
-      const resolved = resolveModulePath(rootDir, relPath, evidence.rawSpecifier, tsConfigPaths, {
-        customTsconfigPath: options.tsconfigPath,
-      });
+      const resolved = isPython
+        ? resolvePythonModulePath(rootDir, relPath, evidence.rawSpecifier, {
+            scannedFiles: scannedFileSet,
+          })
+        : resolveModulePath(rootDir, relPath, evidence.rawSpecifier, tsConfigPaths, {
+            customTsconfigPath: options.tsconfigPath,
+          });
 
       rawFileDependencies.push({
         sourceFile: relPath,
@@ -163,13 +176,17 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
           id: `unresolved-${relPath}-${evidence.line}-${evidence.column}`,
           type: 'WARN_UNRESOLVED_IMPORT',
           severity: 'warning',
-          message: `Unresolved module import: "${evidence.rawSpecifier}" imported by "${relPath}" could not be resolved by TypeScript Compiler API (${resolved.reason})`,
+          message: isPython
+            ? `Unresolved Python module import: "${evidence.rawSpecifier}" imported by "${relPath}" (${resolved.reason})`
+            : `Unresolved module import: "${evidence.rawSpecifier}" imported by "${relPath}" could not be resolved by TypeScript Compiler API (${resolved.reason})`,
           sourceFile: relPath,
           line: evidence.line,
           column: evidence.column,
           snippet: evidence.snippet,
           sourceComponent: sourceComp?.id,
-          suggestion: 'Check that the module or file exists and that tsconfig.json "paths" / "extends" mappings are properly configured.',
+          suggestion: isPython
+            ? 'Check that the Python module or file exists and that internal package paths or virtual environments are properly configured.'
+            : 'Check that the module or file exists and that tsconfig.json "paths" / "extends" mappings are properly configured.',
         });
         continue;
       }
@@ -194,15 +211,16 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
           }
         }
 
-        // Barrel Multi-Hop Tracing: trace re-exported dependencies through barrels
-        const barrelTrace = traceBarrelExports(
-          rootDir,
-          resolved.targetPath,
-          evidence.importedSymbols,
-          fileContentMap,
-          options.tsconfigPath
-        );
-        if (barrelTrace.isBarrel) {
+        // Barrel Multi-Hop Tracing (TypeScript/JavaScript only): trace re-exported dependencies through barrels
+        if (!isPython) {
+          const barrelTrace = traceBarrelExports(
+            rootDir,
+            resolved.targetPath,
+            evidence.importedSymbols,
+            fileContentMap,
+            options.tsconfigPath
+          );
+          if (barrelTrace.isBarrel) {
           // Record any unresolved hops in the barrel
           for (const unres of barrelTrace.unresolvedHops) {
             partialBarrelCount++;
@@ -252,6 +270,7 @@ export async function analyzeModuleDrift(options: AnalyzeOptions): Promise<Drift
         }
       }
     }
+  }
   }
 
   // 4.1 Validate component coverage and empty component patterns

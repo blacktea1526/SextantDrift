@@ -41,7 +41,10 @@ export function loadTsConfigPaths(rootDir: string, customTsconfigPath?: string):
  */
 export function normalizePath(p: string): string {
   const forward = p.split(path.sep).join('/');
-  return forward.replace(/\.(ts|tsx|js|jsx|mjs|cjs)$/, '').replace(/\/index$/, '');
+  return forward
+    .replace(/\.(ts|tsx|js|jsx|mjs|cjs|py)$/, '')
+    .replace(/\/index$/, '')
+    .replace(/\/__init__$/, '');
 }
 
 /**

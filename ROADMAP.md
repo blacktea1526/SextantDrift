@@ -20,6 +20,7 @@
 [Phase 3: State Verifier]      [██████████] 100% 状态机死锁/孤岛/缺失降级静态分析引擎已交付并通过全量单测 (已完成)
 [Phase 5: Dynamic Trace (v2)]  [██████████] 100% 运行时 Trace 录制与因果时序差分已交付并通过全量单测 (已完成)
 [Phase 6: C4 Model & Native]   [██████████] 100% C4 容器/组件多层级下钻与 100% 零 CDN 原生 SVG 审查引擎 (已完成)
+[Tier 3: Polyglot Python AST]  [██████████] 100% 纯 TS 原生 Python AST 解析器与多语言拓扑差分引擎已交付并通过全量单测 (Issue #1 已完成)
 ```
 
 ### 1.2 核心质量与性能指标监控 (The Litmus Test SLOs)
@@ -650,5 +651,6 @@ Roadmap 中的任务状态仅允许在以下四个状态之间流转：
 2. **[STEP 2 - 双图交互打磨 (Option C)]**：交付 `@sextant/web-report` 交互式 SVG 探针、违规交叉高亮定位、过滤搜索抽屉与一键复制 AI Fix 提示词； (已完成)
 3. **[STEP 3 - 外部企业级大型应用实测 (Option B)]**：基于 `enterprise-shop` 完成真实企业级架构的逆向推导 (`init`)、0 假阳性验证、全量漂移注入精准拦截与 1000 模块压力基准； (已完成)
 4. **[STEP 4 - 团队生态与自愈赋能]**：交付 C4 多层级架构模型聚合、ADR-007、100% 零 CDN 原生 SVG 审查引擎、双语国际化与基于 `.agents/skills/sextant-drift` 的架构自愈机制； (已完成)
-5. **[STEP 5 - npm 发版与分发]**：发布 `@sextant/core`、`@sextant/web-report` 与 `@sextant/cli` 到 npm 镜像，支持开发者免克隆 `npx sextant-drift`；
-6. **[STEP 6 - IDE 与编辑器扩展 (v2.1+)]**：在 VS Code / JetBrains 中提供行内架构违规下划线警告与右键生成 Mermaid/C4 架构图。
+5. **[STEP 5 - 多语言生态拓展 (Tier 3 RFC)]**：交付纯 TypeScript 原生 Python AST 解析器与多语言拓扑差分引擎（攻克 GitHub Issue #1，支持 Python 模块层级越界、成环与违禁库检测）； (已完成)
+6. **[STEP 6 - npm 发版与分发]**：发布 `@sextant/core`、`@sextant/web-report` 与 `@sextant/cli` 到 npm 镜像，支持开发者免克隆 `npx sextant-drift`；
+7. **[STEP 7 - IDE 与编辑器扩展 (v2.1+)]**：在 VS Code / JetBrains 中提供行内架构违规下划线警告与右键生成 Mermaid/C4 架构图。

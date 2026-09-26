@@ -6,7 +6,7 @@ export interface FileScannerOptions {
   ignoredDirs?: string[];
 }
 
-const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
+const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py'];
 const DEFAULT_IGNORED_DIRS = [
   'node_modules',
   '.git',
@@ -17,6 +17,13 @@ const DEFAULT_IGNORED_DIRS = [
   '.nuxt',
   '.turbo',
   'coverage',
+  '__pycache__',
+  '.pytest_cache',
+  '.mypy_cache',
+  '.venv',
+  'venv',
+  'env',
+  '.tox',
 ];
 
 /**

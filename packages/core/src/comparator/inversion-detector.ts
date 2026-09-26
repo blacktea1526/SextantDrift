@@ -71,7 +71,7 @@ export function detectForbiddenImports(
         if (
           resolved.packageName === forbidden ||
           resolved.rawSpecifier === forbidden ||
-          resolved.rawSpecifier.startsWith(forbidden + '/')
+          resolved.rawSpecifier?.startsWith(forbidden + '/')
         ) {
           isForbidden = true;
         }
