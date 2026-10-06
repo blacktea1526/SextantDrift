@@ -1,18 +1,14 @@
-# API Contract Specification & Alignment Reference
+# API Contract Alignment
 
-SextantDrift features a zero-overhead API contract alignment engine that verifies route controllers in source code against human-readable Markdown contract specifications (`api-contract.md`, `docs/api-contract.md`, or `.sextant/contract.md`).
-
-This eliminates API drift, phantom shadow routes, and undocumented endpoints between frontend, backend, and API documentation without needing heavy OpenAPI/Swagger toolchains.
+Verify route handlers in source against Markdown contract specs. Auto-detect probes `api-contract.md`, `docs/api-contract.md`, `contract.md`, `.sextant/contract.md` when `--contract` is omitted; if none exist, contract checks are skipped.
 
 ---
 
-## 1. Supported Contract Formats
+## 1. Contract Markdown formats
 
-SextantDrift supports two standard Markdown contract formats:
+### Format A: Heading & list (detailed)
 
-### Format A: Heading & List Format (Recommended for Detailed APIs)
-
-Each endpoint is defined under a Level 3 heading (`### METHOD /path`):
+Each endpoint under `### METHOD /path`:
 
 ```markdown
 # Order Management Service API
@@ -40,16 +36,12 @@ Each endpoint is defined under a Level 3 heading (`### METHOD /path`):
 - [status] 400 (Bad Request - Order cannot be cancelled)
 ```
 
-#### Tags:
-- `- [desc] <text>`: Endpoint summary and behavior notes.
-- `- [param] <name>: <type> (required|optional)`: Request path parameter, query parameter, or body field.
-- `- [status] <code> (<description>)`: Permitted HTTP status codes.
+Tags:
+- `- [desc] <text>` — summary
+- `- [param] <name>: <type> (required|optional)` — path/query/body field
+- `- [status] <code> (<description>)` — allowed HTTP status
 
----
-
-### Format B: Markdown Table Format (Ideal for Compact Route Inventories)
-
-Endpoints can also be declared using standard Markdown tables:
+### Format B: Table (compact inventory)
 
 ```markdown
 # User Service API Matrix
@@ -65,53 +57,42 @@ Endpoints can also be declared using standard Markdown tables:
 
 ---
 
-## 2. AST Route Extraction Mechanics
+## 2. Route extraction (what “Actual” means)
 
-SextantDrift statically analyzes source files using the TypeScript compiler AST to extract declared routes across common web frameworks:
+Static AST extraction from common frameworks:
 
-1. **Express & Fastify Route Handlers**:
-   - `router.get('/path', handler)`
-   - `app.post('/path', handler)`
-   - `fastify.delete('/path', handler)`
-2. **NestJS Controllers**:
-   - `@Controller('api/v1/orders')`
-   - `@Get(':id')`, `@Post()`, `@Delete(':id')` (automatically prefixed with controller route).
-3. **Next.js App Router (Route Handlers)**:
-   - `app/api/v1/orders/route.ts` exporting `export async function GET(req: Request)` or `export async function POST(req: Request)`.
-4. **Koa & Custom Routers**:
-   - Standard chained router declarations (`router.register('path', ...)`).
+1. **Express / Fastify**: `router.get('/path', handler)`, `app.post(...)`, `fastify.delete(...)`
+2. **NestJS**: `@Controller('api/v1/orders')` + `@Get(':id')` / `@Post()` / `@Delete(':id')`
+3. **Next.js App Router**: `app/api/.../route.ts` exporting `GET` / `POST` / etc.
+4. **Koa / custom**: chained `router.register('path', ...)` style declarations
 
 ---
 
-## 3. Contract Drift Violations & Self-Healing
+## 3. Contract violation types & how to fix
 
-When `npx sextant-drift check --contract api-contract.md` runs, it detects the following drift conditions:
+| Type | Action | What to do |
+| :--- | :--- | :--- |
+| `CONTRACT_SHADOW_ENDPOINT` | `REMOVE_ROUTE` | Route in code, not in contract → delete handler **or** document it in the Markdown contract |
+| `CONTRACT_MISSING_ENDPOINT` | `IMPLEMENT_ROUTE` | Route in contract, no handler → implement matching method+path |
+| `CONTRACT_MISSING_PARAM` | `ADD_PARAM` | Required `[param]` not accepted in handler/DTO → add/destructure it |
+| `CONTRACT_UNHANDLED_STATUS` | `HANDLE_STATUS` | Declared `[status]` never returned → add `res.status(code)` / throw matching exception |
+| `CONTRACT_LINT_ERROR` | `FIX_SPEC` | Bad Markdown (invalid verb, path, table) → fix the contract file |
 
-### 1. `[CONTRACT_SHADOW_ENDPOINT]` (Undocumented Route)
-- **Problem**: A controller in code exposes a route that is not declared in `api-contract.md`.
-- **Risk**: Security vulnerability, unauthorized backdoor route, or forgotten test mock.
-- **Action**: `REMOVE_ROUTE` (Delete the route from code, or document it in the contract).
-
-### 2. `[CONTRACT_MISSING_ENDPOINT]` (Unimplemented Route)
-- **Problem**: An endpoint defined in `api-contract.md` has no corresponding route controller in the codebase.
-- **Risk**: Broken contract for frontend clients; incomplete feature implementation.
-- **Action**: `IMPLEMENT_ROUTE` (Implement the route handler matching the exact method and path).
-
-### 3. `[CONTRACT_LINT_ERROR]` (Contract Syntax Defect)
-- **Problem**: Markdown syntax error in the contract (e.g. invalid HTTP verb like `PST /orders`, missing path slashes, or malformed table columns).
-- **Action**: `FIX_SPEC` (Correct the method name or path syntax in the contract document).
+Need before/after TS for `REMOVE_ROUTE` / `IMPLEMENT_ROUTE`, or appendix intents for `ADD_PARAM` / `HANDLE_STATUS` / `FIX_SPEC` → read [`remediation-patterns.md`](./remediation-patterns.md) Pattern 7 (+ appendix).
 
 ---
 
-## 4. Contract Alignment Command Usage
+## 4. Commands
 
 ```bash
-# Explicit path to contract
+# Explicit contract
 npx sextant-drift check . --contract docs/api-contract.md
 
-# Auto-detects api-contract.md, contract.md, or .sextant/contract.md if present
+# Auto-detect if a known contract filename exists
 npx sextant-drift check .
 
-# Generate AI Fix Manifest including contract fixes
+# Include contract rows in Fix Manifest
 npx sextant-drift check . --contract docs/api-contract.md --fix-manifest
 ```
+
+Flags: `npx sextant-drift check --help`.
