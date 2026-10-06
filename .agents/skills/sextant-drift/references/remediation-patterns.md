@@ -1,17 +1,19 @@
-# Architecture Remediation & Refactoring Patterns
+# Remediation Patterns (sole SoT)
 
-This guide provides tested TypeScript refactoring patterns to eliminate architecture violations reported by SextantDrift without disrupting business functionality.
+Concrete TypeScript / Mermaid fixes for Fix Manifest actions. After each change, re-run `npx sextant-drift check` until **gate-green** (exit 0).
+
+Unknown action → read the Fix Manifest YAML line + `suggestion` field, or `npx sextant-drift check --fix-manifest`.
 
 ---
 
-## Pattern 1: Resolving `[CRITICAL_BYPASS]` (Layer Bypass)
+## Pattern 1: `REMOVE_BYPASS` — `[CRITICAL_BYPASS]`
 
 ### Problem
-A Controller directly imports a Repository, bypassing intermediate business logic layers:
+Controller imports a Repository, skipping the domain layer:
 
 ```typescript
 // ❌ src/controllers/user.controller.ts
-import { UserRepository } from '../repos/user.repo.js'; // Bypass Presentation -> Infra!
+import { UserRepository } from '../repos/user.repo.js';
 
 export class UserController {
   async handleGetUser(req: Request) {
@@ -20,8 +22,8 @@ export class UserController {
 }
 ```
 
-### Remediation
-Route the call through an intermediate Domain Service:
+### Fix
+Route through a domain service:
 
 ```typescript
 // ✅ src/controllers/user.controller.ts
@@ -38,7 +40,6 @@ import { UserRepository } from '../repos/user.repo.js';
 
 export class UserService {
   static async getUserProfile(id: string) {
-    // Encapsulate domain logic, validation, and authorization
     return UserRepository.findById(id);
   }
 }
@@ -46,18 +47,18 @@ export class UserService {
 
 ---
 
-## Pattern 2: Resolving `[CRITICAL_INVERSION]` (Layer Inversion)
+## Pattern 2: `INVERT_DEP` — `[CRITICAL_INVERSION]`
 
 ### Problem
-A lower layer (Domain Service) directly imports an upper delivery layer (Controller/CLI):
+Lower layer imports an upper delivery layer:
 
 ```typescript
 // ❌ src/services/order.service.ts
-import { CreateOrderRequestDto } from '../controllers/dto.js'; // Inversion! Domain -> Controller
+import { CreateOrderRequestDto } from '../controllers/dto.js';
 ```
 
-### Remediation
-Apply the **Dependency Inversion Principle (DIP)**. Extract shared DTOs, interfaces, and contracts into a shared lower `contracts` or `types` module:
+### Fix
+Move shared types into a shared `contracts` / `types` module (DIP):
 
 ```typescript
 // ✅ src/contracts/order.types.ts
@@ -75,26 +76,16 @@ import type { CreateOrderRequestDto } from '../contracts/order.types.js';
 
 ---
 
-## Pattern 3: Resolving `[CRITICAL_CYCLE]` (Circular Dependency)
+## Pattern 3: `BREAK_CYCLE` — `[CRITICAL_CYCLE]`
 
 ### Problem
-`ServiceA` imports `ServiceB`, and `ServiceB` imports `ServiceA`:
+`ServiceA` ↔ `ServiceB` mutual imports.
+
+### Fix
+Extract shared logic into a leaf module:
 
 ```typescript
-// ❌ src/services/service-a.ts
-import { computeTax } from './service-b.js';
-export function calculateTotal(base: number) { return base + computeTax(base); }
-
-// ❌ src/services/service-b.ts
-import { calculateTotal } from './service-a.js';
-export function computeTax(base: number) { return base > 100 ? 10 : 5; }
-```
-
-### Remediation
-Extract the common calculation or interface into a shared leaf module, or decouple through dependency injection/events:
-
-```typescript
-// ✅ src/services/tax-calculator.ts (Leaf module)
+// ✅ src/services/tax-calculator.ts
 export function computeTax(base: number) { return base > 100 ? 10 : 5; }
 
 // ✅ src/services/service-a.ts
@@ -107,26 +98,26 @@ import { computeTax } from './tax-calculator.js';
 
 ---
 
-## Pattern 4: Resolving `[CRITICAL_FORBIDDEN_IMPORT]` (Forbidden Import)
+## Pattern 4: `REMOVE_IMPORT` — `[CRITICAL_FORBIDDEN_IMPORT]`
 
 ### Problem
-A Controller directly imports a database driver or ORM client:
+Presentation layer imports a DB driver / ORM:
 
 ```typescript
 // ❌ src/controllers/user.controller.ts
-import { PrismaClient } from '@prisma/client'; // Forbidden in Presentation!
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 ```
 
-### Remediation
-Confine driver instances and ORM schemas to the infrastructure/repository layer:
+### Fix
+Confine drivers to infrastructure / repository:
 
 ```typescript
-// ✅ src/repos/prisma-client.ts (Infrastructure Layer)
+// ✅ src/repos/prisma-client.ts
 import { PrismaClient } from '@prisma/client';
 export const db = new PrismaClient();
 
-// ✅ src/repos/user.repo.ts (Infrastructure Layer)
+// ✅ src/repos/user.repo.ts
 import { db } from './prisma-client.js';
 export class UserRepo {
   static async findUser(id: string) {
@@ -137,25 +128,24 @@ export class UserRepo {
 
 ---
 
-## Pattern 5: Resolving `[INVARIANT_BROKEN]` (Precedence Invariant)
+## Pattern 5: `FIX_INVARIANT` — `[INVARIANT_BROKEN]`
 
 ### Problem
-An irreversible external network side-effect (charge payment) executes before state is persisted to the database:
+External side-effect runs before persistence:
 
 ```typescript
-// ❌ src/services/checkout.service.ts
+// ❌
 async function processCheckout(order: Order) {
-  // Violation: External charge before order is recorded in DB!
   await StripeClient.charges.create({ amount: order.amount });
   await OrderRepo.insert(order);
 }
 ```
 
-### Remediation
-Persist initial state with `status: 'PENDING'` first, then execute the external call, and finalize state:
+### Fix
+Persist first (`PENDING`), then call external, then finalize:
 
 ```typescript
-// ✅ src/services/checkout.service.ts
+// ✅
 async function processCheckout(order: Order) {
   const pendingOrder = await OrderRepo.insert({ ...order, status: 'PENDING' });
   try {
@@ -170,25 +160,16 @@ async function processCheckout(order: Order) {
 
 ---
 
-## Pattern 6: Resolving `[STATE_DEADLOCK]` & `[STATE_MISSING_FALLBACK]`
+## Pattern 6: `FIX_STATE_DEADLOCK` / `ADD_TIMEOUT_FALLBACK` / `CONNECT_STATE`
 
 ### Problem
-A Mermaid state machine contains a black-hole state without exit transitions, or an async state without error/timeout fallbacks:
+State machine has a black-hole state, missing error/timeout exit, or unreachable state.
+
+### Fix
+Add exit transitions, fallback branches, and inbound edges:
 
 ```mermaid
-%% ❌ Deadlocked state machine
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Processing: submit
-    Processing --> AwaitingPayment: initiated
-    %% AwaitingPayment is a deadlock! In-degree 1, Out-degree 0
-```
-
-### Remediation
-Add exit transitions and explicit error/timeout branches:
-
-```mermaid
-%% ✅ Fully resilient state machine
+%% ✅
 stateDiagram-v2
     [*] --> Idle
     Idle --> Processing: submit
@@ -200,57 +181,84 @@ stateDiagram-v2
     Failed --> [*]
 ```
 
+- `STATE_DEADLOCK` → `FIX_STATE_DEADLOCK`: give the state an out-edge (or mark terminal `[*]`).
+- `STATE_MISSING_FALLBACK` → `ADD_TIMEOUT_FALLBACK`: add `error` / `fail` / `timeout` / `retry` transition.
+- `STATE_UNREACHABLE` → `CONNECT_STATE`: add a transition into the orphan state (or remove it).
+
 ---
 
-## Pattern 7: Resolving `[CONTRACT_SHADOW_ENDPOINT]` & `[CONTRACT_MISSING_ENDPOINT]`
+## Pattern 7: Contract routes — `REMOVE_ROUTE` / `IMPLEMENT_ROUTE`
 
-### Problem A (Shadow Endpoint):
-Controller contains an undocumented endpoint `DELETE /api/v1/orders/:id`, but it is not listed in `api-contract.md`.
+### `CONTRACT_SHADOW_ENDPOINT` → `REMOVE_ROUTE`
+Undocumented route in code. Either delete the handler, or document it in the contract:
 
-**Remediation**:
-- If unauthorized: Remove the route method from the controller.
-- If legitimate: Document it in `api-contract.md`:
-  ```markdown
-  ### DELETE /api/v1/orders/:id
-  - [param] id: string (required)
-  - [status] 204 (No Content)
-  - [status] 404 (Not Found)
-  ```
+```markdown
+### DELETE /api/v1/orders/:id
+- [param] id: string (required)
+- [status] 204 (No Content)
+- [status] 404 (Not Found)
+```
 
-### Problem B (Missing Endpoint):
-`api-contract.md` specifies `GET /api/v1/health`, but no controller exports it.
+### `CONTRACT_MISSING_ENDPOINT` → `IMPLEMENT_ROUTE`
+Contract declares a route with no handler — implement it:
 
-**Remediation**:
-Implement the missing handler in the corresponding route controller:
 ```typescript
-// ✅ src/controllers/health.controller.ts
+// ✅
 export function registerHealthRoutes(app: Express) {
   app.get('/api/v1/health', (req, res) => res.json({ status: 'ok' }));
 }
 ```
 
+Param/status contract types or Format A/B edits → read [`api-contracts.md`](./api-contracts.md).
+
 ---
 
-## Pattern 8: Resolving `[DYNAMIC_OUT_OF_ORDER]` (Runtime Causality Drift)
+## Pattern 8: Dynamic causality — **experimental Phase 5 (`--trace`)**
 
-### Problem
-Runtime trace logs show a callback or external call executing before a prerequisite promise resolved:
+> **Not the default heal path.** Only when the gate was run with `--trace <path>` (or `.sextant/trace.json`) *and* a Mermaid `sequenceDiagram` is present. Agents should heal static module / invariant / contract / state violations first.
+
+| Action | Violation | Intent |
+| :--- | :--- | :--- |
+| `REORDER_CALLS` | `DYNAMIC_OUT_OF_ORDER` | Await / chain so prerequisite completes before dependent call |
+| `REMOVE_CALL` | `DYNAMIC_UNEXPECTED_CALL` | Remove call not in the sequence diagram |
+| `ADD_CALL` | `DYNAMIC_MISSING_CALL` | Add the missing declared step |
+
+Example (`REORDER_CALLS`):
 
 ```typescript
-// ❌ Async operation started without awaiting persistence
+// ❌
 function handleOrder(order: Order) {
-  db.save(order); // Missing await!
+  db.save(order); // missing await
   externalGateway.notify(order.id);
 }
-```
 
-### Remediation
-Ensure promises are properly chained or awaited:
-
-```typescript
-// ✅ Async execution sequenced properly
+// ✅
 async function handleOrder(order: Order) {
   await db.save(order);
   await externalGateway.notify(order.id);
 }
 ```
+
+---
+
+## Appendix: Fix Manifest action → intent
+
+| Action | Violation type(s) | One-line intent |
+| :--- | :--- | :--- |
+| `REMOVE_BYPASS` | `CRITICAL_BYPASS` | Insert intermediate layer; stop N→N+2 skip |
+| `INVERT_DEP` | `CRITICAL_INVERSION` | Move shared types down; stop lower→upper import |
+| `BREAK_CYCLE` | `CRITICAL_CYCLE` | Extract leaf module or invert one edge |
+| `REMOVE_IMPORT` | `CRITICAL_FORBIDDEN_IMPORT` | Relocate forbidden import to allowed layer |
+| `FIX_INVARIANT` | `INVARIANT_BROKEN` | Reorder / add calls to satisfy `must_precede` / other pattern |
+| `REMOVE_ROUTE` | `CONTRACT_SHADOW_ENDPOINT` | Delete undocumented route or document it |
+| `IMPLEMENT_ROUTE` | `CONTRACT_MISSING_ENDPOINT` | Add handler matching contract method+path |
+| `ADD_PARAM` | `CONTRACT_MISSING_PARAM` | Accept required param in handler / DTO |
+| `HANDLE_STATUS` | `CONTRACT_UNHANDLED_STATUS` | Return or throw the declared HTTP status |
+| `FIX_SPEC` | `CONTRACT_LINT_ERROR` | Fix contract Markdown syntax (method/path/table) |
+| `FIX_STATE_DEADLOCK` | `STATE_DEADLOCK` | Add out-transition from black-hole state |
+| `CONNECT_STATE` | `STATE_UNREACHABLE` | Wire inbound edge to orphan state |
+| `ADD_TIMEOUT_FALLBACK` | `STATE_MISSING_FALLBACK` | Add error/timeout/retry exit on async state |
+| `REORDER_CALLS` | `DYNAMIC_OUT_OF_ORDER` | **Phase 5 `--trace`**: fix await/order vs sequenceDiagram |
+| `REMOVE_CALL` | `DYNAMIC_UNEXPECTED_CALL` | **Phase 5 `--trace`**: drop unexpected runtime call |
+| `ADD_CALL` | `DYNAMIC_MISSING_CALL` | **Phase 5 `--trace`**: add missing declared call |
+| `RESOLVE_DRIFT` | default / unknown | Read violation `suggestion`; ask CLI/`--fix-manifest` if unclear |

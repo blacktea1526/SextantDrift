@@ -1,12 +1,10 @@
-# Invariants DSL & Specification Reference
+# Invariants DSL & Spec Reference
 
-This reference provides the comprehensive syntax specification for defining target architectures, semantic invariants, and lifecycle rules in `sextant.json` and Markdown specification documents.
+Syntax for target architecture, semantic invariants, and Mermaid diagrams that SextantDrift reads today (`sextant.json`, `ARCHITECTURE.md`, `AGENTS.md`, etc.).
 
 ---
 
-## 1. Target Architecture Specification (`sextant.json`)
-
-The `sextant.json` file is the machine-readable single source of truth for your architecture. It is strictly validated against the official JSON Schema.
+## 1. `sextant.json` — layers, components, invariants
 
 ```json
 {
@@ -85,7 +83,7 @@ The `sextant.json` file is the machine-readable single source of truth for your 
     {
       "id": "FORBID_DIRECT_DB_IN_PRESENTATION",
       "severity": "critical",
-      "desc": "Presentation layer is strictly forbidden from directly importing DB drivers or ORM",
+      "desc": "Presentation layer must not import DB drivers or ORM",
       "pattern": {
         "forbid_import": ["@prisma/client", "typeorm", "pg", "mysql2", "src/repos/**"],
         "in_path": "src/controllers/**,src/routes/**,src/views/**"
@@ -94,7 +92,7 @@ The `sextant.json` file is the machine-readable single source of truth for your 
     {
       "id": "MANDATORY_TIMEOUT_ON_EXTERNAL_CALLS",
       "severity": "warning",
-      "desc": "All external HTTP client calls must configure an explicit timeout",
+      "desc": "External HTTP client calls must configure an explicit timeout",
       "pattern": {
         "target": ["axios.post", "fetch", "httpService.request"],
         "require_config": ["timeout"],
@@ -105,20 +103,18 @@ The `sextant.json` file is the machine-readable single source of truth for your 
 }
 ```
 
-### Layer Constraints & Rules
-- `order`: Integer defining vertical architectural hierarchy ($1 = \text{topmost}$, higher = lower).
-  - Upper layers call lower layers based on `allowDependencies`.
-  - **Layer Bypass (`CRITICAL_BYPASS`)**: Calling layer order $N+2$ skipping $N+1$ without permission.
-  - **Layer Inversion (`CRITICAL_INVERSION`)**: Lower layer (order $M$) calling upper layer (order $N$ where $N < M$).
-- `allowDependencies`: Whitelist array of target layer IDs. Any cross-layer import not in this array is blocked.
-- Type-only imports (`import type { ... }`): Ignored by default to allow harmless type sharing. Use `--count-type-only` to strictly enforce layer purity even on type-only imports.
+### Layer rules
+- `order`: integer hierarchy (1 = top). Upper layers call lower layers only via `allowDependencies`.
+- `CRITICAL_BYPASS`: call skips intermediate layer (order N → N+2) without permission.
+- `CRITICAL_INVERSION`: lower layer (order M) imports upper layer (order N where N < M).
+- `allowDependencies`: whitelist of target layer IDs; other cross-layer imports fail.
+- Type-only imports (`import type { ... }`) ignored by default; use `--count-type-only` to count them.
 
 ---
 
-## 2. Semantic Invariant DSL Patterns
+## 2. Semantic invariant patterns
 
-### Pattern A: Temporal Precedence (`must_precede`)
-Enforces that a safety or state persistence operation must be executed **before** an irreversible network or side-effect operation within the same function block:
+### A. Temporal precedence (`must_precede`)
 
 ```json
 {
@@ -133,14 +129,13 @@ Enforces that a safety or state persistence operation must be executed **before*
 }
 ```
 
-### Pattern B: Boundary Isolation (`forbid_import`)
-Prevents structural leakage of database handles, driver libraries, or internal private modules into unauthorized layers:
+### B. Boundary isolation (`forbid_import`)
 
 ```json
 {
   "id": "NO_NODE_FS_IN_SHARED",
   "severity": "critical",
-  "desc": "Shared contracts module must remain platform-agnostic and browser-safe",
+  "desc": "Shared contracts must stay platform-agnostic",
   "pattern": {
     "forbid_import": ["fs", "node:fs", "path", "node:path", "child_process"],
     "in_path": "src/contracts/**,src/shared/**"
@@ -148,14 +143,13 @@ Prevents structural leakage of database handles, driver libraries, or internal p
 }
 ```
 
-### Pattern C: Non-Functional Guardrails (`require_config`)
-Ensures resilience and reliability requirements (such as timeouts, retries, or rate limiters) are configured on external calls:
+### C. Config guardrail (`require_config`)
 
 ```json
 {
   "id": "CLIENT_CALL_TIMEOUT",
   "severity": "warning",
-  "desc": "External client invocations must pass an options object containing a timeout property",
+  "desc": "External client calls must pass options with timeout",
   "pattern": {
     "target": ["httpClient.get", "httpClient.post"],
     "require_config": ["timeout"],
@@ -166,11 +160,12 @@ Ensures resilience and reliability requirements (such as timeouts, retries, or r
 
 ---
 
-## 3. Mermaid Target Architecture Formats
+## 3. Mermaid target diagrams
 
-SextantDrift parses Mermaid definitions embedded in `ARCHITECTURE.md`, `AGENTS.md`, or PRDs:
+Parsed from `ARCHITECTURE.md`, `AGENTS.md`, or PRDs.
 
-### A. Flowchart Component & Layer Topology (`flowchart TD`)
+### A. Flowchart topology (`flowchart TD`)
+
 ```mermaid
 flowchart TD
     subgraph Presentation ["Presentation Layer"]
@@ -189,7 +184,8 @@ flowchart TD
     Services --> Gateways
 ```
 
-### B. State Machine Integrity (`stateDiagram-v2`)
+### B. State machine (`stateDiagram-v2`)
+
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
@@ -200,11 +196,21 @@ stateDiagram-v2
     Completed --> [*]
     Failed --> [*]
 ```
-- **`[STATE_DEADLOCK]`**: Flagged if any state has $\text{in-degree} \ge 1$ and $\text{out-degree} = 0$ (black hole) unless it is the terminal state `[*]`.
-- **`[STATE_UNREACHABLE]`**: Flagged if any declared state has $\text{in-degree} = 0$ (orphan island).
-- **`[STATE_MISSING_FALLBACK]`**: Flagged if an asynchronous state (`*Pending*`, `*Processing*`, `*Waiting*`) has no transition containing `error`, `fail`, `timeout`, or `retry`.
 
-### C. Causality Sequence (`sequenceDiagram`)
+| Violation | When |
+| :--- | :--- |
+| `STATE_DEADLOCK` | State has in-degree ≥ 1 and out-degree 0 (black hole), unless terminal `[*]` |
+| `STATE_UNREACHABLE` | Declared state has in-degree 0 (orphan) |
+| `STATE_MISSING_FALLBACK` | Async-named state (`*Pending*`, `*Processing*`, `*Waiting*`) lacks `error` / `fail` / `timeout` / `retry` transition |
+
+State-machine heal patterns → read [`remediation-patterns.md`](./remediation-patterns.md) Pattern 6.
+
+---
+
+## Appendix: sequenceDiagram + dynamic checks (experimental Phase 5)
+
+`sequenceDiagram` blocks are parsed, but **runtime causality checks are not the default gate**. They run only with `--trace <path>` (or `.sextant/trace.json`) — experimental Phase 5.
+
 ```mermaid
 sequenceDiagram
     participant Controller as OrderController
@@ -216,5 +222,11 @@ sequenceDiagram
     Service->>Repo: saveOrder
     Service->>Gateway: chargeCard
 ```
-- **`[DYNAMIC_OUT_OF_ORDER]`**: Triggered if a runtime trace (`.sextant/trace.json`) indicates `chargeCard` was executed before `saveOrder` resolved.
-- **`[DYNAMIC_MISSING_CALL]`**: Triggered if `createOrder` exited without executing declared step `saveOrder`.
+
+| Violation | Meaning (only under `--trace`) |
+| :--- | :--- |
+| `DYNAMIC_OUT_OF_ORDER` | Trace shows later step before earlier step resolved |
+| `DYNAMIC_MISSING_CALL` | Declared step never executed |
+| `DYNAMIC_UNEXPECTED_CALL` | Call not in the diagram appeared in the trace |
+
+Prefer static module / invariant / contract / stateDiagram gates. Phase 5 `--trace` heal intents → read [`remediation-patterns.md`](./remediation-patterns.md) Pattern 8.
