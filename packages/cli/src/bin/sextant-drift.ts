@@ -55,9 +55,17 @@ cli
   .command('init [dir]', 'Reverse X-Ray: scan directory and generate sextant.json & ARCHITECTURE.md')
   .option('-f, --force', 'Overwrite existing configuration')
   .option('-s, --source-dir <dir>', 'Source directory to scan (default: src)')
+  .option('--scaffold-units', 'Write minimal per-layer constraint units under .sextant/units/')
+  .option('--scaffold-units-overwrite', 'When used with --scaffold-units, overwrite existing unit file bodies')
   .option('--json', 'Output JSON status')
   .action(async (dir, options) => {
-    const code = await runInit(dir, options);
+    const code = await runInit(dir, {
+      force: options.force,
+      sourceDir: options.sourceDir,
+      json: options.json,
+      scaffoldUnits: options.scaffoldUnits,
+      scaffoldUnitsOverwrite: options.scaffoldUnitsOverwrite,
+    });
     exitWithCode(code);
   });
 

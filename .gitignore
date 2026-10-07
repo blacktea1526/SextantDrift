@@ -46,3 +46,6 @@ standalone/
 
 # Local scratch harnesses & visual verification artifacts
 .scratch/
+
+# Nested git worktrees
+.worktrees/

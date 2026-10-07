@@ -2,11 +2,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pc from 'picocolors';
 import { EXIT_CODE_FATAL_ERROR, EXIT_CODE_SUCCESS } from '../utils/exit.js';
+import {
+  detectScaffoldLanguage,
+  presentationUnitPath,
+  scaffoldConstraintUnits,
+} from './scaffold-units.js';
 
 export interface InitOptions {
   force?: boolean;
   sourceDir?: string;
   json?: boolean;
+  /** Opt-in: write minimal per-layer constraint units under `.sextant/units/`. */
+  scaffoldUnits?: boolean;
+  /** When scaffolding with --force, overwrite existing unit file bodies. */
+  scaffoldUnitsOverwrite?: boolean;
 }
 
 interface LayerDefinition {
@@ -60,6 +69,7 @@ const LAYER_MATCHERS: Record<string, { layerId: string; layerName: string; order
 
 /**
  * Reverse-engineers directory topology and generates sextant.json and ARCHITECTURE.md.
+ * With `--scaffold-units`, also writes minimal constraint units under `.sextant/units/`.
  */
 export async function runInit(
   dir: string = '.',
@@ -90,7 +100,6 @@ export async function runInit(
     const detectedLayers = new Map<string, LayerDefinition>();
     const detectedComponents: ComponentDefinition[] = [];
 
-    // Always include a shared utilities layer if present
     const defaultPresentation: LayerDefinition = {
       id: 'presentation',
       name: 'Presentation Layer',
@@ -134,18 +143,24 @@ export async function runInit(
       }
     }
 
+    const usedColdFallback = detectedLayers.size === 0;
+
     // Fallbacks if no structured folders found
-    if (detectedLayers.size === 0) {
+    if (usedColdFallback) {
       detectedLayers.set('presentation', defaultPresentation);
       detectedLayers.set('domain', defaultDomain);
       detectedLayers.set('infrastructure', defaultInfra);
 
-      detectedComponents.push({
-        id: 'AppCore',
-        name: 'Application Core',
-        layerId: 'domain',
-        paths: [srcDirName === '.' ? '**/*.ts' : `${srcDirName}/**/*.ts`],
-      });
+      // AppCore would match 0 files on an empty tree when scaffolding units only —
+      // skip it when scaffoldUnits is on; keep classic behaviour otherwise.
+      if (!options.scaffoldUnits) {
+        detectedComponents.push({
+          id: 'AppCore',
+          name: 'Application Core',
+          layerId: 'domain',
+          paths: [srcDirName === '.' ? '**/*.ts' : `${srcDirName}/**/*.ts`],
+        });
+      }
     }
 
     // Sort layers by order
@@ -158,6 +173,33 @@ export async function runInit(
         from: layers[i].id,
         to: layers[i + 1].id,
       });
+    }
+
+    let unitScaffold:
+      | { written: string[]; skipped: string[]; components: ReturnType<typeof scaffoldConstraintUnits>['components'] }
+      | undefined;
+
+    if (options.scaffoldUnits) {
+      const language = detectScaffoldLanguage(rootDir, srcDirName);
+      unitScaffold = scaffoldConstraintUnits(rootDir, layers, {
+        overwrite: Boolean(options.scaffoldUnitsOverwrite),
+        language,
+      });
+      for (const unitComp of unitScaffold.components) {
+        if (!detectedComponents.some((c) => c.id === unitComp.id)) {
+          detectedComponents.push({
+            id: unitComp.id,
+            name: unitComp.name,
+            layerId: unitComp.layerId,
+            paths: unitComp.paths,
+          });
+        } else {
+          const existing = detectedComponents.find((c) => c.id === unitComp.id)!;
+          for (const p of unitComp.paths) {
+            if (!existing.paths.includes(p)) existing.paths.push(p);
+          }
+        }
+      }
     }
 
     // Project name from package.json if available
@@ -180,6 +222,13 @@ export async function runInit(
       type: l.id === 'presentation' ? 'ui' : l.id === 'domain' ? 'service' : 'database',
     }));
 
+    const unitLang = unitScaffold?.language ?? 'ts';
+    const presentationPaths = [
+      presentationUnitPath(unitLang),
+      `${srcDirName}/controllers/**`,
+      `${srcDirName}/views/**`,
+    ].join(',');
+
     const sextantConfig = {
       $schema: 'https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json',
       name: projectName,
@@ -189,7 +238,7 @@ export async function runInit(
       layers,
       components: detectedComponents.map((c) => ({
         ...c,
-        technology: 'TypeScript',
+        technology: unitScaffold?.components.find((u) => u.id === c.id)?.technology ?? 'TypeScript',
         description: `${c.name} module`,
       })),
       allowDependencies: allowDependencies.map((d) => ({
@@ -204,7 +253,7 @@ export async function runInit(
           desc: 'Presentation layer must not directly import infrastructure database or repositories',
           pattern: {
             forbid_import: ['@prisma/client', 'typeorm', 'pg', 'mysql2'],
-            in_path: `${srcDirName}/controllers/**,${srcDirName}/views/**`,
+            in_path: presentationPaths,
           },
         },
       ],
@@ -239,16 +288,37 @@ ${allowDependencies.map((d) => `| \`${d.from}\` | \`${d.to}\` | imports | Cascad
 
 - **Strict Layering**: Calls must cascade downwards through intermediate layers; direct layer bypasses are blocked.
 - **Invariants**: Sensitive infrastructure modules cannot be bypassed directly from UI.
+${options.scaffoldUnits ? '- **Constraint units**: minimal probes under `.sextant/units/` exercise allowDependencies.\n' : ''}
 `;
 
     fs.writeFileSync(architectureMdPath, archMdContent, 'utf-8');
 
     if (options.json) {
-      console.log(JSON.stringify({ sextantConfig, status: 'initialized' }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            sextantConfig,
+            status: 'initialized',
+            scaffoldUnits: unitScaffold
+              ? { written: unitScaffold.written, skipped: unitScaffold.skipped }
+              : undefined,
+          },
+          null,
+          2
+        )
+      );
     } else {
       console.log(pc.green(`✔ Architecture initialized successfully (Reverse X-Ray):`));
       console.log(pc.cyan(`  - ${path.relative(process.cwd(), sextantConfigPath)} (Specification Single Source of Truth)`));
       console.log(pc.cyan(`  - ${path.relative(process.cwd(), architectureMdPath)} (Read-only C4 Architecture Document)`));
+      if (unitScaffold) {
+        for (const w of unitScaffold.written) {
+          console.log(pc.cyan(`  - ${w} (constraint unit written)`));
+        }
+        for (const s of unitScaffold.skipped) {
+          console.log(pc.dim(`  - ${s} (constraint unit skipped, already exists)`));
+        }
+      }
       console.log(pc.dim('\nRun "npx sextant-drift check" to verify code conformance.'));
     }
 
