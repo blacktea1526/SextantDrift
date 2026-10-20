@@ -46,3 +46,12 @@ standalone/
 
 # Local scratch harnesses & visual verification artifacts
 .scratch/
+
+# Git worktrees
+.worktrees/
+
+# Machine-local tool state
+.omx/
+.aws/
+.codex/
+.pnpm-store/
