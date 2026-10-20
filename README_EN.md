@@ -15,6 +15,7 @@
 
 ## Table of Contents
 
+- [Repository Map](#repository-map)
 - [1. Role & Purpose](#1-role--purpose)
   - [1.1 The 2026 Core Dilemma: Humans Cannot Keep Up with AI Code](#11-the-2026-core-dilemma-humans-cannot-keep-up-with-ai-code)
   - [1.2 Core Product Philosophy: Design by Diagram, Diff by Diagram](#12-core-product-philosophy-design-by-diagram-diff-by-diagram)
@@ -44,6 +45,24 @@
 - [5. Repository Layout](#5-repository-layout)
 - [6. Six Immutable Invariants for Agents](#6-six-immutable-invariants-for-agents)
 - [7. License](#7-license)
+
+---
+
+## Repository Map
+
+| Path | Role |
+| --- | --- |
+| `AGENTS.md` | Agent laws and the engineering constraints that must be followed |
+| `MISSION.md` | Why this project exists, and what it refuses to do |
+| `ARCHITECTURE.md` | This repository's own C4 model and allowed dependency flow |
+| `TECH_STACK.md` | Technology choices and package boundaries |
+| `ROADMAP.md` | Phase progress and task slices |
+| `docs/decisions/` | Architecture decision records |
+| `docs/REQUIREMENTS.md` | Product requirements |
+| `specs/` | Finished phase specifications; four `*.md` entries there are symlinks to the root originals |
+| `openspec/` | Proposals and specs for later changes |
+| `index.html` | Local drafting workbench, served by `./start.sh` |
+| `packages/` | `core`, `cli`, `mcp-server`, and `web-report` |
 
 ---
 
@@ -100,9 +119,9 @@ To guarantee extreme verification speed (≤ 3s) and zero-false-positive determi
 
 | Support Tier | Target Languages & Ecosystems | Capabilities & Implementation | Status |
 | :--- | :--- | :--- | :---: |
-| **Tier 1: First-Class Native AST** | **TypeScript, JavaScript, TSX/JSX**<br>(Node.js, Bun, Deno, Next.js, NestJS, Express) | Deep integration with TypeScript Compiler API: full physical module DAG, C4 cross-layer bypasses, Tarjan cycle detection, statement-level semantic invariants, and auto-route contract extraction. | **Production GA**<br>Full feature set |
-| **Tier 2: Polyglot Dynamic & Contract Protocols** | **Go, Python, Rust, Java, C#, etc.** | **Protocol-level integration**: via standardized JSON trace format (`.sextant/trace.json`) and Markdown API contracts (`api-contract.md`), any language can utilize runtime causality differencing and contract alignment gates. | **Production GA**<br>Language-agnostic |
-| **Tier 3: Polyglot Static AST Roadmap** | **Go, Python, Rust** | Planned Tree-sitter / WASM AST parser adapters to extract static package/module dependency DAGs across Go, Python, and Rust natively. | **On Roadmap**<br>Targeted for v2.5+ |
+| **Tier 1: First-Class Native AST** | **TypeScript, JavaScript, TSX/JSX, Python, Go**<br>(Node.js, Bun, Deno, Next.js, NestJS, Express) | Deep TypeScript Compiler API plus native Python and Go import parsing: full physical module DAG, C4 cross-layer bypasses, Tarjan cycle detection, statement-level semantic invariants, and auto-route contract extraction. Go coverage is import topology (`import` / `go.mod`), including layer bypass, cycles, and forbidden imports. | **Production GA**<br>Full feature set |
+| **Tier 2: Polyglot Dynamic & Contract Protocols** | **Go, Rust, Java, C#, etc.** | **Protocol-level integration**: via standardized JSON trace format (`.sextant/trace.json`, **experimental**) and Markdown API contracts (`api-contract.md`), any language can utilize runtime causality differencing and contract alignment gates. | **Partial / Trace experimental**<br>Language-agnostic |
+| **Tier 3: Polyglot Static AST Roadmap** | **Rust** | Planned Tree-sitter / WASM AST parser adapter to extract static Cargo crate dependency DAGs. | **On Roadmap**<br>Targeted for v2.5+ |
 
 ---
 
@@ -138,7 +157,7 @@ Why choose SextantDrift over standard Linters or LLM-based code reviewers?
 
 ### 2.7 Rigorous Self-Dogfooding Verification
 - **Verified on Itself**: SextantDrift enforces its own architectural boundaries across its monorepo on every build and test cycle.
-- **Comprehensive Test Suite**: Ships with 55 test suites and 292 tests, guaranteeing rock-solid stability and zero regressions.
+- **Comprehensive Test Suite**: Ships with 65 test files and 392 tests, guaranteeing rock-solid stability and zero regressions.
 
 ---
 
@@ -450,7 +469,7 @@ SextantDrift includes a unified developer task runner `./start.sh`:
 
 ```bash
 ./start.sh            # Launch local Visual Workbench (@ port 3000)
-./start.sh --test     # Run full Vitest test suite (55 suites, 292 tests passing)
+./start.sh --test     # Run full Vitest test suite (65 test files, 392 tests passing)
 ./start.sh --ui       # Open Vitest interactive UI dashboard
 ./start.sh --check    # Run architectural drift verification (including self-dogfooding)
 ./start.sh --build    # Build all packages (@sextant/core, sextant-drift, @sextant/web-report)

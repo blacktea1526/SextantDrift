@@ -23,6 +23,8 @@ export interface CheckOptions {
   fixManifest?: boolean;
   aiPrompt?: boolean;
   countTypeOnly?: boolean;
+  allowEmpty?: boolean;
+  forbidEmpty?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export async function runCheck(dir: string = '.', options: CheckOptions = {}): P
       tracePath: options.trace,
       contractPath: options.contract,
       countTypeOnly: options.countTypeOnly,
+      allowEmptyComponents: options.forbidEmpty ? false : (options.allowEmpty ?? true),
     });
 
     if (options.strict && report.passed) {

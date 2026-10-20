@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { InvariantRule } from '../../src/types/architecture.js';
 import {
   matchImportInvariants,
+  matchGoImportInvariants,
   isForbiddenImportMatch,
 } from '../../src/invariants/import-matcher.js';
 
@@ -293,6 +294,33 @@ describe('AST Import Matcher (forbid_import)', () => {
 
       const code = "import { PrismaClient } from '@prisma/client';";
       expect(matchImportInvariants(code, 'src/views/test.ts', [sequenceRule])).toEqual([]);
+    });
+  });
+
+  describe('Go forbid_import', () => {
+    it('flags a Go import path and ignores the same text inside a comment', () => {
+      const rule: InvariantRule = {
+        id: 'NO_PQ_IN_API',
+        severity: 'critical',
+        desc: 'HTTP handlers must not import the Postgres driver',
+        pattern: {
+          forbid_import: ['github.com/lib/pq'],
+          in_path: 'cmd/**',
+        },
+      };
+      const code = `package main
+
+// import "github.com/lib/pq"
+import "github.com/lib/pq"
+`;
+      const violations = matchGoImportInvariants(code, 'cmd/api/main.go', [rule]);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toMatchObject({
+        ruleId: 'NO_PQ_IN_API',
+        sourceFile: 'cmd/api/main.go',
+        line: 4,
+      });
+      expect(matchGoImportInvariants(code, 'internal/store/db.go', [rule])).toEqual([]);
     });
   });
 });

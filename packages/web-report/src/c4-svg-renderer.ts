@@ -149,7 +149,7 @@ export function renderC4Svg(
   const CONTAINER_HEADER_HEIGHT = 48;
 
   const CARD_WIDTH = 274;
-  const CARD_HEIGHT = 104;
+  const CARD_HEIGHT = 88;
   const CARD_GAP_X = 26;
   const CARD_GAP_Y = 24;
 
@@ -259,14 +259,14 @@ export function renderC4Svg(
   // SVG Defs (Markers, Filters, Patterns)
   svgLines.push(`  <defs>
     <!-- Arrowhead Markers -->
-    <marker id="arrow-compliant-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16A34A" />
+    <marker id="arrow-compliant-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 1.8 L 7.6 5 L 0 8.2 z" fill="#16A34A" />
     </marker>
-    <marker id="arrow-drift-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
-      <path d="M 0 1 L 9 5 L 0 9 z" fill="#DC2626" />
+    <marker id="arrow-drift-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 1.3 L 8.6 5 L 0 8.7 z" fill="#DC2626" />
     </marker>
-    <marker id="arrow-planned-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94A3B8" />
+    <marker id="arrow-planned-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 1.8 L 7.6 5 L 0 8.2 z" fill="#94A3B8" />
     </marker>
 
     <!-- Drop Shadows & Glow Filters -->
@@ -274,55 +274,51 @@ export function renderC4Svg(
       <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#DC2626" flood-opacity="0.65"/>
     </filter>
     <filter id="card-shadow-${mode}" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.06"/>
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.03"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="#0F172A" flood-opacity="0.05"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.025"/>
     </filter>
     <filter id="container-shadow-${mode}" x="-4%" y="-4%" width="108%" height="108%">
-      <feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.03"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.025"/>
     </filter>
   </defs>`);
 
   // Background Grid Layer
   svgLines.push(`  <g class="c4-background-layer">
-    <rect width="100%" height="100%" fill="#F8FAFC" />
+    <rect width="100%" height="100%" fill="none" />
   </g>`);
 
   // 4. Render Containers (Swimlanes)
   svgLines.push(`  <g class="c4-containers-layer">`);
   for (const lc of layoutContainers) {
     const isDrift = lc.container.status === 'drift';
-    const containerBg = '#FFFFFF';
-    const containerBorder = isDrift ? '#FCA5A5' : '#CBD5E1';
+    const containerBg = isDrift ? '#FEF2F2' : '#EEF2FF';
+    const containerBorder = isDrift ? '#FCA5A5' : '#C7D2FE';
     const containerBorderWidth = isDrift ? 1.5 : 1;
     const containerDash = isDrift ? '6 4' : 'none';
-    const headerBg = isDrift ? '#FEF2F2' : '#F8FAFC';
-    const badgeBg = '#0F172A';
-    const badgeColor = '#FFFFFF';
+    const badgeBg = isDrift ? '#FFFFFF' : '#FFFFFF';
+    const badgeBorder = isDrift ? '#FCA5A5' : '#C7D2FE';
+    const badgeColor = isDrift ? '#991B1B' : '#4338CA';
 
     svgLines.push(`    <g class="c4-container-group" id="${mode}-container-${escapeXml(lc.container.id)}">
       <!-- Container Background Box -->
-      <rect x="${lc.x}" y="${lc.y}" width="${lc.width}" height="${lc.height}" rx="12" ry="12"
+      <rect x="${lc.x}" y="${lc.y}" width="${lc.width}" height="${lc.height}" rx="14" ry="14"
             fill="${containerBg}" stroke="${containerBorder}" stroke-width="${containerBorderWidth}"
             stroke-dasharray="${containerDash}" filter="url(#container-shadow-${mode})" class="container-backdrop" />
 
-      <!-- Container Header Bar -->
-      <path d="M ${lc.x + 1} ${lc.y + 1} H ${lc.x + lc.width - 1} V ${lc.y + 40} H ${lc.x + 1} Z"
-            fill="${headerBg}" />
-      <line x1="${lc.x}" y1="${lc.y + 40}" x2="${lc.x + lc.width}" y2="${lc.y + 40}" stroke="${containerBorder}" stroke-width="1" />
-
       <!-- Layer Badge (L1, L2, L3) & Legacy Token LAYER for tests -->
-      <rect x="${lc.x + 16}" y="${lc.y + 9}" width="72" height="22" rx="4" fill="${badgeBg}" />
-      <text x="${lc.x + 52}" y="${lc.y + 24}" text-anchor="middle" font-size="10" font-weight="800" font-family="monospace" fill="${badgeColor}">
-        LAYER ${lc.container.order}
+      <rect x="${lc.x + 18}" y="${lc.y + 13}" width="42" height="22" rx="6" fill="${badgeBg}" stroke="${badgeBorder}" stroke-width="1" />
+      <desc>LAYER ${lc.container.order}</desc>
+      <text x="${lc.x + 39}" y="${lc.y + 28}" text-anchor="middle" font-size="10" font-weight="800" font-family="monospace" fill="${badgeColor}">
+        L${lc.container.order}
       </text>
 
       <!-- Container Title -->
-      <text x="${lc.x + 98}" y="${lc.y + 25}" font-size="14.5" font-weight="800" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#0F172A">
+      <text x="${lc.x + 74}" y="${lc.y + 29}" font-size="14" font-weight="800" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#0F172A">
         ${escapeXml(lc.container.name)}
       </text>
 
       <!-- Container Tech & Component Count -->
-      <text x="${lc.x + lc.width - 18}" y="${lc.y + 24}" text-anchor="end" font-size="11" font-family="monospace" fill="#64748B">
+      <text x="${lc.x + lc.width - 22}" y="${lc.y + 28}" text-anchor="end" font-size="11" font-family="monospace" fill="#64748B">
         [${escapeXml(lc.container.technology || 'TypeScript Module')}] • ${lc.nodes.length} Components
       </text>
     </g>`);
@@ -358,6 +354,10 @@ export function renderC4Svg(
     let pathD = '';
     let midX = 0;
     let midY = 0;
+    let portStartX = 0;
+    let portStartY = 0;
+    let portEndX = 0;
+    let portEndY = 0;
 
     // Check for Bypass flow (skipping intervening layers, e.g. L1 -> L3) or Inversion flow (L3 -> L1)
     const isBypass = Math.abs(orderDiff) > 1 || (orderDiff < 0 && src.centerY !== dst.centerY);
@@ -374,9 +374,15 @@ export function renderC4Svg(
       const x2 = useRightGutter ? dst.x + dst.width : dst.x;
       const y2 = dst.centerY;
 
-      pathD = `M ${x1} ${y1} C ${gutterX} ${y1}, ${gutterX} ${y2}, ${x2} ${y2}`;
+      const bend = useRightGutter ? -10 : 10;
+      const yDir = y2 >= y1 ? 1 : -1;
+      pathD = `M ${x1} ${y1} L ${gutterX + bend} ${y1} Q ${gutterX} ${y1}, ${gutterX} ${y1 + yDir * 10} L ${gutterX} ${y2 - yDir * 10} Q ${gutterX} ${y2}, ${gutterX + bend} ${y2} L ${x2} ${y2}`;
       midX = gutterX;
       midY = (y1 + y2) / 2;
+      portStartX = x1;
+      portStartY = y1;
+      portEndX = x2;
+      portEndY = y2;
     } else if (src.centerY < dst.centerY) {
       // Normal Downwards flow between adjacent tiers
       const x1 = src.x + src.width * outFrac;
@@ -385,9 +391,15 @@ export function renderC4Svg(
       const y2 = dst.y;
       const dy = y2 - y1;
 
-      pathD = `M ${x1} ${y1} C ${x1} ${y1 + dy * 0.45}, ${x2} ${y2 - dy * 0.45}, ${x2} ${y2}`;
+      const mid = y1 + dy / 2;
+      const xDir = x2 >= x1 ? 1 : -1;
+      pathD = `M ${x1} ${y1} L ${x1} ${mid - 8} Q ${x1} ${mid}, ${x1 + xDir * 8} ${mid} L ${x2 - xDir * 8} ${mid} Q ${x2} ${mid}, ${x2} ${mid + 8} L ${x2} ${y2}`;
       midX = (x1 + x2) / 2;
       midY = (y1 + y2) / 2;
+      portStartX = x1;
+      portStartY = y1;
+      portEndX = x2;
+      portEndY = y2;
     } else if (src.centerY > dst.centerY) {
       // Upwards flow (Inversion)
       const x1 = src.x + src.width * outFrac;
@@ -396,9 +408,15 @@ export function renderC4Svg(
       const y2 = dst.y + dst.height;
       const dy = y1 - y2;
 
-      pathD = `M ${x1} ${y1} C ${x1} ${y1 - dy * 0.45}, ${x2} ${y2 + dy * 0.45}, ${x2} ${y2}`;
+      const mid = y2 + dy / 2;
+      const xDir = x2 >= x1 ? 1 : -1;
+      pathD = `M ${x1} ${y1} L ${x1} ${mid + 8} Q ${x1} ${mid}, ${x1 + xDir * 8} ${mid} L ${x2 - xDir * 8} ${mid} Q ${x2} ${mid}, ${x2} ${mid - 8} L ${x2} ${y2}`;
       midX = (x1 + x2) / 2;
       midY = (y1 + y2) / 2;
+      portStartX = x1;
+      portStartY = y1;
+      portEndX = x2;
+      portEndY = y2;
     } else {
       // Same tier connection
       if (src.centerX < dst.centerX) {
@@ -406,23 +424,35 @@ export function renderC4Svg(
         const y1 = src.centerY;
         const x2 = dst.x;
         const y2 = dst.centerY;
-        pathD = `M ${x1} ${y1} C ${x1 + 32} ${y1 - 36}, ${x2 - 32} ${y2 - 36}, ${x2} ${y2}`;
+        const mid = (x1 + x2) / 2;
+        const channelY = y1 - 36;
+        pathD = `M ${x1} ${y1} L ${mid - 8} ${y1} Q ${mid} ${y1}, ${mid} ${y1 - 8} L ${mid} ${channelY + 8} Q ${mid} ${channelY}, ${mid + 8} ${channelY} L ${x2 - 8} ${channelY} Q ${x2} ${channelY}, ${x2} ${channelY + 8} L ${x2} ${y2}`;
         midX = (x1 + x2) / 2;
-        midY = y1 - 36;
+        midY = channelY;
+        portStartX = x1;
+        portStartY = y1;
+        portEndX = x2;
+        portEndY = y2;
       } else {
         const x1 = src.x;
         const y1 = src.centerY;
         const x2 = dst.x + dst.width;
         const y2 = dst.centerY;
-        pathD = `M ${x1} ${y1} C ${x1 - 32} ${y1 + 36}, ${x2 + 32} ${y2 + 36}, ${x2} ${y2}`;
+        const mid = (x1 + x2) / 2;
+        const channelY = y1 + 36;
+        pathD = `M ${x1} ${y1} L ${mid + 8} ${y1} Q ${mid} ${y1}, ${mid} ${y1 + 8} L ${mid} ${channelY - 8} Q ${mid} ${channelY}, ${mid - 8} ${channelY} L ${x2 + 8} ${channelY} Q ${x2} ${channelY}, ${x2} ${channelY - 8} L ${x2} ${y2}`;
         midX = (x1 + x2) / 2;
-        midY = y1 + 36;
+        midY = channelY;
+        portStartX = x1;
+        portStartY = y1;
+        portEndX = x2;
+        portEndY = y2;
       }
     }
 
     const edgeId = `${mode}-edge-${edge.from}-${edge.to}`;
     const strokeColor = isDrift ? '#DC2626' : isPlanned ? '#94A3B8' : '#16A34A';
-    const strokeWidth = isDrift ? 3.2 : isPlanned ? 1.6 : 2.2;
+    const strokeWidth = isDrift ? 2.4 : isPlanned ? 1.4 : 1.8;
     const strokeDash = isDrift ? '8 5' : isPlanned ? '4 4' : '6 4';
     const marker = isDrift
       ? `url(#arrow-drift-${mode})`
@@ -435,7 +465,10 @@ export function renderC4Svg(
            data-from="${escapeXml(edge.from)}" data-to="${escapeXml(edge.to)}" data-status="${edge.status}">
       <path class="c4-edge ${edge.status}" d="${pathD}"
             fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}"
-            stroke-dasharray="${strokeDash}" marker-end="${marker}" ${filter} />`);
+            stroke-dasharray="${strokeDash}" stroke-linecap="round" stroke-linejoin="round"
+            marker-end="${marker}" ${filter} />
+      <circle class="node-port source-port ${edge.status}" cx="${portStartX}" cy="${portStartY}" r="3.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="1.6" />
+      <circle class="node-port target-port ${edge.status}" cx="${portEndX}" cy="${portEndY}" r="3.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="1.6" />`);
 
     // Midpoint Alert Tag for Drift or Planned Edges
     if (isDrift) {
@@ -459,62 +492,62 @@ export function renderC4Svg(
   }
   svgLines.push(`  </g>`);
 
-  // 6. Render Components (Double-Bezel High-End Cards)
+  // 6. Render Components (Compact Node Cards)
   svgLines.push(`  <g class="c4-components-layer">`);
   for (const lc of layoutContainers) {
     for (const ln of lc.nodes) {
       const node = ln.node;
       const isDrift = node.status === 'drift';
       const cardBg = '#FFFFFF';
-      const border = isDrift ? '#DC2626' : '#E2E8F0';
-      const borderWidth = isDrift ? 2.5 : 1.5;
+      const border = isDrift ? '#DC2626' : '#CBD5E1';
+      const borderWidth = isDrift ? 2 : 1;
       const borderDash = isDrift ? '5 3' : 'none';
-      const accentColor = isDrift ? '#DC2626' : '#16A34A';
+      const accentColor = isDrift ? '#DC2626' : '#7C3AED';
       const roleIcon = getComponentIcon(node.name, node.layerId, node.technology);
       const descText = node.description || node.paths[0] || '';
 
       svgLines.push(`    <g class="c4-node ${node.status}" id="${mode}-node-${escapeXml(node.id)}"
            data-node-id="${escapeXml(node.id)}" data-container-id="${escapeXml(node.containerId || '')}"
            onclick="selectC4Node('${escapeXml(node.id)}')">
-      <!-- 1. Outer Card Shell with Double-Bezel Drop Shadow -->
-      <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="10" ry="10"
+      <!-- 1. Compact Card Shell -->
+      <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="8" ry="8"
             fill="${cardBg}" stroke="${border}" stroke-width="${borderWidth}" stroke-dasharray="${borderDash}"
             filter="url(#card-shadow-${mode})" class="node-box" />
 
-      <!-- 2. Top Accent Stripe (Double-Bezel Top Indicator) -->
-      <path d="M ${ln.x + 3} ${ln.y + 4} Q ${ln.x + 3} ${ln.y + 2}, ${ln.x + 10} ${ln.y + 2} L ${ln.x + ln.width - 10} ${ln.y + 2} Q ${ln.x + ln.width - 3} ${ln.y + 2}, ${ln.x + ln.width - 3} ${ln.y + 4} L ${ln.x + ln.width - 3} ${ln.y + 5} L ${ln.x + 3} ${ln.y + 5} Z"
-            fill="${accentColor}" />
-
-      <!-- 3. Icon & Component Name -->
-      <text x="${ln.x + 14}" y="${ln.y + 28}" font-size="13.5" font-weight="800"
+      <!-- 2. Icon & Component Name -->
+      <circle class="node-icon-disc" cx="${ln.x + 24}" cy="${ln.y + 25}" r="11" fill="#F5F3FF" stroke="${accentColor}" stroke-width="1" />
+      <text x="${ln.x + 24}" y="${ln.y + 29}" text-anchor="middle" font-size="10.5" font-family="-apple-system, BlinkMacSystemFont, Segoe UI Emoji, sans-serif" fill="#4338CA">
+        ${roleIcon}
+      </text>
+      <text x="${ln.x + 44}" y="${ln.y + 30}" font-size="13" font-weight="800"
             font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#0F172A">
-        ${roleIcon} ${escapeXml(truncate(node.name, 20))}
+        ${escapeXml(truncate(node.name, 22))}
       </text>
 
-      <!-- 4. Technology Tag Pill (Left) -->
-      <rect x="${ln.x + 14}" y="${ln.y + 41}" width="96" height="20" rx="4" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="1" />
-      <text x="${ln.x + 62}" y="${ln.y + 55}" text-anchor="middle" font-size="9.5" font-weight="700" font-family="monospace" fill="#475569">
+      <!-- 3. Technology Tag Pill (Left) -->
+      <rect x="${ln.x + 14}" y="${ln.y + 44}" width="92" height="18" rx="5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+      <text x="${ln.x + 60}" y="${ln.y + 56}" text-anchor="middle" font-size="9" font-weight="700" font-family="monospace" fill="#475569">
         ${escapeXml(truncate(node.technology || 'TypeScript', 12))}
       </text>`);
 
       // 5. Status Pill on right side
       if (isDrift) {
-        svgLines.push(`      <rect x="${ln.x + ln.width - 100}" y="${ln.y + 41}" width="86" height="20" rx="4" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1" />
-      <text x="${ln.x + ln.width - 57}" y="${ln.y + 55}" text-anchor="middle" font-size="9" font-weight="800" font-family="monospace" fill="#991B1B">
+        svgLines.push(`      <rect x="${ln.x + ln.width - 94}" y="${ln.y + 44}" width="80" height="18" rx="5" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1" />
+      <text x="${ln.x + ln.width - 54}" y="${ln.y + 56}" text-anchor="middle" font-size="8.5" font-weight="800" font-family="monospace" fill="#991B1B">
         ⚠ ${node.violationCount} DRIFT
       </text>`);
       } else {
-        svgLines.push(`      <rect x="${ln.x + ln.width - 86}" y="${ln.y + 41}" width="72" height="20" rx="4" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1" />
-      <text x="${ln.x + ln.width - 50}" y="${ln.y + 55}" text-anchor="middle" font-size="9" font-weight="700" font-family="monospace" fill="#065F46">
+        svgLines.push(`      <rect x="${ln.x + ln.width - 82}" y="${ln.y + 44}" width="68" height="18" rx="5" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1" />
+      <text x="${ln.x + ln.width - 48}" y="${ln.y + 56}" text-anchor="middle" font-size="8.5" font-weight="700" font-family="monospace" fill="#065F46">
         ✓ ${node.fileCount} files
       </text>`);
       }
 
-      // 6. Path Footer Gutter
+      // 5. Path Footer Gutter
       svgLines.push(`      <!-- Path Footer Gutter -->
-      <line x1="${ln.x + 1}" y1="${ln.y + 73}" x2="${ln.x + ln.width - 1}" y2="${ln.y + 73}" stroke="#F1F5F9" stroke-width="1" />
-      <rect x="${ln.x + 1}" y="${ln.y + 74}" width="${ln.width - 2}" height="28" rx="0 0 9 9" fill="#F8FAFC" />
-      <text x="${ln.x + 14}" y="${ln.y + 92}" font-size="10" font-family="monospace" fill="#64748B">
+      <line x1="${ln.x + 1}" y1="${ln.y + 68}" x2="${ln.x + ln.width - 1}" y2="${ln.y + 68}" stroke="#F1F5F9" stroke-width="1" />
+      <rect x="${ln.x + 1}" y="${ln.y + 69}" width="${ln.width - 2}" height="18" rx="0 0 7 7" fill="#F8FAFC" />
+      <text x="${ln.x + 14}" y="${ln.y + 82}" font-size="9" font-family="monospace" fill="#64748B">
         📁 ${escapeXml(truncate(descText, 32))}
       </text>
     </g>`);
@@ -634,27 +667,28 @@ export function renderC4ContainerSvg(
 
   // SVG Defs
   svgLines.push(`  <defs>
-    <marker id="arrow-c-compliant-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16A34A" />
+    <marker id="arrow-c-compliant-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 1.8 L 7.6 5 L 0 8.2 z" fill="#16A34A" />
     </marker>
-    <marker id="arrow-c-drift-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 1 L 9 5 L 0 9 z" fill="#DC2626" />
+    <marker id="arrow-c-drift-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 1.3 L 8.6 5 L 0 8.7 z" fill="#DC2626" />
     </marker>
-    <marker id="arrow-c-planned-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94A3B8" />
+    <marker id="arrow-c-planned-${mode}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 1.8 L 7.6 5 L 0 8.2 z" fill="#94A3B8" />
     </marker>
 
     <filter id="c-drift-glow-${mode}" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#DC2626" flood-opacity="0.6"/>
     </filter>
     <filter id="c-card-shadow-${mode}" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.08"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="#0F172A" flood-opacity="0.05"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.025"/>
     </filter>
   </defs>`);
 
   // Background Grid Layer
   svgLines.push(`  <g class="c4-background-layer">
-    <rect width="100%" height="100%" fill="#F8FAFC" />
+    <rect width="100%" height="100%" fill="none" />
   </g>`);
 
   // Render Container Edges with outer gutter routing
@@ -670,6 +704,10 @@ export function renderC4ContainerSvg(
     let pathD = '';
     let midX = (src.centerX + dst.centerX) / 2;
     let midY = (src.centerY + dst.centerY) / 2;
+    let portStartX = 0;
+    let portStartY = 0;
+    let portEndX = 0;
+    let portEndY = 0;
 
     if (dst.container.order === src.container.order + 1) {
       // Direct vertical adjacent layer
@@ -680,6 +718,10 @@ export function renderC4ContainerSvg(
       pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
       midX = x1;
       midY = (y1 + y2) / 2;
+      portStartX = x1;
+      portStartY = y1;
+      portEndX = x2;
+      portEndY = y2;
     } else if (dst.container.order > src.container.order + 1) {
       // Downwards Bypass! Route around right gutter cleanly without cutting through intermediate cards
       const channelIdx = rightBypassMap.get(`${edge.from}->${edge.to}`) || 0;
@@ -692,6 +734,10 @@ export function renderC4ContainerSvg(
       pathD = `M ${x1} ${srcY} L ${gx - 12} ${srcY} Q ${gx} ${srcY}, ${gx} ${srcY + 12} L ${gx} ${dstY - 12} Q ${gx} ${dstY}, ${gx - 12} ${dstY} L ${x2} ${dstY}`;
       midX = gx;
       midY = (srcY + dstY) / 2;
+      portStartX = x1;
+      portStartY = srcY;
+      portEndX = x2;
+      portEndY = dstY;
     } else {
       // Upwards Inversion! Route around left gutter cleanly without cutting through intermediate cards
       const channelIdx = leftInversionMap.get(`${edge.from}->${edge.to}`) || 0;
@@ -704,10 +750,14 @@ export function renderC4ContainerSvg(
       pathD = `M ${x1} ${srcY} L ${gx + 12} ${srcY} Q ${gx} ${srcY}, ${gx} ${srcY - 12} L ${gx} ${dstY + 12} Q ${gx} ${dstY}, ${gx + 12} ${dstY} L ${x2} ${dstY}`;
       midX = gx;
       midY = (srcY + dstY) / 2;
+      portStartX = x1;
+      portStartY = srcY;
+      portEndX = x2;
+      portEndY = dstY;
     }
 
     const strokeColor = isDrift ? '#DC2626' : isPlanned ? '#94A3B8' : '#16A34A';
-    const strokeWidth = isDrift ? 3.6 : isPlanned ? 1.8 : 2.6;
+    const strokeWidth = isDrift ? 2.4 : isPlanned ? 1.4 : 1.8;
     const strokeDash = isDrift ? '8 5' : isPlanned ? '4 4' : '6 4';
     const marker = isDrift
       ? `url(#arrow-c-drift-${mode})`
@@ -719,7 +769,10 @@ export function renderC4ContainerSvg(
     svgLines.push(`    <g class="c4-container-edge ${edge.status}" id="${mode}-cedge-${edge.from}-${edge.to}"
            data-from="${escapeXml(edge.from)}" data-to="${escapeXml(edge.to)}">
       <path class="c4-edge ${edge.status}" d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}"
-            stroke-dasharray="${strokeDash}" marker-end="${marker}" ${filter} />`);
+            stroke-dasharray="${strokeDash}" stroke-linecap="round" stroke-linejoin="round"
+            marker-end="${marker}" ${filter} />
+      <circle class="container-port source-port ${edge.status}" cx="${portStartX}" cy="${portStartY}" r="3.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="1.6" />
+      <circle class="container-port target-port ${edge.status}" cx="${portEndX}" cy="${portEndY}" r="3.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="1.6" />`);
 
     if (isDrift) {
       const tag = edge.type?.toUpperCase() || 'DRIFT!';
@@ -747,14 +800,14 @@ export function renderC4ContainerSvg(
   for (const [, lc] of containerLayoutMap.entries()) {
     const c = lc.container;
     const isDrift = c.status === 'drift';
-    const cardBg = '#FFFFFF';
-    const border = isDrift ? '#DC2626' : '#E2E8F0';
-    const borderWidth = isDrift ? 2.5 : 1.5;
+    const cardBg = isDrift ? '#FEF2F2' : '#EEF2FF';
+    const border = isDrift ? '#DC2626' : '#C7D2FE';
+    const borderWidth = isDrift ? 2 : 1;
     const borderDash = isDrift ? '5 3' : 'none';
-    const accentColor = isDrift ? '#DC2626' : '#16A34A';
-    const tagBg = isDrift ? '#FEF2F2' : '#F0FDF4';
-    const tagBorder = isDrift ? '#FCA5A5' : '#86EFAC';
-    const tagColor = isDrift ? '#991B1B' : '#166534';
+    const accentColor = isDrift ? '#DC2626' : '#7C3AED';
+    const tagBg = '#FFFFFF';
+    const tagBorder = isDrift ? '#FCA5A5' : '#C7D2FE';
+    const tagColor = isDrift ? '#991B1B' : '#4338CA';
     const containerIcon = getContainerIcon(c.name, c.order);
     const compList = nodesByContainer.get(c.id) || [];
     const driftComps = compList.filter((n) => n.status === 'drift');
@@ -762,52 +815,53 @@ export function renderC4ContainerSvg(
     svgLines.push(`    <g class="c4-container-node ${c.status}" id="${mode}-cnode-${escapeXml(c.id)}"
            data-container-id="${escapeXml(c.id)}" style="cursor: pointer;"
            onclick="drillDownContainer('${escapeXml(c.id)}')">
-      <!-- 1. Outer Container Card Shell with Double-Bezel Drop Shadow -->
-      <rect x="${lc.x}" y="${lc.y}" width="${lc.width}" height="${lc.height}" rx="10" ry="10"
+      <!-- 1. Lightweight Container Card Shell -->
+      <rect x="${lc.x}" y="${lc.y}" width="${lc.width}" height="${lc.height}" rx="12" ry="12"
             fill="${cardBg}" stroke="${border}" stroke-width="${borderWidth}" stroke-dasharray="${borderDash}"
             filter="url(#c-card-shadow-${mode})" class="container-box" />
 
-      <!-- 2. Top Accent Stripe (Double-Bezel Top Indicator) -->
-      <path d="M ${lc.x + 3} ${lc.y + 4} Q ${lc.x + 3} ${lc.y + 2}, ${lc.x + 10} ${lc.y + 2} L ${lc.x + lc.width - 10} ${lc.y + 2} Q ${lc.x + lc.width - 3} ${lc.y + 2}, ${lc.x + lc.width - 3} ${lc.y + 4} L ${lc.x + lc.width - 3} ${lc.y + 5} L ${lc.x + 3} ${lc.y + 5} Z"
-            fill="${accentColor}" />
-
-      <!-- 3. Layer Badge -->
-      <rect x="${lc.x + 20}" y="${lc.y + 16}" width="78" height="22" rx="4" fill="${tagBg}" stroke="${tagBorder}" stroke-width="1" />
-      <text x="${lc.x + 59}" y="${lc.y + 31}" text-anchor="middle" font-size="10.5" font-weight="800" font-family="monospace" fill="${tagColor}">
-        LAYER ${c.order}
+      <!-- 2. Layer Badge -->
+      <rect x="${lc.x + 20}" y="${lc.y + 15}" width="42" height="22" rx="6" fill="${tagBg}" stroke="${tagBorder}" stroke-width="1" />
+      <desc>LAYER ${c.order}</desc>
+      <text x="${lc.x + 41}" y="${lc.y + 30}" text-anchor="middle" font-size="10" font-weight="800" font-family="monospace" fill="${tagColor}">
+        L${c.order}
       </text>
 
-      <!-- 4. Container Icon & Name -->
-      <text x="${lc.x + 108}" y="${lc.y + 33}" font-size="16" font-weight="800"
+      <!-- 3. Container Icon & Name -->
+      <circle class="container-icon-disc" cx="${lc.x + 88}" cy="${lc.y + 27}" r="11" fill="#F5F3FF" stroke="${accentColor}" stroke-width="1" />
+      <text x="${lc.x + 88}" y="${lc.y + 31}" text-anchor="middle" font-size="10.5" font-family="-apple-system, BlinkMacSystemFont, Segoe UI Emoji, sans-serif" fill="#4338CA">
+        ${containerIcon}
+      </text>
+      <text x="${lc.x + 108}" y="${lc.y + 32}" font-size="15" font-weight="800"
             font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#0F172A">
-        ${containerIcon} ${escapeXml(c.name)}
+        ${escapeXml(c.name)}
       </text>
 
-      <!-- 5. Technology Pill -->
-      <rect x="${lc.x + 320}" y="${lc.y + 16}" width="140" height="22" rx="4" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="1" />
-      <text x="${lc.x + 390}" y="${lc.y + 31}" text-anchor="middle" font-size="10" font-weight="600" font-family="monospace" fill="#475569">
+      <!-- 4. Technology Pill -->
+      <rect x="${lc.x + 292}" y="${lc.y + 17}" width="132" height="20" rx="5" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+      <text x="${lc.x + 358}" y="${lc.y + 31}" text-anchor="middle" font-size="9.5" font-weight="600" font-family="monospace" fill="#475569">
         ${escapeXml(truncate(c.technology || 'Layer Module', 18))}
       </text>
 
-      <!-- 6. Status Pill (Right) -->
-      <rect x="${lc.x + lc.width - 280}" y="${lc.y + 16}" width="136" height="24" rx="4"
+      <!-- 5. Status Pill (Right) -->
+      <rect x="${lc.x + lc.width - 244}" y="${lc.y + 17}" width="112" height="20" rx="5"
             fill="${tagBg}" stroke="${tagBorder}" stroke-width="1" />
-      <text x="${lc.x + lc.width - 212}" y="${lc.y + 32}" text-anchor="middle" font-size="10.5" font-weight="800" font-family="monospace" fill="${tagColor}">
-        ${isDrift ? `⚠ 存在架构偏航 (${driftComps.length})` : '✓ 架构分层合规'}
+      <text x="${lc.x + lc.width - 188}" y="${lc.y + 31}" text-anchor="middle" font-size="9" font-weight="800" font-family="monospace" fill="${tagColor}">
+        ${isDrift ? `⚠ DRIFT ${driftComps.length}` : `✓ ${compList.length} nodes`}
       </text>
 
-      <!-- 7. Drill-down Hint Button -->
-      <rect x="${lc.x + lc.width - 134}" y="${lc.y + 16}" width="118" height="24" rx="4"
-            fill="#EEF2FF" stroke="#C7D2FE" stroke-width="1" />
-      <text x="${lc.x + lc.width - 75}" y="${lc.y + 32}" text-anchor="middle" font-size="10" font-weight="700" font-family="sans-serif" fill="#4338CA">
-        🔍 下钻组件 ➔
+      <!-- 6. Drill-down Hint Button -->
+      <rect x="${lc.x + lc.width - 120}" y="${lc.y + 17}" width="100" height="20" rx="5"
+            fill="#FFFFFF" stroke="#C7D2FE" stroke-width="1" />
+      <text x="${lc.x + lc.width - 70}" y="${lc.y + 31}" text-anchor="middle" font-size="9.5" font-weight="700" font-family="sans-serif" fill="#4338CA">
+        组件详情
       </text>
 
-      <!-- 8. Mid Divider Line & Bottom Section -->
-      <line x1="${lc.x + 1}" y1="${lc.y + 48}" x2="${lc.x + lc.width - 1}" y2="${lc.y + 48}" stroke="#F1F5F9" stroke-width="1" />
-      <rect x="${lc.x + 1}" y="${lc.y + 49}" width="${lc.width - 2}" height="68" rx="0 0 9 9" fill="#F8FAFC" />
+      <!-- 7. Mid Divider Line & Bottom Section -->
+      <line x1="${lc.x + 1}" y1="${lc.y + 48}" x2="${lc.x + lc.width - 1}" y2="${lc.y + 48}" stroke="#DED7FE" stroke-width="1" />
+      <rect x="${lc.x + 1}" y="${lc.y + 49}" width="${lc.width - 2}" height="68" rx="0 0 11 11" fill="#FFFFFF" fill-opacity="0.62" />
 
-      <!-- 9. Sub-Component Chips Gallery -->
+      <!-- 8. Sub-Component Chips Gallery -->
       <text x="${lc.x + 20}" y="${lc.y + 78}" font-size="11" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#64748B">
         包含组件 (${compList.length}):
       </text>`);
@@ -827,7 +881,7 @@ export function renderC4ContainerSvg(
         const chipW = 176;
         const chipH = 30;
         const nodeDrift = comp.status === 'drift';
-        const chipBorder = nodeDrift ? '#FCA5A5' : '#E2E8F0';
+        const chipBorder = nodeDrift ? '#FCA5A5' : '#CBD5E1';
         const chipBg = nodeDrift ? '#FEF2F2' : '#FFFFFF';
         const dotColor = nodeDrift ? '#DC2626' : '#16A34A';
         const textColor = nodeDrift ? '#991B1B' : '#1E293B';
@@ -835,7 +889,7 @@ export function renderC4ContainerSvg(
 
         svgLines.push(`      <!-- Sub-Component Chip ${idx + 1} -->
       <g class="c4-subcomponent-chip" onclick="event.stopPropagation(); setC4Level('component'); setTimeout(function(){ selectC4Node('${escapeXml(comp.id)}'); }, 120);" style="cursor: pointer;">
-        <rect x="${chipX}" y="${chipY}" width="${chipW}" height="${chipH}" rx="5" fill="${chipBg}" stroke="${chipBorder}" stroke-width="1" />
+        <rect x="${chipX}" y="${chipY}" width="${chipW}" height="${chipH}" rx="6" fill="${chipBg}" stroke="${chipBorder}" stroke-width="1" />
         <circle cx="${chipX + 14}" cy="${chipY + 15}" r="3.5" fill="${dotColor}" />
         <text x="${chipX + 25}" y="${chipY + 19}" font-size="10.5" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="${textColor}">
           ${icon} ${escapeXml(truncate(comp.name, 14))}

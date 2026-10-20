@@ -5,7 +5,7 @@ description: Detect architecture drift (layer bypass, cycle, inversion) with Sex
 
 # SextantDrift
 
-Compares Target architecture (Mermaid / `sextant.json` invariants) against Actual topology from CLI AST extraction. Tier-1 languages include TypeScript/JavaScript and Python.
+Compares Target architecture (Mermaid / `sextant.json` invariants) against Actual topology from CLI AST extraction. Tier-1 languages include TypeScript/JavaScript, Python, and Go.
 
 ## When to use
 

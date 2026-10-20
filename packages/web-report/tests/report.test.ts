@@ -131,7 +131,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
     expect(html).toContain('id="unified-panel"');
     expect(html).toContain('id="unified-canvas"');
     expect(html).toContain('class="c4-canvas c4-mode-unified"');
-    expect(html).toContain('🌟 规划与现实同图差分');
+    expect(html).toContain('合并差分');
     expect(html).toContain('C4 ARCHITECTURE X-RAY');
 
     // C4 Inspector Drawer
@@ -140,7 +140,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
 
     // Clutter Filter & Component Isolation
     expect(html).toContain('btn-toggle-contracts-unified');
-    expect(html).toContain('过滤底层契约连线');
+    expect(html).toContain('隐藏契约连线');
     expect(html).toContain('comp-isolate-select-unified');
     expect(html).toContain('聚焦指定组件...');
 
@@ -152,7 +152,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
 
     // In-browser language toggle button
     expect(html).toContain('btn-lang-toggle');
-    expect(html).toContain('🌐 English');
+    expect(html).toContain('English');
   });
 
   it('should generate English report when options.lang is "en"', () => {
@@ -165,7 +165,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
     expect(html).toContain('Critical Only (1)');
     expect(html).toContain('Warning Only (0)');
     expect(html).toContain('Copy AI Fix Prompt');
-    expect(html).toContain('⚡ Motion: ON');
+    expect(html).toContain('Motion: on');
     expect(html).toContain('🌐 中文');
     expect(html).toContain('C4 Component Inspector');
   });
@@ -226,7 +226,7 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
 
     // Motion Toggle Button
     expect(html).toContain('id="btn-toggle-motion"');
-    expect(html).toContain('⚡ 动效: 开启');
+    expect(html).toContain('动效：开');
     expect(html).toContain('function toggleMotionFx(');
 
     // Dynamic Edge Flow Keyframes & Classes

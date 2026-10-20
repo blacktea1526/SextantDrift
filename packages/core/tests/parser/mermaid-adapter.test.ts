@@ -117,4 +117,49 @@ flowchart TD
     expect(arch.layers).toHaveLength(1);
     expect(arch.components).toHaveLength(1);
   });
+
+  it('should support dotted node IDs and multiple chained edges on a single line', () => {
+    const mermaid = `flowchart TD
+    subgraph Services [Service Tier]
+        App.OrderService["Order Service"]
+        App.PaymentService["Payment Service"]
+    end
+    subgraph Data [Data Tier]
+        Db.Postgres["Postgres DB"]
+    end
+    App.OrderService --> App.PaymentService --> Db.Postgres`;
+
+    const arch = parseMermaidArchitecture(mermaid);
+    expect(arch.components).toHaveLength(3);
+    expect(arch.components.map((c) => c.id)).toContain('App.OrderService');
+    expect(arch.components.map((c) => c.id)).toContain('App.PaymentService');
+    expect(arch.components.map((c) => c.id)).toContain('Db.Postgres');
+    expect(arch.allowDependencies).toHaveLength(2);
+    expect(arch.allowDependencies[0]).toEqual({ from: 'App.OrderService', to: 'App.PaymentService' });
+    expect(arch.allowDependencies[1]).toEqual({ from: 'App.PaymentService', to: 'Db.Postgres' });
+  });
+
+  it('should support nested subgraphs with layer stack restore on inner end', () => {
+    const mermaid = `flowchart TD
+    subgraph Outer [Outer Tier]
+        OuterComp[Outer Component]
+        subgraph Inner [Inner Tier]
+            InnerComp[Inner Component]
+        end
+        AfterInnerComp[After Inner Component]
+    end`;
+
+    const arch = parseMermaidArchitecture(mermaid);
+    expect(arch.layers).toHaveLength(2);
+    expect(arch.components).toHaveLength(3);
+
+    const outerComp = arch.components.find((c) => c.id === 'OuterComp');
+    const innerComp = arch.components.find((c) => c.id === 'InnerComp');
+    const afterInnerComp = arch.components.find((c) => c.id === 'AfterInnerComp');
+
+    expect(outerComp?.layerId).toBe('Outer');
+    expect(innerComp?.layerId).toBe('Inner');
+    expect(afterInnerComp?.layerId).toBe('Outer');
+  });
 });
+

@@ -24,6 +24,6 @@ describe('@sextant/cli entrypoint', () => {
 
   it('should export CLI_VERSION matching package version', () => {
     expect(cli.CLI_VERSION).toBeDefined();
-    expect(cli.CLI_VERSION).toBe('2.0.2');
+    expect(cli.CLI_VERSION).toBe('2.0.3');
   });
 });

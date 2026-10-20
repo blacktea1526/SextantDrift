@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@sextant/core": ["../core/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}
+

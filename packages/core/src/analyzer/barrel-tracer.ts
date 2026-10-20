@@ -47,8 +47,47 @@ export interface FileExportManifest {
   reExports: ReExportInfo[];
 }
 
-const barrelCache = new Map<string, BarrelTraceResult>();
-const manifestCache = new Map<string, FileExportManifest>();
+export class SimpleLruCache<K, V> {
+  private readonly max: number;
+  private readonly map: Map<K, V>;
+
+  constructor(max: number = 1000) {
+    this.max = max;
+    this.map = new Map();
+  }
+
+  get(key: K): V | undefined {
+    const item = this.map.get(key);
+    if (item !== undefined) {
+      this.map.delete(key);
+      this.map.set(key, item);
+    }
+    return item;
+  }
+
+  set(key: K, val: V): void {
+    if (this.map.has(key)) {
+      this.map.delete(key);
+    } else if (this.map.size >= this.max) {
+      const oldestKey = this.map.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.map.delete(oldestKey);
+      }
+    }
+    this.map.set(key, val);
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+
+  get size(): number {
+    return this.map.size;
+  }
+}
+
+const barrelCache = new SimpleLruCache<string, BarrelTraceResult>(1000);
+const manifestCache = new SimpleLruCache<string, FileExportManifest>(1000);
 
 export function clearBarrelCache(): void {
   barrelCache.clear();
@@ -216,50 +255,81 @@ export function parseExportManifest(sourceFilePath: string, content: string): Fi
   return manifest;
 }
 
+export interface BarrelTraceOptions {
+  rootDir: string;
+  barrelRelPath: string;
+  importedSymbols?: readonly string[];
+  fileContentMap?: Map<string, string> | ReadonlyMap<string, string>;
+  customTsconfigPath?: string;
+  maxHops?: number;
+}
+
 /**
  * Traces multi-hop re-exports starting from a given barrel file.
  * Supports both full wildcard re-export exploration and symbol-specific re-export tracing.
  *
- * Overloads supported:
- * - traceBarrelExports(rootDir, barrelRelPath, fileContentMap, customTsconfigPath, maxHops)
- * - traceBarrelExports(rootDir, barrelRelPath, importedSymbols, fileContentMap, customTsconfigPath, maxHops)
+ * Supports both options object and legacy positional parameters.
  */
+export function traceBarrelExports(options: BarrelTraceOptions): BarrelTraceResult;
 export function traceBarrelExports(
   rootDir: string,
   barrelRelPath: string,
-  importedSymbolsOrFileMap?: string[] | Map<string, string>,
-  fileContentMapOrTsconfig?: Map<string, string> | string,
+  importedSymbolsOrFileMap?: string[] | Map<string, string> | ReadonlyMap<string, string>,
+  fileContentMapOrTsconfig?: Map<string, string> | ReadonlyMap<string, string> | string,
+  customTsconfigPathOrHops?: string | number,
+  maxHopsArg?: number
+): BarrelTraceResult;
+export function traceBarrelExports(
+  rootDirOrOptions: string | BarrelTraceOptions,
+  barrelRelPathArg?: string,
+  importedSymbolsOrFileMap?: string[] | Map<string, string> | ReadonlyMap<string, string>,
+  fileContentMapOrTsconfig?: Map<string, string> | ReadonlyMap<string, string> | string,
   customTsconfigPathOrHops?: string | number,
   maxHopsArg?: number
 ): BarrelTraceResult {
+  let rootDir: string;
+  let barrelRelPath: string;
   let importedSymbols: string[] | undefined;
-  let fileContentMap: Map<string, string> | undefined;
+  let fileContentMap: Map<string, string> | ReadonlyMap<string, string> | undefined;
   let customTsconfigPath: string | undefined;
   let maxHops: number = 10;
 
-  if (Array.isArray(importedSymbolsOrFileMap)) {
-    importedSymbols = importedSymbolsOrFileMap;
-    if (fileContentMapOrTsconfig instanceof Map) {
-      fileContentMap = fileContentMapOrTsconfig;
+  if (typeof rootDirOrOptions === 'object' && rootDirOrOptions !== null) {
+    rootDir = rootDirOrOptions.rootDir;
+    barrelRelPath = rootDirOrOptions.barrelRelPath;
+    importedSymbols = rootDirOrOptions.importedSymbols ? [...rootDirOrOptions.importedSymbols] : undefined;
+    fileContentMap = rootDirOrOptions.fileContentMap;
+    customTsconfigPath = rootDirOrOptions.customTsconfigPath;
+    if (rootDirOrOptions.maxHops !== undefined) {
+      maxHops = rootDirOrOptions.maxHops;
     }
-    if (typeof customTsconfigPathOrHops === 'string') {
-      customTsconfigPath = customTsconfigPathOrHops;
-    }
-    if (typeof maxHopsArg === 'number') {
-      maxHops = maxHopsArg;
-    }
-  } else if (importedSymbolsOrFileMap instanceof Map) {
-    fileContentMap = importedSymbolsOrFileMap;
-    if (typeof fileContentMapOrTsconfig === 'string') {
+  } else {
+    rootDir = rootDirOrOptions;
+    barrelRelPath = barrelRelPathArg!;
+    if (Array.isArray(importedSymbolsOrFileMap)) {
+      importedSymbols = importedSymbolsOrFileMap;
+      if (fileContentMapOrTsconfig instanceof Map) {
+        fileContentMap = fileContentMapOrTsconfig;
+      }
+      if (typeof customTsconfigPathOrHops === 'string') {
+        customTsconfigPath = customTsconfigPathOrHops;
+      }
+      if (typeof maxHopsArg === 'number') {
+        maxHops = maxHopsArg;
+      }
+    } else if (importedSymbolsOrFileMap instanceof Map) {
+      fileContentMap = importedSymbolsOrFileMap;
+      if (typeof fileContentMapOrTsconfig === 'string') {
+        customTsconfigPath = fileContentMapOrTsconfig;
+      }
+      if (typeof customTsconfigPathOrHops === 'number') {
+        maxHops = customTsconfigPathOrHops;
+      }
+    } else if (typeof fileContentMapOrTsconfig === 'string') {
       customTsconfigPath = fileContentMapOrTsconfig;
-    }
-    if (typeof customTsconfigPathOrHops === 'number') {
-      maxHops = customTsconfigPathOrHops;
-    }
-  } else if (typeof fileContentMapOrTsconfig === 'string') {
-    customTsconfigPath = fileContentMapOrTsconfig;
-    if (typeof customTsconfigPathOrHops === 'number') {
-      maxHops = customTsconfigPathOrHops;
+      if (typeof customTsconfigPathOrHops === 'number') {
+        maxHops = customTsconfigPathOrHops;
+      }
     }
   }
 

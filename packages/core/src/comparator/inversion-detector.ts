@@ -67,14 +67,16 @@ export function detectForbiddenImports(
     for (const forbidden of forbiddenList) {
       let isForbidden = false;
 
-      if (resolved.type === 'external') {
-        if (
-          resolved.packageName === forbidden ||
-          resolved.rawSpecifier === forbidden ||
-          resolved.rawSpecifier?.startsWith(forbidden + '/')
-        ) {
-          isForbidden = true;
-        }
+      const rawSpecifier =
+        resolved.type === 'external'
+          ? resolved.packageName || resolved.rawSpecifier
+          : evidence.rawSpecifier;
+
+      if (
+        rawSpecifier === forbidden ||
+        rawSpecifier?.startsWith(forbidden + '/')
+      ) {
+        isForbidden = true;
       } else if (resolved.type === 'internal') {
         // Internal target path
         if (matchesPatterns(resolved.targetPath, [forbidden])) {

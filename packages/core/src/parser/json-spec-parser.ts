@@ -1,6 +1,8 @@
 import { TargetArchitecture } from '../types/architecture.js';
 import { ConfigSyntaxError, ConfigValidationError } from '../errors/config-error.js';
 import { parseInvariantRules } from '../invariants/parser.js';
+import { parseAcceptanceConfig } from '../acceptance/config.js';
+import { parseBusinessRequirements } from '../requirements/parse.js';
 
 export function parseJsonSpec(rawJson: string): TargetArchitecture {
   let parsed: unknown;
@@ -169,7 +171,12 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     invariants = parseInvariantRules(spec.invariants);
   }
 
-  return {
+  let acceptance: TargetArchitecture['acceptance'];
+  if (spec.acceptance !== undefined) {
+    acceptance = parseAcceptanceConfig(spec.acceptance);
+  }
+
+  const result: TargetArchitecture = {
     $schema: typeof spec.$schema === 'string' ? spec.$schema : undefined,
     name: typeof spec.name === 'string' ? spec.name : undefined,
     version: typeof spec.version === 'string' ? spec.version : undefined,
@@ -184,4 +191,14 @@ export function parseJsonSpec(rawJson: string): TargetArchitecture {
     allowDependencies: allowDependencies as TargetArchitecture['allowDependencies'],
     invariants,
   };
+
+  if (acceptance !== undefined) {
+    result.acceptance = acceptance;
+  }
+
+  if (spec.businessRequirements !== undefined) {
+    result.businessRequirements = parseBusinessRequirements(spec.businessRequirements, acceptance);
+  }
+
+  return result;
 }

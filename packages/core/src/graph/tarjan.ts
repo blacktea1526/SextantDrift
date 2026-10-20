@@ -117,7 +117,7 @@ export function findStronglyConnectedComponents<TNode, TEdge>(
 }
 
 /**
- * Detects all cyclic dependency paths in the graph.
+ * Detects all cyclic dependency paths in the graph using elementary circuit enumeration.
  * Returns formatted cycles such as "A -> B -> C -> A".
  */
 export function detectCycles<TNode, TEdge>(
@@ -125,6 +125,7 @@ export function detectCycles<TNode, TEdge>(
 ): DetectedCycle[] {
   const sccs = findStronglyConnectedComponents(graph);
   const detectedCycles: DetectedCycle[] = [];
+  const MAX_CYCLES_PER_SCC = 25;
 
   for (const scc of sccs) {
     // Case 1: Self loop
@@ -140,36 +141,71 @@ export function detectCycles<TNode, TEdge>(
     }
 
     // Case 2: Multi-node SCC (cycle with >= 2 nodes)
-    const sccSet = new Set(scc);
-    const startNode = scc[0];
+    // Enumerate elementary circuits to avoid missing nested cycles in overlapping SCCs
+    const nodeOrderMap = new Map<string, number>();
+    scc.forEach((name, idx) => nodeOrderMap.set(name, idx));
 
-    // Find cycle path starting and ending at startNode within sccSet using DFS
-    const path: string[] = [startNode];
-    const visitedInPath = new Set<string>([startNode]);
+    const sccCycles: DetectedCycle[] = [];
+    const seenCycleKeys = new Set<string>();
 
-    function findCycleDfs(current: string): boolean {
-      for (const next of graph.getSuccessors(current)) {
-        if (!sccSet.has(next)) continue;
-        if (next === startNode && path.length > 1) {
-          path.push(next);
-          return true;
-        }
-        if (!visitedInPath.has(next)) {
-          visitedInPath.add(next);
-          path.push(next);
-          if (findCycleDfs(next)) return true;
-          path.pop();
-          visitedInPath.delete(next);
+    function getCanonicalCycleKey(cycleNodes: string[]): string {
+      const core = cycleNodes.slice(0, -1);
+      if (core.length === 0) return '';
+      let minIdx = 0;
+      for (let i = 1; i < core.length; i++) {
+        if (core[i] < core[minIdx]) {
+          minIdx = i;
         }
       }
-      return false;
+      const rotated = [...core.slice(minIdx), ...core.slice(0, minIdx)];
+      return rotated.join(' -> ');
     }
 
-    if (findCycleDfs(startNode)) {
-      detectedCycles.push({
-        nodes: [...path],
-        chain: path.join(' -> '),
-      });
+    for (let i = 0; i < scc.length; i++) {
+      if (sccCycles.length >= MAX_CYCLES_PER_SCC) break;
+
+      const startNode = scc[i];
+      const path: string[] = [startNode];
+      const visited = new Set<string>([startNode]);
+
+      function dfs(curr: string) {
+        if (sccCycles.length >= MAX_CYCLES_PER_SCC) return;
+
+        for (const next of graph.getSuccessors(curr)) {
+          const nextOrder = nodeOrderMap.get(next);
+          if (nextOrder === undefined || nextOrder < i) {
+            // Outside SCC or already processed in an earlier starting node phase
+            continue;
+          }
+
+          if (next === startNode && path.length > 1) {
+            const fullCycle = [...path, startNode];
+            const key = getCanonicalCycleKey(fullCycle);
+            if (!seenCycleKeys.has(key)) {
+              seenCycleKeys.add(key);
+              sccCycles.push({
+                nodes: fullCycle,
+                chain: fullCycle.join(' -> '),
+              });
+            }
+            continue;
+          }
+
+          if (!visited.has(next)) {
+            visited.add(next);
+            path.push(next);
+            dfs(next);
+            path.pop();
+            visited.delete(next);
+          }
+        }
+      }
+
+      dfs(startNode);
+    }
+
+    if (sccCycles.length > 0) {
+      detectedCycles.push(...sccCycles);
     } else {
       // Fallback: full SCC nodes closed
       const closed = [...scc, scc[0]];

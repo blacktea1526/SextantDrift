@@ -176,4 +176,27 @@ export * from './order.dto.js';`,
     expect(userTarget).toBeDefined();
     expect(userTarget?.isTypeOnly).toBe(true);
   });
+
+  it('should support BarrelTraceOptions object format', () => {
+    const fileContentMap = new Map<string, string>([
+      [
+        'src/components/index.ts',
+        `export { Button } from './button.js';`,
+      ],
+      ['src/components/button.ts', 'export function Button() {}'],
+    ]);
+
+    const result = traceBarrelExports({
+      rootDir,
+      barrelRelPath: 'src/components/index.ts',
+      importedSymbols: ['Button'],
+      fileContentMap,
+      maxHops: 5,
+    });
+
+    expect(result.isBarrel).toBe(true);
+    expect(result.tracedTargets).toHaveLength(1);
+    expect(result.tracedTargets[0].targetPath).toBe('src/components/button');
+  });
 });
+

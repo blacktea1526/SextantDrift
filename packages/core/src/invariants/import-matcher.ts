@@ -3,6 +3,7 @@ import ts from 'typescript';
 import { InvariantRule } from '../types/architecture.js';
 import { ViolationEvidence } from '../types/report.js';
 import { getCachedGlobRegExp } from '../analyzer/noise-filter.js';
+import { extractGoDependencies } from '../analyzer/go-ast-extractor.js';
 import { matchesScope, unwrapExpression } from './sequence-matcher.js';
 
 /**
@@ -186,6 +187,59 @@ export function matchImportInvariants(
   }
 
   visit(sourceFile);
+
+  return violations;
+}
+
+/**
+ * forbid_import for Go source. Uses the Go import extractor so a TypeScript parse
+ * cannot invent call-order or import edges from Go text.
+ */
+export function matchGoImportInvariants(
+  sourceContent: string,
+  relPath: string,
+  rules: InvariantRule[]
+): ViolationEvidence[] {
+  const applicableRules = rules.filter((rule) => {
+    if (!rule.pattern.forbid_import || rule.pattern.forbid_import.length === 0) {
+      return false;
+    }
+    if (rule.pattern.in_path && !matchesScope(relPath, rule.pattern.in_path)) {
+      return false;
+    }
+    if (rule.pattern.scope && !matchesScope(relPath, rule.pattern.scope)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (applicableRules.length === 0) {
+    return [];
+  }
+
+  const violations: ViolationEvidence[] = [];
+  for (const evidence of extractGoDependencies(relPath, sourceContent)) {
+    for (const rule of applicableRules) {
+      const matchedForbidden = rule.pattern.forbid_import!.find((pat) =>
+        isForbiddenImportMatch(evidence.rawSpecifier, pat, relPath)
+      );
+      if (!matchedForbidden) continue;
+
+      violations.push({
+        id: `INVARIANT_${rule.id}_${evidence.line}_${evidence.column}`,
+        type: 'INVARIANT_BROKEN',
+        severity: rule.severity,
+        ruleId: rule.id,
+        ruleDesc: rule.desc,
+        message: `Invariant broken: Rule "${rule.id}" forbids import "${evidence.rawSpecifier}" matching pattern "${matchedForbidden}".`,
+        sourceFile: relPath,
+        line: evidence.line,
+        column: evidence.column,
+        snippet: evidence.snippet,
+        suggestion: `Remove forbidden import "${evidence.rawSpecifier}" or replace it with an authorized interface/adapter compliant with rule "${rule.id}".`,
+      });
+    }
+  }
 
   return violations;
 }

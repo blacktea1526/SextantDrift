@@ -453,4 +453,86 @@ async function handle(input: any) {
       expect(violations).toHaveLength(0);
     });
   });
+
+  describe('Branch-Aware Control Flow & Concurrency Barrier (Zero False Positives)', () => {
+    it('should allow target call inside if branch when precede call was executed in ancestor path', () => {
+      const code = `
+        export async function handle(data: any) {
+          await db.save();
+          if (data.needsAi) {
+            await llmService.call();
+          }
+        }
+      `;
+      const violations = matchSequenceInvariants(
+        code,
+        'src/controllers/user.controller.ts',
+        [persistBeforeExternalRule]
+      );
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should not treat mutually exclusive if/else branches as inverted order', () => {
+      const code = `
+        export async function branchTest(cond: boolean) {
+          if (cond) {
+            await llmService.call();
+          } else {
+            await db.save();
+          }
+        }
+      `;
+      const violations = matchSequenceInvariants(
+        code,
+        'src/controllers/user.controller.ts',
+        [persistBeforeExternalRule]
+      );
+      expect(violations).toHaveLength(1);
+      // Divergent branch should be downgraded to warning (not critical) and message indicates alternative branch
+      expect(violations[0].severity).toBe('warning');
+      expect(violations[0].message).toContain('Conditional precedence');
+      expect(violations[0].message).toContain('alternative branch');
+    });
+
+    it('should not treat calls in try vs finally as simple sequential order', () => {
+      const code = `
+        export async function tryFinallyTest() {
+          try {
+            await llmService.call();
+          } finally {
+            await db.save();
+          }
+        }
+      `;
+      const violations = matchSequenceInvariants(
+        code,
+        'src/controllers/user.controller.ts',
+        [persistBeforeExternalRule]
+      );
+      expect(violations).toHaveLength(1);
+      expect(violations[0].severity).toBe('warning');
+      expect(violations[0].message).toContain('Conditional precedence');
+    });
+
+    it('should detect concurrent execution in Promise.all and downgrade severity to warning', () => {
+      const code = `
+        export async function concurrentTest() {
+          await Promise.all([
+            db.save(),
+            llmService.call()
+          ]);
+        }
+      `;
+      const violations = matchSequenceInvariants(
+        code,
+        'src/controllers/user.controller.ts',
+        [persistBeforeExternalRule]
+      );
+      expect(violations).toHaveLength(1);
+      expect(violations[0].severity).toBe('warning');
+      expect(violations[0].message).toContain('Concurrent execution');
+      expect(violations[0].message).toContain('Promise.all/race');
+    });
+  });
 });
+

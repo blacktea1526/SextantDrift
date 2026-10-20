@@ -38,4 +38,17 @@ describe('File Scanner', () => {
     const files = scanSourceFiles(tmpDir);
     expect(files).toEqual(['src/app.tsx', 'src/util.js']);
   });
+
+  it('scans Go files and skips vendor and testdata', () => {
+    fs.mkdirSync(path.join(tmpDir, 'cmd'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'vendor/github.com/lib/pq'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'internal/store/testdata'), { recursive: true });
+
+    fs.writeFileSync(path.join(tmpDir, 'cmd/main.go'), 'package main\n');
+    fs.writeFileSync(path.join(tmpDir, 'vendor/github.com/lib/pq/conn.go'), 'package pq\n');
+    fs.writeFileSync(path.join(tmpDir, 'internal/store/testdata/fixture.go'), 'package fixture\n');
+
+    const files = scanSourceFiles(tmpDir);
+    expect(files).toEqual(['cmd/main.go']);
+  });
 });

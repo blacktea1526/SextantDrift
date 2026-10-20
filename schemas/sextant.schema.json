@@ -163,6 +163,189 @@
           }
         }
       }
+    },
+    "acceptance": {
+      "type": "object",
+      "description": "Design intent acceptance mapping and test bindings",
+      "additionalProperties": false,
+      "required": [
+        "requirements",
+        "scenarios",
+        "checks"
+      ],
+      "properties": {
+        "requirements": {
+          "type": "array",
+          "description": "Requirements mapped to design references and checks",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "designRef",
+              "checkIds"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "designRef": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "checkIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "uniqueItems": true
+              }
+            }
+          }
+        },
+        "scenarios": {
+          "type": "array",
+          "description": "Scenarios grouping acceptance checks",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "description": "Explicit checks bound to tests and scenarios",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "scenarioId",
+              "testFile",
+              "testName",
+              "required"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "scenarioId": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "testFile": {
+                "type": "string",
+                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*(?:^|/)\\s*(?:/|$))[^/\\\\:\\x00]+(?:/[^/\\\\:\\x00]+)*$"
+              },
+              "testName": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "required": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "confirmation": {
+          "type": "object",
+          "description": "External human confirmation record with sha256 hashes",
+          "additionalProperties": false,
+          "required": [
+            "confirmedBy",
+            "designHash",
+            "acceptanceHash",
+            "configHash"
+          ],
+          "properties": {
+            "confirmedBy": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "designHash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "acceptanceHash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "configHash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "businessRequirements": {
+      "type": "object",
+      "description": "Optional shared business requirement graph. Diagrams are projections of this object.",
+      "additionalProperties": false,
+      "required": ["entities"],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "title"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "kind": {
+                "type": "string",
+                "enum": ["requirement", "flow", "rule", "event", "state", "test", "code"]
+              },
+              "title": { "type": "string", "minLength": 1 },
+              "status": { "type": "string" },
+              "actor": { "type": "string" },
+              "source": { "type": "string" },
+              "checkId": { "type": "string" },
+              "trigger": { "type": "string" },
+              "flows": { "type": "array", "items": { "type": "string" } },
+              "preconditions": { "type": "array", "items": { "type": "string" } },
+              "rules": { "type": "array", "items": { "type": "string" } },
+              "effects": { "type": "array", "items": { "type": "string" } },
+              "acceptance": { "type": "array", "items": { "type": "string" } },
+              "questions": { "type": "array" }
+            }
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "type"],
+            "properties": {
+              "from": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 },
+              "type": {
+                "type": "string",
+                "enum": ["includes", "triggers", "constrains", "produces", "affects", "implemented_by", "verified_by"]
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

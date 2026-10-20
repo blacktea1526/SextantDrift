@@ -39,7 +39,7 @@ jobs:
       - name: Build Monorepo Packages
         run: pnpm -r run build
 
-      - name: Run Full Vitest Suite (44 suites, 228 tests)
+      - name: Run Full Vitest Suite
         run: pnpm test
 
       - name: Self-Dogfooding Architectural Verification
@@ -54,5 +54,10 @@ jobs:
             echo "::error::Drifted fixture was expected to fail but passed!"
             exit 1
           else
+            actual=$?
+            if [ "$actual" -ne 1 ]; then
+              echo "::error::Drifted fixture check failed abnormally with exit code $actual (expected 1)"
+              exit "$actual"
+            fi
             echo "::notice::Drifted fixture was correctly blocked with exit code 1."
           fi

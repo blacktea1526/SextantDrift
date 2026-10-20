@@ -45,10 +45,10 @@ print_help() {
   echo -e "${COLOR_BOLD}可用选项 (Options):${COLOR_RESET}"
   echo -e "  ${COLOR_GREEN}(无参数)${COLOR_RESET}      启动本地可视化审查工作台 (Workbench Web Server @ 3000)"
   echo -e "  ${COLOR_BLUE}--ui${COLOR_RESET}          启动 Vitest UI 交互式测试仪表盘"
-  echo -e "  ${COLOR_BLUE}--test${COLOR_RESET}        执行全套单元测试 (Vitest CLI, 49 个套件, 250 个用例)"
+  echo -e "  ${COLOR_BLUE}--test${COLOR_RESET}        执行全套单元测试 (Vitest CLI)"
   echo -e "  ${COLOR_BLUE}--coverage${COLOR_RESET}    执行单元测试并生成 V8 代码覆盖率报告"
   echo -e "  ${COLOR_BLUE}--bench${COLOR_RESET}       执行核心 AST 与 Tarjan 图算法性能基准压测"
-  echo -e "  ${COLOR_BLUE}--build${COLOR_RESET}       全量编译 Monorepo 所有子包 (@sextant/core, sextant-drift)"
+  echo -e "  ${COLOR_BLUE}--build${COLOR_RESET}       全量编译 Monorepo 所有子包 (@sextant/core, sextant-drift, @sextant/mcp-server, @sextant/web-report)"
   echo -e "  ${COLOR_BLUE}--check${COLOR_RESET}       执行端到端架构门禁实测 (包含自举核验与双向用例)"
   echo -e "  ${COLOR_BLUE}--release${COLOR_RESET}     自动化构建、测试并发布至 npm 镜像 (支持 npx 免安装运行)"
   echo -e "  ${COLOR_BLUE}--help, -h${COLOR_RESET}    查看本帮助信息"
@@ -154,10 +154,15 @@ case $ACTION in
     node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/clean-layered-app
     echo -e "\n${COLOR_CYAN}[3/3] 正在校验偏航架构工程 (Drifted App，预期退出码 1 拦截)...${COLOR_RESET}"
     if node packages/cli/dist/bin/sextant-drift.js check packages/core/tests/fixtures/drifted-bypass-app; then
-      echo -e "${COLOR_RED}✖ 错误：违规工程未被拦截！${COLOR_RESET}"
+      echo -e "${COLOR_RED}✖ 错误：违规工程未被拦截 (退出码 0)！${COLOR_RESET}"
       exit 1
     else
-      echo -e "\n${COLOR_GREEN}✔ 成功：sextant-drift 架构门禁成功阻断偏航工程！${COLOR_RESET}"
+      actual=$?
+      if [ "$actual" -ne 1 ]; then
+        echo -e "${COLOR_RED}✖ 错误：偏航工程校验异常崩溃或退出码异常 (预期 1，实际 $actual)！${COLOR_RESET}"
+        exit "$actual"
+      fi
+      echo -e "\n${COLOR_GREEN}✔ 成功：sextant-drift 架构门禁成功阻断偏航工程 (退出码 1)！${COLOR_RESET}"
     fi
     echo -e "\n${COLOR_GREEN}✔ 全部门禁验证通过：SextantDrift 自身与测试工程均完全符合架构规范！${COLOR_RESET}"
     ;;

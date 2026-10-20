@@ -16,29 +16,62 @@ export function getReportCss(options: ReportCssOptions): string {
     /* Declares native support for both schemes so browser auto-darkening
        (WebContentsForceDark / low-light heuristics) backs off and our own
        token-driven dark theme stays authoritative. */
-    :root { color-scheme: light dark; }
+    :root {
+      color-scheme: light dark;
+      --reference-canvas: #E9E9E9;
+      --reference-muted: #BABCCC;
+      --reference-ink: #0A0A0B;
+      --reference-ash: #887A8B;
+      --reference-accent: #101C8A;
+      --reference-plum: #372A4B;
+      --report-accent: var(--reference-accent);
+      --report-accent-soft: #F1EDFA;
+      --report-panel: rgba(255, 255, 255, 0.92);
+      --report-line: rgba(186, 188, 204, 0.72);
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 32px 24px;
+      padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif;
-      background-color: #F8FAFC;
+      background-color: var(--reference-canvas);
       background-image:
-        linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
-      background-size: 20px 20px;
+        linear-gradient(to right, rgba(186, 188, 204, 0.42) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(186, 188, 204, 0.42) 1px, transparent 1px);
+      background-size: 28px 28px;
       color: #0F172A;
     }
     .container {
       max-width: 1600px;
       margin: 0 auto;
-      background: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 20px 40px -4px rgba(15, 23, 42, 0.08);
-      border-radius: 8px;
-      padding: 36px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(186, 188, 204, 0.8);
+      box-shadow: 0 18px 56px rgba(55, 42, 75, 0.12);
+      border-radius: 14px;
+      padding: 24px;
       transition: all 0.2s ease;
       position: relative;
+    }
+    .grouped-report-shell {
+      overflow: hidden;
+    }
+    .grouped-report-shell::before {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border: 1px dashed rgba(136, 122, 139, 0.28);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+    .report-stage {
+      position: relative;
+      margin-bottom: 18px;
+      padding: 12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.66), rgba(255,255,255,0.42)),
+        radial-gradient(circle at 0 0, rgba(16, 28, 138, 0.07), transparent 28%);
+      border: 1px solid rgba(186, 188, 204, 0.62);
+      border-radius: 12px;
     }
 
     /* Brand Header */
@@ -46,9 +79,9 @@ export function getReportCss(options: ReportCssOptions): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #E2E8F0;
-      padding-bottom: 24px;
-      margin-bottom: 28px;
+      border-bottom: 1px solid rgba(186, 188, 204, 0.7);
+      padding-bottom: 18px;
+      margin-bottom: 18px;
       flex-wrap: wrap;
       gap: 16px;
     }
@@ -58,16 +91,16 @@ export function getReportCss(options: ReportCssOptions): string {
       gap: 16px;
     }
     .brand-logo-container {
-      width: 46px;
-      height: 46px;
+      width: 38px;
+      height: 38px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0F172A;
-      border: 1px solid #1E293B;
+      background: #372A4B;
+      border: 1px solid #372A4B;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+      box-shadow: none;
       padding: 5px;
     }
     .brand-logo-icon {
@@ -77,10 +110,10 @@ export function getReportCss(options: ReportCssOptions): string {
     }
     .brand-title {
       margin: 0 0 4px 0;
-      font-size: 24px;
-      font-weight: 800;
+      font-size: 20px;
+      font-weight: 700;
       letter-spacing: -0.02em;
-      color: #0F172A;
+      color: var(--reference-ink);
       display: flex;
       align-items: center;
       gap: 10px;
@@ -88,9 +121,9 @@ export function getReportCss(options: ReportCssOptions): string {
     .brand-badge {
       font-size: 12px;
       font-weight: 700;
-      background: #EEF2FF;
-      color: #3730A3;
-      border: 1px solid #C7D2FE;
+      background: #F1EDFA;
+      color: var(--reference-plum);
+      border: 1px solid rgba(55, 42, 75, 0.16);
       padding: 2px 8px;
       border-radius: 4px;
       text-transform: uppercase;
@@ -99,36 +132,37 @@ export function getReportCss(options: ReportCssOptions): string {
     .c4-badge-tag {
       font-size: 11px;
       font-weight: 700;
-      background: #ECFDF5;
-      color: #065F46;
-      border: 1px solid #A7F3D0;
+      background: #F8F8FA;
+      color: var(--reference-ash);
+      border: 1px solid rgba(186, 188, 204, 0.72);
       padding: 2px 8px;
       border-radius: 4px;
       letter-spacing: 0.03em;
     }
     .brand-sub {
       font-size: 13px;
-      color: #64748B;
+      color: #625967;
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
     }
     .dot-sep {
-      color: #CBD5E1;
+      color: var(--reference-muted);
     }
     .header-right-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .stamp {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-weight: 800;
+      font-weight: 600;
       font-size: 13px;
-      padding: 8px 16px;
+      padding: 7px 10px;
       border-radius: 6px;
-      border: 1.5px solid ${statusBorder};
+      border: 1px solid ${statusBorder};
       background: ${statusBg};
       color: ${statusColor};
       letter-spacing: 0.04em;
@@ -136,10 +170,10 @@ export function getReportCss(options: ReportCssOptions): string {
       transition: box-shadow 0.3s ease;
     }
     .stamp.alert-pulse {
-      animation: stamp-alert-pulse 2.2s infinite ease-in-out;
+      animation: none;
     }
     .stamp.clean-shimmer {
-      animation: stamp-clean-shimmer 3.2s infinite ease-in-out;
+      animation: none;
     }
     .btn-lang, .btn-motion {
       padding: 7px 14px;
@@ -162,42 +196,67 @@ export function getReportCss(options: ReportCssOptions): string {
       transform: translateY(-1px);
     }
     .btn-motion.active {
-      background: #EFF6FF;
-      color: #1D4ED8;
-      border-color: #93C5FD;
+      background: var(--report-accent-soft);
+      color: var(--report-accent);
+      border-color: #DDD5EF;
     }
 
     /* Stats Dashboard */
     .stats-bar {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-      gap: 1px;
-      background: #E2E8F0;
-      border: 1px solid #E2E8F0;
-      border-radius: 8px;
-      overflow: hidden;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      overflow: visible;
       margin-bottom: 18px;
     }
     .stat-box {
-      background: #FFFFFF;
-      padding: 13px 18px;
+      background: var(--report-panel);
+      padding: 12px 14px 12px 16px;
       position: relative;
+      border: 1px solid rgba(186, 188, 204, 0.72);
+      border-radius: 8px;
+      box-shadow: 0 8px 18px rgba(55, 42, 75, 0.06);
       transition: background 0.15s ease;
     }
-    .stat-box:hover { background: #F8FAFC; }
+    .report-node-strip .stat-box::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #FFFFFF;
+      border: 2px solid var(--reference-accent);
+      transform: translateY(-50%);
+    }
+    .report-node-strip .stat-box::after {
+      content: "";
+      position: absolute;
+      right: -11px;
+      top: 50%;
+      width: 10px;
+      height: 1px;
+      background: var(--report-line);
+    }
+    .report-node-strip .stat-box:last-child::after { display: none; }
+    .stat-box:hover { background: #FFFFFF; border-color: var(--reference-accent); }
     .stat-label {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.07em;
       color: #64748B;
       margin-bottom: 4px;
-      font-weight: 800;
+      font-weight: 600;
     }
     .stat-value {
       font-size: 22px;
-      font-weight: 800;
+      font-weight: 600;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      color: #0F172A;
+      color: var(--reference-ink);
       line-height: 1.15;
     }
     .stat-unit { font-size: 12px; font-weight: 600; color: #64748B; margin-left: 2px; }
@@ -222,7 +281,7 @@ export function getReportCss(options: ReportCssOptions): string {
     .overview-title {
       margin: 0;
       font-size: 13px;
-      font-weight: 800;
+      font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: #334155;
@@ -253,7 +312,7 @@ export function getReportCss(options: ReportCssOptions): string {
     }
     .overview-card-title {
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: #64748B;
@@ -268,7 +327,7 @@ export function getReportCss(options: ReportCssOptions): string {
     .rpt-donut-value {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 26px;
-      font-weight: 800;
+      font-weight: 600;
       fill: #0F172A;
     }
     .rpt-donut-label {
@@ -324,7 +383,7 @@ export function getReportCss(options: ReportCssOptions): string {
     .rpt-bar-value {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 600;
       color: #64748B;
     }
     .rpt-bar-track { height: 7px; border-radius: 999px; background: #E2E8F0; overflow: hidden; }
@@ -348,23 +407,23 @@ export function getReportCss(options: ReportCssOptions): string {
       align-items: center;
       gap: 16px;
       flex-wrap: wrap;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       padding: 10px 16px;
-      background: #FFFFFF;
-      border: 1px solid #E2E8F0;
+      background: var(--report-panel);
+      border: 1px solid rgba(186, 188, 204, 0.72);
       border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 8px 18px rgba(55, 42, 75, 0.06);
     }
     .control-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
     .control-label {
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 600;
       color: #64748B;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       white-space: nowrap;
     }
-    .control-divider { width: 1px; align-self: stretch; background: #E2E8F0; }
+    .control-divider { width: 1px; align-self: stretch; background: rgba(186, 188, 204, 0.72); }
     .control-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
     .container-filter-bar {
       display: flex;
@@ -372,16 +431,16 @@ export function getReportCss(options: ReportCssOptions): string {
       gap: 8px;
       flex-wrap: wrap;
       margin-bottom: 12px;
-      background: #F8FAFC;
-      border: 1px dashed #CBD5E1;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px dashed rgba(136, 122, 139, 0.42);
       padding: 9px 16px;
       border-radius: 8px;
     }
     .chip-count { font-size: 10px; opacity: 0.75; }
     .filter-chip { border-radius: 999px; padding: 4px 12px; }
     .filter-chip.active {
-      background: #0F172A;
-      border-color: #0F172A;
+      background: var(--reference-plum);
+      border-color: var(--reference-plum);
       color: #FFFFFF;
       font-weight: 700;
     }
@@ -402,25 +461,35 @@ export function getReportCss(options: ReportCssOptions): string {
       border-radius: 0;
     }
 
+    .mode-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px;
+      background: #F8F8FA;
+      border: 1px solid rgba(186, 188, 204, 0.62);
+      border-radius: 7px;
+    }
     .mode-btn {
       padding: 6px 14px;
       font-size: 12px;
       font-weight: 700;
-      background: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      border-radius: 4px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 5px;
       cursor: pointer;
       color: #334155;
       transition: all 0.15s ease;
     }
     .mode-btn:hover {
-      background: #F1F5F9;
-      color: #0F172A;
+      background: #FFFFFF;
+      color: var(--reference-ink);
     }
     .mode-btn.active {
-      background: #0F172A;
-      color: #FFFFFF;
-      border-color: #0F172A;
+      background: #FFFFFF;
+      color: var(--reference-accent);
+      border-color: rgba(16, 28, 138, 0.18);
+      box-shadow: 0 3px 10px rgba(55, 42, 75, 0.08);
     }
 
     /* Red/Green Diff Visual Legend Bar */
@@ -428,15 +497,15 @@ export function getReportCss(options: ReportCssOptions): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       padding: 10px 18px;
-      background: #FFFFFF;
-      border: 1px solid #E2E8F0;
+      background: var(--report-panel);
+      border: 1px solid rgba(186, 188, 204, 0.72);
       border-radius: 8px;
       flex-wrap: wrap;
       gap: 12px;
       font-size: 12px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+      box-shadow: 0 8px 18px rgba(55, 42, 75, 0.05);
     }
     .legend-items {
       display: flex;
@@ -449,6 +518,18 @@ export function getReportCss(options: ReportCssOptions): string {
       align-items: center;
       gap: 8px;
     }
+    .report-port {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #FFFFFF;
+      border: 2px solid var(--reference-muted);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.86);
+      flex: 0 0 auto;
+    }
+    .report-port-ok { border-color: #16A34A; }
+    .report-port-drift { border-color: #DC2626; }
+    .report-port-plan { border-color: #94A3B8; }
     .legend-line-sample {
       display: inline-block;
       width: 24px;
@@ -486,15 +567,21 @@ export function getReportCss(options: ReportCssOptions): string {
     }
 
     .diagram-panel {
-      background: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      border-radius: 8px;
-      padding: 14px 18px 18px 18px;
-      min-height: 520px;
+      background: rgba(245, 245, 247, 0.74);
+      border: 1px solid rgba(186, 188, 204, 0.8);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 580px;
       display: flex;
       flex-direction: column;
       box-shadow: 0 1px 3px rgba(0,0,0,0.03);
       position: relative;
+    }
+    .grouped-report-shell .diagram-panel {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.74), rgba(245,245,247,0.62)),
+        var(--reference-canvas);
+      border-color: rgba(136, 122, 139, 0.34);
     }
     .diagram-panel.fullscreen {
       position: fixed !important;
@@ -515,8 +602,11 @@ export function getReportCss(options: ReportCssOptions): string {
       letter-spacing: 0.06em;
       color: #475569;
       margin-bottom: 12px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #E2E8F0;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(186, 188, 204, 0.72);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(30, 24, 55, 0.04);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -530,15 +620,39 @@ export function getReportCss(options: ReportCssOptions): string {
       flex-wrap: wrap;
     }
 
+    .diagram-badge {
+      color: var(--report-accent);
+      font-size: 10px;
+      background: var(--report-accent-soft);
+      border: 1px solid #DDD5EF;
+      padding: 3px 7px;
+      border-radius: 5px;
+      letter-spacing: 0.03em;
+    }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid var(--report-accent);
+      outline-offset: 3px;
+    }
+    @media (max-width: 760px) {
+      body { padding: 8px; }
+      .container { padding: 14px; border-radius: 10px; }
+      .stats-bar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .brand-title { flex-wrap: wrap; }
+      .header-right-actions { width: 100%; }
+      .control-actions { margin-left: 0; }
+      .search-input { min-width: 0; width: 100%; }
+      .select-comp { max-width: 100%; }
+    }
+
     /* Pan & Zoom Viewport */
     .diagram-viewport {
       flex: 1;
-      min-height: clamp(380px, 52vh, 620px);
-      background: #F8FAFC;
+      min-height: clamp(480px, 62vh, 760px);
+      background: var(--reference-canvas);
       background-image:
-        radial-gradient(circle, #CBD5E1 1px, transparent 1px);
-      background-size: 16px 16px;
-      border: 1px solid #E2E8F0;
+        radial-gradient(circle, rgba(136, 122, 139, 0.36) 1px, transparent 1px);
+      background-size: 28px 28px;
+      border: 0;
       border-radius: 6px;
       position: relative;
       overflow: hidden;
@@ -578,8 +692,9 @@ export function getReportCss(options: ReportCssOptions): string {
       position: absolute;
       bottom: 12px;
       right: 12px;
-      background: rgba(15, 23, 42, 0.88);
-      color: #FFFFFF;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      color: #475569;
       padding: 4px 10px;
       border-radius: 4px;
       font-size: 11px;
@@ -604,18 +719,18 @@ export function getReportCss(options: ReportCssOptions): string {
       transform: translateY(-2px);
     }
     .c4-node:hover .node-box {
-      stroke: #2563EB !important;
-      stroke-width: 3px !important;
-      filter: drop-shadow(0 6px 16px rgba(37, 99, 235, 0.28)) !important;
+      stroke: var(--report-accent) !important;
+      stroke-width: 1.8px !important;
+      filter: drop-shadow(0 6px 16px rgba(112, 85, 200, 0.12)) !important;
     }
     .c4-node.selected .node-box {
-      stroke: #2563EB !important;
-      stroke-width: 3.5px !important;
-      filter: drop-shadow(0 0 12px rgba(37, 99, 235, 0.55)) !important;
+      stroke: var(--report-accent) !important;
+      stroke-width: 2px !important;
+      filter: drop-shadow(0 0 12px rgba(112, 85, 200, 0.2)) !important;
     }
     .c4-node.active-highlight .node-box {
       stroke: #DC2626 !important;
-      stroke-width: 3.5px !important;
+      stroke-width: 2px !important;
       filter: drop-shadow(0 0 14px rgba(220, 38, 38, 0.75)) !important;
     }
     .c4-container-node {
@@ -626,9 +741,9 @@ export function getReportCss(options: ReportCssOptions): string {
       transform: translateY(-2px);
     }
     .c4-container-node:hover .container-box {
-      stroke: #2563EB !important;
-      stroke-width: 3px !important;
-      filter: drop-shadow(0 6px 18px rgba(37, 99, 235, 0.25)) !important;
+      stroke: var(--report-accent) !important;
+      stroke-width: 1.8px !important;
+      filter: drop-shadow(0 6px 18px rgba(112, 85, 200, 0.12)) !important;
     }
     .c4-subcomponent-chip {
       transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
@@ -653,7 +768,7 @@ export function getReportCss(options: ReportCssOptions): string {
     }
     .c4-edge.drift {
       stroke-dasharray: 8 5;
-      animation: c4-flow-drift 1.6s linear infinite, c4-drift-glow 2s ease-in-out infinite;
+      animation: c4-flow-drift 8s linear infinite;
     }
     .c4-edge.planned {
       stroke-dasharray: 4 4;
@@ -661,7 +776,7 @@ export function getReportCss(options: ReportCssOptions): string {
     }
     .c4-edge-pill.drift {
       transform-origin: center;
-      animation: c4-badge-pulse 2s ease-in-out infinite;
+      animation: none;
     }
 
     /* Radar Beacon for Focused Architecture Violations */
@@ -674,10 +789,10 @@ export function getReportCss(options: ReportCssOptions): string {
 
     /* Violations Toolbar & Filter */
     .toolbar-container {
-      background: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      border-radius: 6px;
-      padding: 16px 20px;
+      background: var(--report-panel);
+      border: 1px solid rgba(186, 188, 204, 0.72);
+      border-radius: 8px;
+      padding: 12px 14px;
       margin-bottom: 20px;
       display: flex;
       justify-content: space-between;
@@ -697,7 +812,7 @@ export function getReportCss(options: ReportCssOptions): string {
       font-weight: 600;
       background: #F8FAFC;
       border: 1px solid #CBD5E1;
-      border-radius: 4px;
+      border-radius: 5px;
       cursor: pointer;
       color: #475569;
       transition: all 0.15s ease;
@@ -707,9 +822,10 @@ export function getReportCss(options: ReportCssOptions): string {
       color: #0F172A;
     }
     .filter-btn.active {
-      background: #0F172A;
-      color: #FFFFFF;
-      border-color: #0F172A;
+      background: #FFFFFF;
+      color: var(--reference-accent);
+      border-color: rgba(16, 28, 138, 0.2);
+      box-shadow: 0 3px 10px rgba(55, 42, 75, 0.08);
     }
     .search-input {
       padding: 6px 12px;
@@ -735,20 +851,41 @@ export function getReportCss(options: ReportCssOptions): string {
       color: #334155;
       cursor: pointer;
     }
+    .report-section-title {
+      margin: 0;
+      color: var(--reference-ink);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
 
     /* Violation Cards */
     .violation-card {
-      border: 1px solid #E2E8F0;
-      border-left: 4px solid #DC2626;
-      border-radius: 6px;
-      padding: 18px;
+      border: 1px solid rgba(186, 188, 204, 0.72);
+      border-left: 1px solid rgba(186, 188, 204, 0.72);
+      border-radius: 8px;
+      padding: 18px 18px 18px 24px;
       margin-bottom: 14px;
-      background: #FFFFFF;
+      background: var(--report-panel);
       transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+      position: relative;
+    }
+    .violation-card::before {
+      content: "";
+      position: absolute;
+      left: -6px;
+      top: 22px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #FFFFFF;
+      border: 2px solid #DC2626;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.86);
     }
     .violation-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+      border-color: rgba(16, 28, 138, 0.24);
+      box-shadow: 0 12px 26px rgba(55, 42, 75, 0.1);
     }
     .violation-card.card-flashing {
       animation: c4-card-flash 1.6s ease-in-out 2;
@@ -771,7 +908,7 @@ export function getReportCss(options: ReportCssOptions): string {
       font-size: 11px;
       font-weight: 700;
       padding: 3px 8px;
-      border-radius: 3px;
+      border-radius: 5px;
       font-family: monospace;
       letter-spacing: 0.04em;
     }
@@ -779,15 +916,15 @@ export function getReportCss(options: ReportCssOptions): string {
       font-size: 11px;
       font-weight: 600;
       padding: 3px 8px;
-      border-radius: 3px;
-      background: #F1F5F9;
+      border-radius: 5px;
+      background: #F8F8FA;
       color: #334155;
       font-family: monospace;
       border: 1px solid #E2E8F0;
     }
     .flow-arrow {
       color: #DC2626;
-      font-weight: 800;
+      font-weight: 600;
     }
     .file-loc {
       font-family: monospace;
@@ -800,10 +937,10 @@ export function getReportCss(options: ReportCssOptions): string {
       gap: 8px;
     }
     .btn-action {
-      background: #F8FAFC;
-      border: 1px solid #CBD5E1;
+      background: #FFFFFF;
+      border: 1px solid rgba(186, 188, 204, 0.8);
       padding: 5px 10px;
-      border-radius: 4px;
+      border-radius: 5px;
       cursor: pointer;
       font-size: 11px;
       font-weight: 600;
@@ -814,9 +951,9 @@ export function getReportCss(options: ReportCssOptions): string {
       gap: 4px;
     }
     .btn-action:hover {
-      background: #F1F5F9;
-      color: #0F172A;
-      border-color: #94A3B8;
+      background: #F8F8FA;
+      color: var(--reference-ink);
+      border-color: var(--reference-accent);
       transform: translateY(-1px);
     }
     .btn-action:active {
@@ -853,8 +990,8 @@ export function getReportCss(options: ReportCssOptions): string {
     .card-suggestion {
       font-size: 13px;
       color: #475569;
-      background: #F8FAFC;
-      border-left: 3px solid #3B82F6;
+      background: #F8F8FA;
+      border-left: 3px solid var(--reference-accent);
       padding: 8px 12px;
       border-radius: 0 4px 4px 0;
       margin-bottom: 8px;
@@ -921,7 +1058,7 @@ export function getReportCss(options: ReportCssOptions): string {
     }
     .insp-title {
       font-size: 20px;
-      font-weight: 800;
+      font-weight: 600;
       color: #0F172A;
       margin: 8px 0 0 0;
     }
@@ -1025,6 +1162,48 @@ export function getReportCss(options: ReportCssOptions): string {
       transform: translateY(0);
     }
 
+    .br-layout {
+      display: grid;
+      grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .br-index, .br-relations { list-style: none; margin: 0; padding: 0; }
+    .br-index { display: flex; flex-direction: column; gap: 8px; }
+    .br-index button, .br-relation {
+      font: inherit;
+      text-align: left;
+      border: 1px solid #E2E8F0;
+      background: #FFFFFF;
+      color: #0F172A;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .br-index button { width: 100%; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .br-index button[aria-current="true"] { border-color: #101C8A; box-shadow: inset 3px 0 0 #101C8A; }
+    .br-index-id, .br-relation { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .br-index-title { font-size: 14px; font-weight: 700; }
+    .br-index-meta, .br-focus-hint, .br-metrics, .br-index-empty, .br-relations-empty { color: #64748B; font-size: 12px; }
+    .br-view[hidden] { display: none !important; }
+    .br-svg-wrap { overflow-x: auto; }
+    .br-canvas { display: block; }
+    .br-node { cursor: pointer; }
+    .br-relations { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .br-relations li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+    .br-relation { padding: 4px 8px; }
+    .br-rel-type { color: #475569; font-size: 12px; }
+    .br-render-error {
+      margin: 0;
+      padding: 12px 14px;
+      border: 1px solid #FCA5A5;
+      background: #FEF2F2;
+      color: #991B1B;
+      border-radius: 8px;
+    }
+    @media (max-width: 860px) {
+      .br-layout { grid-template-columns: 1fr; }
+    }
+
     /* ==========================================================================
        Dark Presentation Theme (system preference driven, offline, token override)
        ========================================================================== */
@@ -1092,6 +1271,9 @@ export function getReportCss(options: ReportCssOptions): string {
       .filter-chip.active:hover { background: #FFFFFF; color: #0D1422; }
       .search-input, .select-comp { background: #16223A; border-color: #2A3A55; color: #E8EEF8; }
       .search-input::placeholder { color: #6B7C99; }
+      .diagram-header { background: #16223A; border-color: #2A3A55; }
+      .diagram-badge { color: #C7D2FE; background: #1B2440; border-color: #3E4C7E; }
+      .zoom-hud { background: #16223A; color: #C7D3E6; border-color: #2A3A55; }
       .diagram-viewport {
         background: #0A1120;
         background-image: radial-gradient(circle, #22304A 1px, transparent 1px);
@@ -1117,6 +1299,9 @@ export function getReportCss(options: ReportCssOptions): string {
       .grid-2 .diagram-panel.fullscreen { background: #0D1422 !important; }
       /* C4 SVG canvas token values (literals swapped by applyDarkTokensToSvg) */
 ${getC4DarkTokenCss()}
+      .br-index button, .br-relation { background: #16223A; border-color: #2A3A55; color: #E8EEF8; }
+      .br-index-meta, .br-focus-hint, .br-metrics, .br-index-empty, .br-relations-empty, .br-rel-type { color: #8B9BB8; }
+      .br-render-error { background: #2A1215; border-color: #7F1D1D; color: #FCA5A5; }
     }
 
     /* ==========================================================================

@@ -120,6 +120,7 @@ describe('Type-Only Import Drift Filtering (Zero False Positives)', () => {
     await expect(
       analyzeModuleDrift({
         rootDir: tempDir,
+        allowEmptyComponents: false,
       })
     ).rejects.toThrow(ConfigValidationError);
   });

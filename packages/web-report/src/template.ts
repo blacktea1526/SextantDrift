@@ -16,6 +16,7 @@ import {
   type ChartSegment,
 } from './charts.js';
 import { applyDarkTokensToSvg } from './dark-theme.js';
+import { renderBusinessRequirementDiagram } from './business-requirement-svg.js';
 
 export { escapeHtml, safeJsonStringify };
 
@@ -256,7 +257,7 @@ ${reportCss}
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container grouped-report-shell">
     <!-- Brand Header with Vector SVG Logo -->
     <div class="header">
       <div class="brand-wrap">
@@ -293,7 +294,7 @@ ${reportCss}
     </div>
 
     <!-- Stats Dashboard -->
-    <div class="stats-bar">
+    <div class="report-node-strip stats-bar">
       <div class="stat-box">
         <div class="stat-label" data-i18n="statViolations">${t.statViolations}</div>
         <div class="stat-value" style="color: ${violations.length > 0 ? '#DC2626' : '#16A34A'};">
@@ -332,10 +333,12 @@ ${reportCss}
       </div>
     </div>
 
+    <main class="report-stage">
+
     <!-- Unified Control Bar: C4 level, layout mode, diff legend and graph actions -->
-    <div class="control-bar">
+    <div class="control-bar" role="toolbar" aria-label="${lang === 'zh' ? '架构图视图工具' : 'Architecture view tools'}">
       <div class="control-group">
-        <span class="control-label">${t.c4Badge}</span>
+        <span class="control-label">C4</span>
         <div class="mode-group">
           <button type="button" class="mode-btn active" id="btn-level-container" onclick="setC4Level('container')" data-i18n="viewLevelL2">
             ${t.viewLevelL2}
@@ -391,63 +394,26 @@ ${reportCss}
     <div class="diff-legend-bar">
       <div class="legend-items">
         <div class="legend-item">
+          <span class="report-port report-port-ok" aria-hidden="true"></span>
           <span class="legend-line-sample" style="background: #16A34A;"></span>
           <strong style="color: #166534;" data-i18n="legendGreen">${t.legendGreen}</strong>
           <span class="legend-muted">(Compliant Path)</span>
         </div>
         <div class="legend-item">
+          <span class="report-port report-port-drift" aria-hidden="true"></span>
           <span class="legend-line-sample drift-sample"></span>
           <strong style="color: #991B1B;" data-i18n="legendRed">${t.legendRed}</strong>
           <span class="legend-alert">[DRIFT ALERT]</span>
         </div>
         <div class="legend-item">
+          <span class="report-port report-port-plan" aria-hidden="true"></span>
           <span class="legend-line-sample planned-sample"></span>
           <strong style="color: #475569;" data-i18n="legendGrey">${t.legendGrey}</strong>
           <span class="legend-muted">(Planned Path)</span>
         </div>
       </div>
-      <div class="legend-tip" data-i18n="drillDownHint">💡 ${t.drillDownHint}</div>
+      <div class="legend-tip" data-i18n="drillDownHint">${t.drillDownHint}</div>
     </div>
-
-    <!-- Architecture Health Overview Analytics -->
-    <section class="overview-panel" id="overview-panel">
-      <div class="overview-head">
-        <h2 class="overview-title" data-i18n="overviewTitle">${t.overviewTitle}</h2>
-        <span class="overview-hint" data-i18n="overviewVisibilityHint">${t.overviewVisibilityHint}</span>
-      </div>
-      <div class="overview-grid">
-        <div class="overview-card overview-card-severity">
-          <div class="overview-card-title" data-i18n="overviewSeverity">${t.overviewSeverity}</div>
-          <div class="overview-donut-wrap">${severityDonut}</div>
-          <div class="overview-donut-legend">
-            ${severitySegments
-              .map(
-                (segment) => `<div class="ov-legend-row">
-                  <span class="ov-legend-dot" style="background:${segment.color};"></span>
-                  <span class="ov-legend-name" data-i18n="${segment.i18nKey}">${escapeHtml(segment.label)}</span>
-                  <strong class="ov-legend-value">${segment.value}</strong>
-                </div>`
-              )
-              .join('')}
-          </div>
-        </div>
-
-        <div class="overview-card">
-          <div class="overview-card-title" data-i18n="overviewCategories">${t.overviewCategories}</div>
-          ${categoryBars}
-          ${hiddenCategoryCount > 0 ? `<div class="overview-more">${lang === 'zh' ? `另有 ${hiddenCategoryCount} 类违规见下方清单` : `${hiddenCategoryCount} more categories listed below`}</div>` : ''}
-        </div>
-
-        <div class="overview-card">
-          <div class="overview-card-title" data-i18n="overviewVisibility">${t.overviewVisibility}</div>
-          ${visibilityChart}
-          <div class="overview-visibility-meta">
-            <span>${mappedFiles} / ${totalFiles} ${lang === 'zh' ? '文件已映射' : 'files mapped'}</span>
-            <span>${summary?.totalDependencies || 0} ${lang === 'zh' ? '条依赖' : 'dependencies'}</span>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- Mode 1: Unified Flagship Overlay Diff Panel (Default) -->
     <div class="unified-panel-container" id="unified-panel-container">
@@ -455,13 +421,13 @@ ${reportCss}
         <div class="diagram-header">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-weight: 800; color: #0F172A;" data-i18n="tabUnified">${t.tabUnified}</span>
-            <span style="color: #2563EB; font-size: 11px; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-weight: 700;">
+            <span class="diagram-badge">
               C4 ARCHITECTURE X-RAY
             </span>
           </div>
           <div class="diagram-toolbar">
             <!-- Component Isolation Dropdown -->
-            <select id="comp-isolate-select-unified" class="select-comp" onchange="isolateComponent(this.value)">
+            <select id="comp-isolate-select-unified" class="select-comp" aria-label="${t.selectComponent}" onchange="isolateComponent(this.value)">
               <option value="" data-i18n="selectComponent">${t.selectComponent}</option>
               ${sortedComponents.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name || c.id)}</option>`).join('')}
             </select>
@@ -521,7 +487,7 @@ ${reportCss}
           </div>
           <div class="diagram-toolbar">
             <!-- Component Isolation Dropdown -->
-            <select id="comp-isolate-select-actual" class="select-comp" onchange="isolateComponent(this.value)">
+            <select id="comp-isolate-select-actual" class="select-comp" aria-label="${t.selectComponent}" onchange="isolateComponent(this.value)">
               <option value="" data-i18n="selectComponent">${t.selectComponent}</option>
               ${sortedComponents.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name || c.id)}</option>`).join('')}
             </select>
@@ -542,10 +508,75 @@ ${reportCss}
       </div>
     </div>
 
+    </main>
+
+    ${report.businessRequirementView ? (() => {
+      const diagram = renderBusinessRequirementDiagram(report.businessRequirementView.structured, lang === 'zh' ? 'zh' : 'en');
+      const body = applyDarkTokensToSvg(diagram.body);
+      const svgBytes = [...body.matchAll(/<svg\b[\s\S]*?<\/svg>/g)].reduce((sum, match) => sum + Buffer.byteLength(match[0], 'utf8'), 0);
+      const metrics = lang === 'zh'
+        ? `实体 ${diagram.entityCount} · SVG ${svgBytes} 字节 · 最大邻居 ${diagram.maxNeighbors}`
+        : `${diagram.entityCount} entities · SVG ${svgBytes} bytes · max neighbors ${diagram.maxNeighbors}`;
+      return `
+    <section id="business-requirement-graph" data-entity-count="${diagram.entityCount}" data-svg-bytes="${svgBytes}" data-max-neighbors="${diagram.maxNeighbors}">
+      <h2>${lang === 'zh' ? '业务需求图' : 'Business requirement graph'}</h2>
+      <p>${lang === 'zh'
+        ? '目录按编号列出需求。图只画当前焦点和它的直接邻居；没写上的代码和测试保持缺口，不会靠扫描补上。'
+        : 'The index lists requirements by id. The diagram draws the focus and its direct neighbors; code and tests that were not declared stay as gaps.'}</p>
+      <p class="br-metrics">${metrics}</p>
+      ${body}
+      <details>
+        <summary>${lang === 'zh' ? '同一模型的原文投影' : 'Source projection of the same model'}</summary>
+        <pre>${escapeHtml(report.businessRequirementView.mermaid)}</pre>
+        <pre>${escapeHtml(report.businessRequirementView.structured)}</pre>
+      </details>
+    </section>`;
+    })() : ''}
+
+    <!-- Architecture Health Overview Analytics -->
+    <section class="overview-panel" id="overview-panel">
+      <div class="overview-head">
+        <h2 class="overview-title" data-i18n="overviewTitle">${t.overviewTitle}</h2>
+        <span class="overview-hint" data-i18n="overviewVisibilityHint">${t.overviewVisibilityHint}</span>
+      </div>
+      <div class="overview-grid">
+        <div class="overview-card overview-card-severity">
+          <div class="overview-card-title" data-i18n="overviewSeverity">${t.overviewSeverity}</div>
+          <div class="overview-donut-wrap">${severityDonut}</div>
+          <div class="overview-donut-legend">
+            ${severitySegments
+              .map(
+                (segment) => `<div class="ov-legend-row">
+                  <span class="ov-legend-dot" style="background:${segment.color};"></span>
+                  <span class="ov-legend-name" data-i18n="${segment.i18nKey}">${escapeHtml(segment.label)}</span>
+                  <strong class="ov-legend-value">${segment.value}</strong>
+                </div>`
+              )
+              .join('')}
+          </div>
+        </div>
+
+        <div class="overview-card">
+          <div class="overview-card-title" data-i18n="overviewCategories">${t.overviewCategories}</div>
+          ${categoryBars}
+          ${hiddenCategoryCount > 0 ? `<div class="overview-more">${lang === 'zh' ? `另有 ${hiddenCategoryCount} 类违规见下方清单` : `${hiddenCategoryCount} more categories listed below`}</div>` : ''}
+        </div>
+
+        <div class="overview-card">
+          <div class="overview-card-title" data-i18n="overviewVisibility">${t.overviewVisibility}</div>
+          ${visibilityChart}
+          <div class="overview-visibility-meta">
+            <span>${mappedFiles} / ${totalFiles} ${lang === 'zh' ? '文件已映射' : 'files mapped'}</span>
+            <span>${summary?.totalDependencies || 0} ${lang === 'zh' ? '条依赖' : 'dependencies'}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Violations Section -->
     <div id="violations-section">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-        <h2 style="font-size: 18px; font-weight: 800; margin: 0; color: #0F172A;" data-i18n="violationsTitle">
+        <h2 class="report-section-title" data-i18n="violationsTitle">
           ${t.violationsTitle}
         </h2>
         <div style="font-size: 13px; color: #64748B;">

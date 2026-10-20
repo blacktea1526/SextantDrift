@@ -1,3 +1,6 @@
+import type { AcceptanceConfig } from '../acceptance/types.js';
+import type { BusinessRequirementGraph } from '../requirements/types.js';
+
 export type C4ContainerType = 'application' | 'service' | 'database' | 'library' | 'ui' | 'external';
 
 export interface C4Container {
@@ -84,6 +87,8 @@ export interface TargetArchitecture {
   components: Component[];
   allowDependencies: AllowedDependency[];
   invariants?: InvariantRule[];
+  acceptance?: AcceptanceConfig;
+  businessRequirements?: BusinessRequirementGraph;
   /** @deprecated Kept for backward compatibility */
   mermaid?: string;
 }

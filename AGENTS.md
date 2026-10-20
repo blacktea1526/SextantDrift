@@ -192,3 +192,15 @@ graph TD
    - 严禁在未实际执行测试并取得成功退出码（Exit Code 0）的情况下声称完成任务；
 5. **全包编译自检**：执行 `./start.sh --build`，确保所有子包 TypeScript 编译与类型定义导出（`.d.ts`）正常无损坏；
 6. **拒绝过度工程**：不添加未经确认的复杂配置或外部框架，保持代码整洁纯粹。
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: optional root `GLOSSARY.md`; ADRs in `docs/decisions/`. See `docs/agents/domain.md`.

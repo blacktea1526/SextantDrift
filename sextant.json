@@ -113,7 +113,9 @@
       "technology": "TypeScript API",
       "description": "Main entry point for architecture analysis",
       "paths": [
-        "packages/core/src/index.ts"
+        "packages/core/src/index.ts",
+        "packages/core/src/file-checker.ts",
+        "packages/core/src/pipeline/**"
       ]
     },
     {

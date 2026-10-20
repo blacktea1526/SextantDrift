@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "sextant-drift": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "sextant-drift",
+        "mcp"
+      ]
+    }
+  }
+}

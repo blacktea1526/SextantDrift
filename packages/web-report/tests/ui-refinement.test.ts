@@ -164,6 +164,46 @@ describe('@sextant/web-report UI refinement contract', () => {
     expect(html).not.toContain('class="c4-level-bar"');
   });
 
+  it('puts the architecture canvas before secondary analytics and retains navigation controls', () => {
+    const html = generateHtmlReport(report, { lang: 'zh' });
+    expect(html.indexOf('id="unified-panel-container"')).toBeLessThan(html.indexOf('id="overview-panel"'));
+    expect(html.indexOf('id="diagrams-grid"')).toBeLessThan(html.indexOf('id="overview-panel"'));
+    expect(html).toContain('aria-label="');
+    expect(html).toContain('class="diagram-badge"');
+    expect(html).toContain('onclick="setLayoutMode(\'side-by-side\')"');
+    expect(html).toContain('onclick="fitDiagram(\'unified\')"');
+    expect(html).toContain('onclick="toggleContractEdges()"');
+    // Filtered ancestors would make viewport-fixed fullscreen relative to the report shell.
+    expect(html).not.toContain('backdrop-filter:');
+  });
+
+  it('applies the grouped-node workspace shell inspired by the reference diagram style', () => {
+    const html = generateHtmlReport(report, { lang: 'zh' });
+
+    expect(html).toContain('class="container grouped-report-shell"');
+    expect(html).toContain('class="report-stage"');
+    expect(html).toContain('class="report-section-title"');
+    expect(html).toContain('class="report-node-strip stats-bar"');
+    expect(html).toContain('class="report-port');
+    expect(html).toContain('--reference-canvas: #E9E9E9');
+    expect(html).toContain('--reference-muted: #BABCCC');
+    expect(html).toContain('--reference-accent: #101C8A');
+    expect(html).toContain('--reference-plum: #372A4B');
+    expect(html).toContain('background-size: 28px 28px');
+    expect(html).toContain('.grouped-report-shell .diagram-panel');
+    expect(html).toContain('.report-node-strip .stat-box');
+    expect(html).toContain('.violation-card::before');
+  });
+
+  it('keeps view labels compact and localised in both languages', () => {
+    const zh = generateHtmlReport(report, { lang: 'zh' });
+    const en = generateHtmlReport(report, { lang: 'en' });
+    expect(zh).toMatch(/id="btn-level-container"[^>]*>\s*容器/);
+    expect(zh).toMatch(/id="btn-mode-side-by-side"[^>]*>\s*双图对照/);
+    expect(en).toMatch(/id="btn-level-component"[^>]*>\s*Components/);
+    expect(en).toMatch(/id="btn-mode-side-by-side"[^>]*>\s*Compare/);
+  });
+
   it('keeps the diff legend but folds the drill-down hint into it', () => {
     const html = generateHtmlReport(report, { lang: 'zh' });
     expect(html).toContain('class="diff-legend-bar"');

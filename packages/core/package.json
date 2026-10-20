@@ -1,6 +1,6 @@
 {
   "name": "@sextant/core",
-  "version": "2.0.0",
+  "version": "2.0.3",
   "description": "SextantDrift Core Engine — Pure headless architecture X-ray & drift detection engine",
   "author": "blacktea1526 (https://github.com/blacktea1526)",
   "type": "module",

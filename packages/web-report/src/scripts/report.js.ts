@@ -42,6 +42,17 @@ export function getReportScript(options: ReportScriptOptions): string {
     let selectedContainerFilter = '';
     let isMotionEnabled = sessionStorage.getItem('sextant_motion') !== 'false';
 
+    /** Escape untrusted strings before interpolating into innerHTML (inspector drawer). */
+    function escapeHtml(text) {
+      if (text == null || text === '') return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     const viewStates = {
       unified: { scale: 1.0, x: 20, y: 20, isDragging: false, startX: 0, startY: 0 },
       target: { scale: 1.0, x: 20, y: 20, isDragging: false, startX: 0, startY: 0 },
@@ -324,22 +335,17 @@ export function getReportScript(options: ReportScriptOptions): string {
       if (naturalW === 0 || naturalH === 0) return;
 
       const pad = 40;
-      const availW = Math.max(vRect.width - pad * 2, 200);
-      const availH = Math.max(vRect.height - pad * 2, 200);
+      const availW = Math.max(vRect.width - pad * 2, 1);
+      const availH = Math.max(vRect.height - pad * 2, 1);
 
       const scaleX = availW / naturalW;
       const scaleY = availH / naturalH;
-      let fitScale = Math.min(scaleX, scaleY);
-      if (fitScale < 0.65) {
-        fitScale = 0.75;
-      } else if (fitScale > 1.2) {
-        fitScale = 1.0;
-      }
+      const fitScale = Math.min(scaleX, scaleY, 1);
 
       const state = viewStates[key];
       state.scale = fitScale;
-      state.x = Math.max((vRect.width - naturalW * fitScale) / 2, 20);
-      state.y = 20;
+      state.x = (vRect.width - naturalW * fitScale) / 2;
+      state.y = (vRect.height - naturalH * fitScale) / 2;
 
       applySmoothTransform(key);
     }
@@ -479,28 +485,28 @@ export function getReportScript(options: ReportScriptOptions): string {
       document.getElementById('insp-incoming-count').textContent = incomingEdges.length;
       inEl.innerHTML = incomingEdges.length === 0
         ? '<div style="color: #94A3B8; font-size: 12px;">(No incoming calls)</div>'
-        : incomingEdges.map(e => \`<div class="insp-item-pill \${e.status}"><span>\${e.from}</span><span>\${e.status === 'drift' ? '⚠ DRIFT' : '✓ OK'}</span></div>\`).join('');
+        : incomingEdges.map(e => \`<div class="insp-item-pill \${escapeHtml(e.status)}"><span>\${escapeHtml(e.from)}</span><span>\${e.status === 'drift' ? '⚠ DRIFT' : '✓ OK'}</span></div>\`).join('');
 
       // Outbound
       const outEl = document.getElementById('insp-outgoing');
       document.getElementById('insp-outgoing-count').textContent = outgoingEdges.length;
       outEl.innerHTML = outgoingEdges.length === 0
         ? '<div style="color: #94A3B8; font-size: 12px;">(No outgoing calls)</div>'
-        : outgoingEdges.map(e => \`<div class="insp-item-pill \${e.status}"><span>\${e.to}</span><span>\${e.status === 'drift' ? '⚠ DRIFT' : '✓ OK'}</span></div>\`).join('');
+        : outgoingEdges.map(e => \`<div class="insp-item-pill \${escapeHtml(e.status)}"><span>\${escapeHtml(e.to)}</span><span>\${e.status === 'drift' ? '⚠ DRIFT' : '✓ OK'}</span></div>\`).join('');
 
       // Violations
       const vEl = document.getElementById('insp-violations');
       const nodeViolations = violationsData.filter(v => v.sourceComponent === nodeId || v.targetComponent === nodeId);
       document.getElementById('insp-violations-count').textContent = nodeViolations.length;
       vEl.innerHTML = nodeViolations.length === 0
-        ? \`<div style="color: #16A34A; font-size: 12px; font-weight: 600;">\${I18N[currentLang].inspectorNoViolations}</div>\`
+        ? \`<div style="color: #16A34A; font-size: 12px; font-weight: 600;">\${escapeHtml(I18N[currentLang].inspectorNoViolations)}</div>\`
         : nodeViolations.map(v => \`
           <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 4px; padding: 8px; margin-bottom: 6px;">
             <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 11px; color: #991B1B;">
-              <span>[\${v.type}]</span>
-              <span>\${v.sourceFile}:\${v.line}</span>
+              <span>[\${escapeHtml(v.type)}]</span>
+              <span>\${escapeHtml(v.sourceFile)}:\${escapeHtml(v.line)}</span>
             </div>
-            <div style="font-size: 12px; color: #1E293B; margin-top: 4px;">\${v.message}</div>
+            <div style="font-size: 12px; color: #1E293B; margin-top: 4px;">\${escapeHtml(v.message)}</div>
           </div>
         \`).join('');
 
@@ -865,5 +871,25 @@ export function getReportScript(options: ReportScriptOptions): string {
     window.applyFilters = applyFilters;
     window.copyAiFixPrompt = copyAiFixPrompt;
     window.exportEvidenceJson = exportEvidenceJson;
+
+    const businessSection = document.getElementById('business-requirement-graph');
+    if (businessSection) {
+      businessSection.addEventListener('click', function (event) {
+        const trigger = event.target.closest('.br-index button, .br-node, .br-relation');
+        if (!trigger || !businessSection.contains(trigger)) return;
+        const focusId = trigger.getAttribute('data-focus');
+        if (!focusId) return;
+        const views = businessSection.querySelectorAll('.br-view');
+        for (let i = 0; i < views.length; i++) {
+          if (views[i].getAttribute('data-focus') === focusId) views[i].removeAttribute('hidden');
+          else views[i].setAttribute('hidden', '');
+        }
+        const buttons = businessSection.querySelectorAll('.br-index button');
+        for (let i = 0; i < buttons.length; i++) {
+          if (buttons[i].getAttribute('data-focus') === focusId) buttons[i].setAttribute('aria-current', 'true');
+          else buttons[i].removeAttribute('aria-current');
+        }
+      });
+    }
 `;
 }

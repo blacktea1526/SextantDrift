@@ -1,4 +1,5 @@
 import { TargetArchitecture, C4SystemContext } from './architecture.js';
+import type { BusinessRequirementView } from '../requirements/types.js';
 
 export interface ViolationEvidence {
   id: string;
@@ -21,7 +22,8 @@ export interface ViolationEvidence {
     | 'CONTRACT_LINT_ERROR'
     | 'WARN_UNRESOLVED_IMPORT'
     | 'WARN_PARTIAL_BARREL_RESOLUTION'
-    | 'WARN_RULE_MISSING_TARGET';
+    | 'WARN_RULE_MISSING_TARGET'
+    | 'WARN_EMPTY_COMPONENT';
   severity: 'critical' | 'warning' | 'info';
   message: string;
   sourceFile: string;
@@ -92,6 +94,7 @@ export interface DriftSummary {
   contractEndpointCount?: number;
   unresolvedImportCount?: number;
   partialBarrelCount?: number;
+  emptyComponentCount?: number;
   componentCoverage?: ComponentCoverage;
 }
 
@@ -170,6 +173,8 @@ export interface DriftReport {
   graphData: C4GraphData;
   hasUnresolvedImports?: boolean;
   hasPartialBarrels?: boolean;
+  /** Read-only projection of businessRequirements. Omitted when the graph is absent. */
+  businessRequirementView?: BusinessRequirementView;
   /** @deprecated Kept for backward compatibility */
   actualMermaid?: string;
   /** @deprecated Kept for backward compatibility */
@@ -189,5 +194,6 @@ export interface AnalyzeOptions {
   files?: string[];
   strict?: boolean;
   countTypeOnly?: boolean;
+  allowEmptyComponents?: boolean;
   unmappedFiles?: 'forbid' | 'warn' | 'allow';
 }

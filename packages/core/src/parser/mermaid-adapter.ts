@@ -59,16 +59,15 @@ export function parseMermaidArchitecture(mermaidCode: string): TargetArchitectur
   const components: Component[] = [];
   const allowDependencies: AllowedDependency[] = [];
 
-  let currentLayer: Layer | null = null;
+  const layerStack: Layer[] = [];
   let layerOrder = 1;
 
   // Regex patterns supporting various labels, quotes and classDef annotations
-  const subgraphRegex = /subgraph\s+([A-Za-z0-9_]+)(?:\s*\["([^"]+)"\]|\s*\[([^\]]+)\])?/i;
-  const endRegex = /^end$/i;
+  const subgraphRegex = /subgraph\s+([A-Za-z0-9_.-]+)(?:\s*\["([^"]+)"\]|\s*\[([^\]]+)\])?/i;
+  const endRegex = /^(?:end|END)$/i;
   const nodeRegex =
-    /^([A-Za-z0-9_]+)(?:\["([^"]+)"\]|\[([^\]]+)\]|\("([^"]+)"\)|\(([^\)]+)\))?(?::::([A-Za-z0-9_]+))?$/;
-  const edgeRegex =
-    /([A-Za-z0-9_]+)\s*(?:[-.=]+>\s*\|[^|]+\||[-.=]+(?:\s*\|[^|]+\|)?\s*[-.=]*>|[-.=]+>)\s*([A-Za-z0-9_]+)/;
+    /^([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)(?:\["([^"]+)"\]|\[([^\]]+)\]|\("([^"]+)"\)|\(([^\)]+)\))?(?::::([A-Za-z0-9_]+))?$/;
+  const arrowRegex = /\s*(?:[-.=]+>\s*\|[^|]+\|[-.=]*>|[-.=]+>\s*\|[^|]+\||[-.=]+(?:\s*\|[^|]+\|)?\s*[-.=]*>|[-.=]+>)\s*/;
 
   for (const line of lines) {
     if (line.startsWith('graph ') || line.startsWith('flowchart ')) {
@@ -79,31 +78,42 @@ export function parseMermaidArchitecture(mermaidCode: string): TargetArchitectur
     if (subgraphMatch) {
       const id = subgraphMatch[1];
       const name = subgraphMatch[2] || subgraphMatch[3] || id;
-      currentLayer = {
+      const newLayer: Layer = {
         id,
         name,
         order: layerOrder++,
       };
-      layers.push(currentLayer);
+      layers.push(newLayer);
+      layerStack.push(newLayer);
       continue;
     }
 
-    if (endRegex.test(line)) {
-      currentLayer = null;
+    if (endRegex.test(line.trim())) {
+      layerStack.pop();
       continue;
     }
 
-    const edgeMatch = line.match(edgeRegex);
-    if (edgeMatch) {
-      const from = edgeMatch[1];
-      const to = edgeMatch[2];
-      allowDependencies.push({ from, to });
-      continue;
+    // Check if line contains edge(s)
+    if (arrowRegex.test(line)) {
+      const rawParts = line.split(arrowRegex).map((p) => p.trim()).filter(Boolean);
+      const nodeExtractRegex = /^([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)/;
+      const nodeIds: string[] = [];
+      for (const part of rawParts) {
+        const m = part.match(nodeExtractRegex);
+        if (m) nodeIds.push(m[1]);
+      }
+      if (nodeIds.length >= 2) {
+        for (let i = 0; i < nodeIds.length - 1; i++) {
+          allowDependencies.push({ from: nodeIds[i], to: nodeIds[i + 1] });
+        }
+        continue;
+      }
     }
 
     // Check if it's a node inside a subgraph
+    const currentLayer = layerStack.length > 0 ? layerStack[layerStack.length - 1] : null;
     if (currentLayer) {
-      const nodeMatch = line.match(nodeRegex);
+      const nodeMatch = line.trim().match(nodeRegex);
       if (nodeMatch) {
         const id = nodeMatch[1];
         const name = nodeMatch[2] || nodeMatch[3] || nodeMatch[4] || nodeMatch[5] || id;

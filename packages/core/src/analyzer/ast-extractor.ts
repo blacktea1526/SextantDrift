@@ -8,6 +8,7 @@ export interface ImportEvidence {
   kind: ImportKind;
   isTypeOnly: boolean;
   importedSymbols?: string[];
+  typeOnlySymbols?: string[];
   line: number;
   column: number;
   snippet: string;
@@ -80,6 +81,7 @@ export function extractDependenciesFromSource(
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
         let isTypeOnly = node.importClause?.isTypeOnly ?? false;
         const importedSymbols: string[] = [];
+        const typeOnlySymbols: string[] = [];
 
         if (node.importClause) {
           if (node.importClause.name) {
@@ -94,7 +96,11 @@ export function extractDependenciesFromSource(
                 isTypeOnly = true;
               }
               for (const el of elements) {
-                importedSymbols.push((el.propertyName || el.name).text);
+                const sym = (el.propertyName || el.name).text;
+                importedSymbols.push(sym);
+                if (el.isTypeOnly) {
+                  typeOnlySymbols.push(sym);
+                }
               }
             }
           }
@@ -106,6 +112,7 @@ export function extractDependenciesFromSource(
           kind: 'import',
           isTypeOnly,
           importedSymbols,
+          typeOnlySymbols: typeOnlySymbols.length > 0 ? typeOnlySymbols : undefined,
           line: line + 1,
           column: character + 1,
           snippet: getLineSnippet(line + 1),
@@ -119,6 +126,7 @@ export function extractDependenciesFromSource(
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
         let isTypeOnly = node.isTypeOnly;
         const importedSymbols: string[] = [];
+        const typeOnlySymbols: string[] = [];
 
         if (!node.exportClause) {
           importedSymbols.push('*');
@@ -130,7 +138,11 @@ export function extractDependenciesFromSource(
             isTypeOnly = true;
           }
           for (const el of elements) {
-            importedSymbols.push((el.propertyName || el.name).text);
+            const sym = (el.propertyName || el.name).text;
+            importedSymbols.push(sym);
+            if (el.isTypeOnly) {
+              typeOnlySymbols.push(sym);
+            }
           }
         }
 
@@ -140,6 +152,7 @@ export function extractDependenciesFromSource(
           kind: 'export-from',
           isTypeOnly,
           importedSymbols,
+          typeOnlySymbols: typeOnlySymbols.length > 0 ? typeOnlySymbols : undefined,
           line: line + 1,
           column: character + 1,
           snippet: getLineSnippet(line + 1),
@@ -147,7 +160,7 @@ export function extractDependenciesFromSource(
       }
     }
 
-    // 3. CallExpressions: dynamic import('...') or require('...')
+    // 3. CallExpressions: dynamic import('...'), require('...'), require.resolve('...'), or createRequire(...)('...')
     if (ts.isCallExpression(node)) {
       // Dynamic import: import('...')
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
@@ -178,6 +191,79 @@ export function extractDependenciesFromSource(
             kind: 'require',
             isTypeOnly: false,
             importedSymbols: extractSymbolsFromCallContext(node),
+            line: line + 1,
+            column: character + 1,
+            snippet: getLineSnippet(line + 1),
+          });
+        }
+      }
+
+      // require.resolve('...')
+      if (
+        ts.isPropertyAccessExpression(node.expression) &&
+        ts.isIdentifier(node.expression.expression) &&
+        node.expression.expression.text === 'require' &&
+        node.expression.name.text === 'resolve'
+      ) {
+        const firstArg = node.arguments[0];
+        if (firstArg && isModuleStringLike(firstArg)) {
+          const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          evidences.push({
+            sourceFile: sourceFilePath,
+            rawSpecifier: firstArg.text,
+            kind: 'require',
+            isTypeOnly: false,
+            importedSymbols: [],
+            line: line + 1,
+            column: character + 1,
+            snippet: getLineSnippet(line + 1),
+          });
+        }
+      }
+
+      // createRequire(...)('...')
+      if (
+        ts.isCallExpression(node.expression) &&
+        ts.isIdentifier(node.expression.expression) &&
+        node.expression.expression.text === 'createRequire'
+      ) {
+        const firstArg = node.arguments[0];
+        if (firstArg && isModuleStringLike(firstArg)) {
+          const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          evidences.push({
+            sourceFile: sourceFilePath,
+            rawSpecifier: firstArg.text,
+            kind: 'require',
+            isTypeOnly: false,
+            importedSymbols: extractSymbolsFromCallContext(node),
+            line: line + 1,
+            column: character + 1,
+            snippet: getLineSnippet(line + 1),
+          });
+        }
+      }
+    }
+
+    // 4. NewExpression: new URL('./...', import.meta.url)
+    if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'URL') {
+      if (node.arguments && node.arguments.length >= 2) {
+        const firstArg = node.arguments[0];
+        const secondArg = node.arguments[1];
+
+        const isImportMetaUrl =
+          ts.isPropertyAccessExpression(secondArg) &&
+          secondArg.name.text === 'url' &&
+          ts.isMetaProperty(secondArg.expression) &&
+          secondArg.expression.keywordToken === ts.SyntaxKind.ImportKeyword;
+
+        if (isImportMetaUrl && isModuleStringLike(firstArg)) {
+          const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          evidences.push({
+            sourceFile: sourceFilePath,
+            rawSpecifier: firstArg.text,
+            kind: 'dynamic-import',
+            isTypeOnly: false,
+            importedSymbols: [],
             line: line + 1,
             column: character + 1,
             snippet: getLineSnippet(line + 1),

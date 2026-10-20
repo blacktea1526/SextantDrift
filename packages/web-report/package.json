@@ -1,6 +1,6 @@
 {
   "name": "@sextant/web-report",
-  "version": "2.0.0",
+  "version": "2.0.3",
   "description": "SextantDrift Web Report — 100% Offline Native SVG Dual-Diagram Architecture Inspection Report Generator",
   "author": "blacktea1526 (https://github.com/blacktea1526)",
   "type": "module",

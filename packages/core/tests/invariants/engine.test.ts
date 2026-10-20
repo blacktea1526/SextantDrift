@@ -417,5 +417,51 @@ export async function diskAction() {
       expect(warn.message).toContain('specifies must_precede ["auth.verify"] but lacks pattern.target');
     });
   });
+
+  describe('Go source', () => {
+    it('applies forbid_import and does not guess call order from Go text', () => {
+      const goSequenceRule: InvariantRule = {
+        id: 'AUTH_BEFORE_QUERY',
+        severity: 'critical',
+        desc: 'auth.verify must precede db.query',
+        pattern: {
+          must_precede: ['auth.verify'],
+          target: ['db.query'],
+          scope: 'cmd/**',
+        },
+      };
+      const goImportRule: InvariantRule = {
+        id: 'NO_PQ',
+        severity: 'critical',
+        desc: 'Do not import the Postgres driver from the API',
+        pattern: {
+          forbid_import: ['github.com/lib/pq'],
+          in_path: 'cmd/**',
+        },
+      };
+      const content = `package main
+
+import "github.com/lib/pq"
+
+func run() {
+    db.query()
+    auth.verify()
+}
+`;
+      const violations = executeInvariantsEngine({
+        rootDir: '/fake/root',
+        filePaths: ['cmd/main.go'],
+        rules: [goSequenceRule, goImportRule],
+        fileContentMap: new Map([['cmd/main.go', content]]),
+      });
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toMatchObject({
+        type: 'INVARIANT_BROKEN',
+        ruleId: 'NO_PQ',
+        sourceFile: 'cmd/main.go',
+      });
+    });
+  });
 });
 

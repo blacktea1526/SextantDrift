@@ -1,0 +1,15 @@
+{
+  "$schema": "https://sextant-drift.dev/schema/v2.json",
+  "name": "design-intent-order",
+  "layers": [
+    { "id": "Domain", "name": "Domain Services", "order": 1 },
+    { "id": "Port", "name": "Ports", "order": 2 }
+  ],
+  "components": [
+    { "id": "OrderService", "name": "Order Services", "layerId": "Domain", "paths": ["src/services/**"] },
+    { "id": "OrderPorts", "name": "Order Ports", "layerId": "Port", "paths": ["src/ports/**"] }
+  ],
+  "allowDependencies": [
+    { "from": "OrderService", "to": "OrderPorts" }
+  ]
+}

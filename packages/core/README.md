@@ -100,9 +100,9 @@ SextantDrift 构建了全方位的架构维度检测矩阵，全面拦截各类�
 
 | 支持层级 | 覆盖生态与语言 | 支撑能力与技术实现 | 状态与适用场景 |
 | :--- | :--- | :--- | :---: |
-| **Tier 1: 原生编译级深度 (First-Class AST)** | **TypeScript, JavaScript, TSX/JSX**<br>(Node.js, Bun, Deno, Next.js, NestJS, Express) | 深度集成 TypeScript Compiler API：秒级构建全量模块物理依赖 DAG、C4 容器分层越界分析、Tarjan 循环检测、AST 语句级语义不变量拦截、REST/Nest 路由契约自动抽取。 | **生产就绪 (GA)**<br>当前工程全功能支持 |
-| **Tier 2: 跨语言通用协议 (Polyglot Dynamic & Contract)** | **Go, Python, Rust, Java, C# 等任意语言** | **协议级解耦**：通过标准 JSON 运行时 Trace 协议（`.sextant/trace.json`）与 Markdown API 契约（`api-contract.md`），任何语言均可无缝享受因果时序差分（Dynamic Causality）与 API 契约对齐门禁。 | **生产就绪 (GA)**<br>无需改动语言编译器 |
-| **Tier 3: 跨语言静态 AST 规划 (Multi-Language Roadmap)** | **Go, Python, Rust** | 规划引入基于 WebAssembly / Tree-sitter 的多语言通用 AST 解析适配器，提供对 Go Packages、Python Modules 及 Cargo Crates 的原生静态物理拓扑提取。 | **演进规划中 (Roadmap)**<br>v2.5+ 版本引入 |
+| **Tier 1: 原生编译级深度 (First-Class AST)** | **TypeScript, JavaScript, TSX/JSX, Python, Go**<br>(Node.js, Bun, Deno, Next.js, NestJS, Express) | 深度集成 TypeScript Compiler API，以及纯 TS 的 Python / Go 导入解析：秒级构建全量模块物理依赖 DAG、C4 容器分层越界分析、Tarjan 循环检测、AST 语句级语义不变量拦截、REST/Nest 路由契约自动抽取。Go 覆盖 `import` 与 `go.mod` 的包拓扑（分层越界、环路、违禁依赖）。 | **生产就绪 (GA)**<br>当前工程全功能支持 |
+| **Tier 2: 跨语言通用协议 (Polyglot Dynamic & Contract)** | **Go, Rust, Java, C# 等任意语言** | **协议级解耦**：通过标准 JSON 运行时 Trace 协议（`.sextant/trace.json`，**experimental**）与 Markdown API 契约（`api-contract.md`），任何语言均可接入因果时序差分（Dynamic Causality）与 API 契约对齐门禁。 | **部分就绪 / Trace 实验性**<br>无需改动语言编译器 |
+| **Tier 3: 跨语言静态 AST 规划 (Multi-Language Roadmap)** | **Rust** | 规划引入基于 WebAssembly / Tree-sitter 的 AST 解析适配器，提供对 Cargo Crates 的原生静态物理拓扑提取。 | **演进规划中 (Roadmap)**<br>v2.5+ 版本引入 |
 
 ---
 
@@ -139,7 +139,7 @@ SextantDrift 构建了全方位的架构维度检测矩阵，全面拦截各类�
 
 ### 2.7 严苛的项目自举架构验证
 - **Self-Dogfooding 铁律**：SextantDrift Monorepo 自身全面遵循该规范约束，并在自身编译与测试流程中作为第一项验收标准；
-- **覆盖率与完备性**：内置 49 个测试套件、250 个测试用例，涵盖各类边界情况与极端图拓扑，代码质量经久耐用。
+- **覆盖率与完备性**：内置 65 个测试文件、392 个测试用例，涵盖各类边界情况与极端图拓扑，代码质量经久耐用。
 
 ---
 
@@ -457,7 +457,7 @@ SextantDrift 源码仓库自带跨平台的统一开发调度中枢 `./start.sh`
 
 ```bash
 ./start.sh            # 启动本地可视化审查工作台 (Workbench Web Server @ 3000)
-./start.sh --test     # 执行全套单元测试 (Vitest CLI, 49 个套件, 250 个用例全部通过)
+./start.sh --test     # 执行全套单元测试 (Vitest CLI, 65 个测试文件, 392 个用例全部通过)
 ./start.sh --ui       # 启动 Vitest UI 交互式测试仪表盘
 ./start.sh --check    # 执行三维架构门禁实测 (包含 SextantDrift 自身自举核验)
 ./start.sh --build    # 全量构建所有子包 (@sextant/core, sextant-drift)

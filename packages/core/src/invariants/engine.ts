@@ -4,7 +4,8 @@ import ts from 'typescript';
 import { InvariantRule } from '../types/architecture.js';
 import { ViolationEvidence } from '../types/report.js';
 import { matchSequenceInvariants, matchesScope } from './sequence-matcher.js';
-import { matchImportInvariants } from './import-matcher.js';
+import { matchImportInvariants, matchGoImportInvariants } from './import-matcher.js';
+import { detectSourceLanguage } from '../analyzer/source-language.js';
 import { matchConfigInvariants } from './config-matcher.js';
 
 export interface InvariantsEngineOptions {
@@ -102,6 +103,30 @@ export function executeInvariantsEngine(options: InvariantsEngineOptions): Viola
     });
 
     if (!matchesAnyRule) {
+      continue;
+    }
+
+    // Go import invariants use the Go extractor. Sequence and config rules stay
+    // TypeScript-only: parsing Go with the TypeScript compiler would guess call order.
+    if (detectSourceLanguage(relPath) === 'go') {
+      if (importRules.length > 0) {
+        let goContent: string | undefined;
+        if (fileContentMap?.has(relPath)) {
+          goContent = fileContentMap.get(relPath);
+        } else {
+          const fullPath = path.isAbsolute(relPath) ? relPath : path.resolve(rootDir, relPath);
+          if (fs.existsSync(fullPath)) {
+            try {
+              goContent = fs.readFileSync(fullPath, 'utf-8');
+            } catch {
+              goContent = undefined;
+            }
+          }
+        }
+        if (goContent !== undefined) {
+          violations.push(...matchGoImportInvariants(goContent, relPath, importRules));
+        }
+      }
       continue;
     }
 

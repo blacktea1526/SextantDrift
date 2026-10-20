@@ -46,6 +46,7 @@ const TYPE_LABELS: Record<string, { zh: string; en: string }> = {
   WARN_UNRESOLVED_IMPORT: { zh: '导入未解析', en: 'Unresolved Import' },
   WARN_PARTIAL_BARREL_RESOLUTION: { zh: 'Barrel 部分解析', en: 'Partial Barrel Resolution' },
   WARN_RULE_MISSING_TARGET: { zh: '规则缺少目标', en: 'Rule Missing Target' },
+  WARN_EMPTY_COMPONENT: { zh: '空组件待实现', en: 'Empty Component Pending' },
 };
 
 /** Falls back to a title-cased rendering for unknown/newly added categories. */

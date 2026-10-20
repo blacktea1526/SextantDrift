@@ -154,5 +154,54 @@ export async function load() {
     // Wildcard dynamic import (no destructuring)
     expect(evidences[5].importedSymbols).toEqual(['*']);
   });
+
+  it('should capture require.resolve, createRequire calls, and new URL(..., import.meta.url)', () => {
+    const code = `
+const pathA = require.resolve('./service.js');
+const legacyMod = createRequire(import.meta.url)('./legacy-lib.cjs');
+const workerUrl = new URL('./worker.js', import.meta.url);
+`;
+    const evidences = extractDependenciesFromSource('src/loader.ts', code);
+    expect(evidences).toHaveLength(3);
+
+    expect(evidences[0]).toMatchObject({
+      rawSpecifier: './service.js',
+      kind: 'require',
+      isTypeOnly: false,
+      line: 2,
+    });
+
+    expect(evidences[1]).toMatchObject({
+      rawSpecifier: './legacy-lib.cjs',
+      kind: 'require',
+      isTypeOnly: false,
+      line: 3,
+    });
+
+    expect(evidences[2]).toMatchObject({
+      rawSpecifier: './worker.js',
+      kind: 'dynamic-import',
+      isTypeOnly: false,
+      line: 4,
+    });
+  });
+
+  it('should track fine-grained typeOnlySymbols for mixed imports and exports', () => {
+    const code = `
+import { type UserType, UserService, type RoleType } from './user.js';
+export { type AdminType, AdminService } from './admin.js';
+`;
+    const evidences = extractDependenciesFromSource('src/types-mixed.ts', code);
+    expect(evidences).toHaveLength(2);
+
+    expect(evidences[0].isTypeOnly).toBe(false);
+    expect(evidences[0].importedSymbols).toEqual(['UserType', 'UserService', 'RoleType']);
+    expect(evidences[0].typeOnlySymbols).toEqual(['UserType', 'RoleType']);
+
+    expect(evidences[1].isTypeOnly).toBe(false);
+    expect(evidences[1].importedSymbols).toEqual(['AdminType', 'AdminService']);
+    expect(evidences[1].typeOnlySymbols).toEqual(['AdminType']);
+  });
 });
+
 

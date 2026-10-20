@@ -5,6 +5,9 @@ import { runCheck } from '../commands/check.js';
 import { runInit } from '../commands/init.js';
 import { runBaseline } from '../commands/baseline.js';
 import { runReport } from '../commands/report.js';
+import { runMcp } from '../commands/mcp.js';
+import { runVerify } from '../commands/verify.js';
+import { runRequirements } from '../commands/requirements.js';
 import { exitWithCode } from '../utils/exit.js';
 
 const cli = cac('sextant-drift');
@@ -14,7 +17,7 @@ cli
   .option('-c, --config <path>', 'Path to custom sextant specification')
   .option('-b, --baseline <path>', 'Path to custom baseline.json')
   .option('-t, --tsconfig <path>', 'Path to tsconfig.json')
-  .option('--trace <path>', 'Path to runtime trace JSON file (.sextant/trace.json)')
+  .option('--trace <path>', 'Path to runtime trace JSON (experimental Phase 5 dynamic causality)')
   .option('--contract <path>', 'Path to API contract specification (e.g. api-contract.md)')
   .option('--json', 'Output machine-readable JSON')
   .option('--strict', 'Treat warnings as errors')
@@ -25,6 +28,8 @@ cli
   .option('--fix-manifest', 'Output compact YAML Fix Manifest for AI remediation (token-optimized)')
   .option('--ai-prompt', 'Output ready-to-execute prompt for AI coding assistants')
   .option('--count-type-only', 'Include type-only imports in architectural drift detection (default: false)')
+  .option('--allow-empty', 'Allow declared skeleton components matching 0 files (default: true)')
+  .option('--forbid-empty', 'Treat components matching 0 files as fatal configuration errors')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
@@ -35,7 +40,7 @@ cli
   .option('-c, --config <path>', 'Path to custom sextant specification')
   .option('-b, --baseline <path>', 'Path to custom baseline.json')
   .option('-t, --tsconfig <path>', 'Path to tsconfig.json')
-  .option('--trace <path>', 'Path to runtime trace JSON file (.sextant/trace.json)')
+  .option('--trace <path>', 'Path to runtime trace JSON (experimental Phase 5 dynamic causality)')
   .option('--contract <path>', 'Path to API contract specification (e.g. api-contract.md)')
   .option('--json', 'Output machine-readable JSON')
   .option('--strict', 'Treat warnings as errors')
@@ -46,9 +51,20 @@ cli
   .option('--fix-manifest', 'Output compact YAML Fix Manifest for AI remediation (token-optimized)')
   .option('--ai-prompt', 'Output ready-to-execute prompt for AI coding assistants')
   .option('--count-type-only', 'Include type-only imports in architectural drift detection (default: false)')
+  .option('--allow-empty', 'Allow declared skeleton components matching 0 files (default: true)')
+  .option('--forbid-empty', 'Treat components matching 0 files as fatal configuration errors')
   .action(async (dir, options) => {
     const code = await runCheck(dir, options);
     exitWithCode(code);
+  });
+
+cli
+  .command('verify [dir]', 'Run structural gate and version-bound acceptance tests (Vitest 2.1.x)')
+  .option('-c, --config <path>', 'Path to custom sextant specification')
+  .option('--json', 'Output machine-readable verification result')
+  .option('--timeout <ms>', 'Whole test-process deadline in milliseconds (default: 10000)')
+  .action(async (dir, options) => {
+    exitWithCode(await runVerify(dir, options));
   });
 
 cli
@@ -85,19 +101,36 @@ cli
     exitWithCode(code);
   });
 
+cli
+  .command('requirements <entityId> [dir]', 'List declared review scope for one business requirement entity')
+  .option('-c, --config <path>', 'Path to custom sextant specification')
+  .action(async (entityId: string, dir: string | undefined, options: { config?: string }) => {
+    const code = await runRequirements(entityId, dir, options);
+    exitWithCode(code);
+  });
+
+cli
+  .command('mcp [action]', 'Model Context Protocol (MCP) server for Cursor, Claude Code, and Windsurf (action: run | install)')
+  .option('-g, --global', 'Install globally into ~/.cursor/mcp.json instead of project workspace')
+  .action(async (action, options) => {
+    const code = await runMcp(action, options);
+    exitWithCode(code);
+  });
+
+
 cli.help((sections) => {
   sections.push({
     title: 'Language & Ecosystem Matrix',
     body: [
-      '  Tier 1 (Native AST): TypeScript, JavaScript, TSX/JSX, Node.js, Bun, Next.js, NestJS',
-      '  Tier 2 (Polyglot Dynamic): Any backend language via .sextant/trace.json & api-contract.md',
-      '  Tier 3 (Roadmap): Go, Python, Rust via Tree-sitter AST engine',
+      '  Tier 1 (Native AST): TypeScript, JavaScript, TSX/JSX, Python, Go, Node.js, Bun, Next.js, NestJS',
+      '  Tier 2 (Polyglot Dynamic / experimental --trace): Any language via .sextant/trace.json & api-contract.md',
+      '  Tier 3 (Roadmap): Rust via Tree-sitter AST engine',
     ].join('\n'),
   });
 });
 
 declare const __CLI_VERSION__: string | undefined;
 
-cli.version(typeof __CLI_VERSION__ !== 'undefined' ? __CLI_VERSION__ : '2.0.2');
+cli.version(typeof __CLI_VERSION__ !== 'undefined' ? __CLI_VERSION__ : '2.0.3');
 
 cli.parse();

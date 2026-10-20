@@ -6,7 +6,7 @@ export interface FileScannerOptions {
   ignoredDirs?: string[];
 }
 
-const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py'];
+const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go'];
 const DEFAULT_IGNORED_DIRS = [
   'node_modules',
   '.git',
@@ -24,6 +24,8 @@ const DEFAULT_IGNORED_DIRS = [
   'venv',
   'env',
   '.tox',
+  'vendor',
+  'testdata',
 ];
 
 /**
