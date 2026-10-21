@@ -1,135 +1,100 @@
 # SextantDrift (六分仪架构偏航检测罗盘)
 
-> **面向现代工程与 AI 编程的架构偏航检测工具**  
-> 通过对比架构设计规范与源码实际拓扑，快速捕获跨层调用、循环依赖与语义规则违规。
+<p align="center">
+  <strong>面向 2026 AI Coding 与现代工程团队的「架构 X 光机与偏航检测罗盘」</strong><br>
+  <em>Design by Diagram, Diff by Diagram · 用确定性拓扑与红绿差分终结盲目肉眼审查</em>
+</p>
 
-[ 简体中文 ](README.md) | [ English ](README_EN.md)
+<p align="center">
+  <a href="README.md">简体中文</a> | <a href="README_EN.md">English</a>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
-[![Vitest](https://img.shields.io/badge/Vitest-2.1-green.svg)](https://vitest.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-
----
-
-## 目录
-
-- [仓库地图](#仓库地图)
-- [一、项目简介](#一项目简介)
-  - [1.1 解决的问题](#11-解决的问题)
-  - [1.2 双图差分模式](#12-双图差分模式)
-  - [1.3 核心检测能力](#13-核心检测能力)
-- [二、快速上手 (Quick Start)](#二快速上手-quick-start)
-- [三、安装指南](#三安装指南)
-- [四、详细使用教程](#四详细使用教程)
-  - [4.1 步骤 1：一键初始化架构规范 (init)](#41-步骤-1一键初始化架构规范-init)
-  - [4.2 步骤 2：配置与定制架构规范 (sextant.json)](#42-步骤-2配置与定制架构规范-sextantjson)
-  - [4.3 步骤 3：执行架构偏航检查 (check)](#43-步骤-3执行架构偏航检查-check)
-  - [4.4 步骤 4：存量项目平滑纳管 (baseline)](#44-步骤-4存量项目平滑纳管-baseline)
-  - [4.5 步骤 5：生成可视化审查报告 (report)](#45-步骤-5生成可视化审查报告-report)
-  - [4.6 语义不变量 (Semantic Invariants) 配置实战](#46-语义不变量-semantic-invariants-配置实战)
-- [五、工程实践与 CI/CD 集成](#五工程实践与-cicd-集成)
-  - [5.1 Git Pre-commit Hook 集成](#51-git-pre-commit-hook-集成)
-  - [5.2 GitHub Actions 自动化门禁](#52-github-actions-自动化门禁)
-  - [5.3 与 AI 编程助手协同修复](#53-与-ai-编程助手协同修复)
-- [六、CLI 命令行参数完整参考](#六cli-命令行参数完整参考)
-- [七、项目自测与开发管理](#七项目自测与开发管理)
-- [八、开源协议](#八开源协议)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.6-blue.svg" alt="TypeScript"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen.svg" alt="Node.js"></a>
+  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Native%20Server-purple.svg" alt="MCP Server"></a>
+  <a href="https://github.com/blacktea1526/SextantDrift"><img src="https://img.shields.io/badge/Polyglot-TS%20%7C%20Python%20%7C%20Go-orange.svg" alt="Polyglot"></a>
+</p>
 
 ---
 
-## 仓库地图
+## 💡 为什么需要 SextantDrift？
 
-| 路径 | 职责 |
-| --- | --- |
-| `AGENTS.md` | Agent 戒律与必须遵守的工程约束 |
-| `MISSION.md` | 为什么做、不做什么 |
-| `ARCHITECTURE.md` | 本仓库自己的 C4 与依赖流向 |
-| `TECH_STACK.md` | 技术选型与分包边界 |
-| `ROADMAP.md` | 阶段进度与任务切片 |
-| `docs/decisions/` | ADR |
-| `docs/REQUIREMENTS.md` | 产品需求 |
-| `specs/` | 已写完的阶段规格；其中四个 `*.md` 是指向根目录的符号链接 |
-| `openspec/` | 之后新变更的提案与规格 |
-| `index.html` | 本地图纸工作台，由 `./start.sh` 提供 |
-| `packages/` | `core`、`cli`、`mcp-server`、`web-report` |
+2026 年软件工程的核心矛盾是：**“人审不过来 AI 写出的代码”**。
+
+AI 辅助编程（Cursor、Claude Code、Copilot、Antigravity）使代码产出速度暴涨，但随之而来的是：
+- **行级 `git diff` 支离破碎**：成百上千行改动掩盖了架构违规，开发者“见木不见林”，看不出 Controller 越过了 Service 直连数据库，更看不出模块间形成了隐蔽的循环依赖；
+- **传统设计图画完即弃**：不管是 Miro、Draw.io 还是文字 PRD，画完便与代码脱节，管不住代码的腐化；
+- **Agent 自证即幻觉**：让 AI “自我审查代码是否符合架构”，无异于让嫌疑人自写结案报告，必出幻觉套娃。
+
+**SextantDrift 的回答**：
+> 抛弃文字巨石与脆弱的 Agent 自述，打造确定性的**“架构 X 光机”**。  
+> **80% 图（骨架与拓扑） + 20% 规则（灵魂与语义不变量）**，永远只看设计意图与源码实际拓扑的**两张图红绿差分**。
 
 ---
 
-## 一、项目简介
-
-### 1.1 解决的问题
-
-在日常开发以及使用 AI 编码助手（如 Cursor、Claude Code、Copilot 等）的过程中，代码产出速度大幅提升，但架构结构往往容易在局部调整中逐渐偏航：
-- **跨层直接调用**：表现层控制器绕过业务服务层，直接调用数据库仓储或 ORM 实例；
-- **逆向与循环依赖**：底层模块反向引用上层组件，或多个服务间形成循环调用网；
-- **时序与规范破损**：颠倒关键操作次序（如未持久化落库即发起外部不可靠网络请求），或在客户端模块中引入服务端私有模块。
-
-SextantDrift 通过对源码进行 AST 依赖解析，将代码实际拓扑与既定架构设计规范进行比对，精确定位违规位置并提供修改建议，作为本地开发与 CI 流水线的架构质量门禁。
-
----
-
-### 1.2 双图差分模式
-
-SextantDrift 采用清晰的“设计意图 vs 代码实现”差分机制：
+## ⚡ 核心能力全景 (Key Capabilities)
 
 ```
 ┌──────────────────────────────────────┐             ┌──────────────────────────────────────┐
 │        设计意图 (Target Spec)         │             │        真实代码 (Actual Code)         │
-│     分层定义 · 允许连线 · 语义约束    │     VS      │    从源码 AST 精确提取的实际物理拓扑  │
+│     C4 分层 · 允许连线 · 语义约束     │     VS      │    从源码 AST 确凿解析的物理调用图   │
 └──────────────────────────────────────┘    (Diff)   └──────────────────────────────────────┘
                    │                                                     │
                    └──────────────────────────┬──────────────────────────┘
                                               ▼
-                        ┌──────────────────────────────────────────┐
-                        │        偏航告警区 (Drift Findings)       │
-                        │    跨层越界 · 逆向依赖 · 破损语义规则    │
-                        │    循环依赖 · 状态机孤岛 · 违禁模块引入  │
-                        └──────────────────────────────────────────┘
+                         ┌──────────────────────────────────────────┐
+                         │        偏航告警区 (Drift Findings)       │
+                         │    跨层越界 · 逆向依赖 · 语义规则破损    │
+                         │    循环依赖 · 状态机死锁 · 违禁模块引入  │
+                         └──────────────────────────────────────────┘
 ```
 
-- **拓扑边界**：通过声明分层（Layers）与组件（Components），确立模块间允许的单向调用流；
-- **语义约束**：配合 3~5 条硬性规则（Semantic Invariants），约束调用先后顺序与模块导入边界。
+| 核心维度 | 检测能力 | 说明 |
+| :--- | :--- | :--- |
+| **层级防腐** | **跨层旁路 (Layer Bypass)** | 严格单向流动，阻断上层跳过中间层直连底层（如 Controller 直连 Repo） |
+| **依赖拓扑** | **逆向依赖 (Layer Inversion)** | 底层模块反向导入上层业务模块时立即阻断（如 Infra 反向引用 UI） |
+| **图环分析** | **循环依赖 (Circular Dependency)** | 基于 [Tarjan SCC 强连通分量算法](packages/core/src/graph/tarjan.ts) 毫秒级识别依赖闭环并定位成环文件 |
+| **模块边界** | **违规导入 (Forbidden Imports)** | 隔离关键边界（如前端严禁导入 Node 原生模块，领域层严禁导入 ORM 驱动） |
+| **时序语义** | **语义不变量 (Semantic Invariants)** | AST 模式匹配验证关键时序（如“落库持久化必须在外部不可靠调用之前发生”） |
+| **状态机安全** | **状态机完整性 (State Verifier)** | 解析 Mermaid 状态图，检测黑洞状态（无出口）、孤岛节点与缺失超时/降级分支 |
+| **设计可读** | **需求邻居图 (Understand First)** | [ADR-009](docs/decisions/ADR-009-report-understand-first.md) 默认 Understand 模式，按直接邻居投影四列排布，读懂设计后再看偏航 |
+| **生态互通** | **原生 MCP 服务 (@sextant/mcp-server)** | 为 Cursor / Claude 提供 `check_file` 毫秒级前置守卫，AI 编码即刻自我纠正 |
 
 ---
 
-### 1.3 核心检测能力
+## 🌐 多语言支持矩阵 (Polyglot Matrix)
 
-| 检测项 | 说明 | 常见场景 | 默认严重度 |
-| :--- | :--- | :--- | :---: |
-| **跨层旁路 (Layer Bypass)** | 上层模块跳过中间层直接调用底层组件 | Controller 直接依赖 Repository 或 ORM 驱动 | `CRITICAL` |
-| **逆向依赖 (Layer Inversion)** | 底层模块反向导入上层业务模块 | Domain / Infra 层引用 Presentation 控制器 | `CRITICAL` |
-| **循环依赖 (Circular Dependencies)** | 组件之间存在互相依赖或间接成环 | `ComponentA -> ComponentB -> ComponentA` | `CRITICAL` |
-| **违规导入 (Forbidden Imports)** | 模块导入了被禁止的第三方包或系统内置库 | 前端组件中引入 Node.js 原生模块 (`fs`, `child_process`) | `CRITICAL` |
-| **语义不变量 (Semantic Invariants)** | 代码执行次序或调用配置违背约定 | 未落库前调用外部网络 API、外部请求缺少超时配置 | `CRITICAL / WARNING` |
-| **状态机校验 (State Verifier)** | Mermaid 状态机图存在死锁节点或缺失降级路径 | 流程存在孤岛状态、无转出分支的黑洞状态 | `CRITICAL / WARNING` |
+SextantDrift 绝不仅限于 TypeScript，它构建了跨语言的纯无头静态 AST 分析底座：
+
+- **Tier 1 (原生确凿 AST 分析)**：
+  - **TypeScript / JavaScript**（TS Compiler API，完全解析 TSX / JSX / ESM / CJS / 别名 / Barrel 重导出）
+  - **Python**（原生 AST 解析器，识别 `import`、`from ... import`、相对导入与包层级）
+  - **Go**（Go 语法与模块导入解析器，识别 Go 包依赖拓扑与跨层调用）
+- **Tier 2 (AI 规范与运行时因果)**：
+  - **OpenSpec & AGENTS.md**（原生兼容主流 Spec-Driven 工作流）
+  - **Mermaid C4 & StateDiagram**（架构意图只读投影与状态机校验）
+  - **动态运行时 Trace**（Phase 5 实验性异步因果 DAG 差分：`--trace`）
 
 ---
 
-## 二、快速上手 (Quick Start)
+## 🚀 三分钟快速上手 (Quick Start)
 
-无需复杂配置，只需 3 步即可在现有项目中运行架构检查：
+无需预先繁琐画图，支持**“逆向 X 光”推导现有代码**：
 
 ```bash
-# 步骤 1：扫描现有项目源码（默认扫描 src 目录），自动生成架构规范
+# 步骤 1：扫描现有项目源码（支持 TS/JS/Python/Go），自动反向推导架构规范
 npx sextant-drift init
 
-# 步骤 2：执行架构偏航检查，输出终端诊断
+# 步骤 2：执行极速架构偏航检查（五秒原则，输出终端诊断与精确行号）
 npx sextant-drift check
 
-# 步骤 3：生成单文件自包含的可视化差分报告
+# 步骤 3：生成自包含、零安装、纯原生 SVG 离线审查报告
 npx sextant-drift report
 ```
 
----
-
-## 三、安装指南
-
-### 环境要求
-- **Node.js**：`>= 18.0.0` (推荐 LTS 20+)
-- **包管理器**：`pnpm` / `npm` / `yarn`
-
-### 作为开发依赖安装
+### 全局安装或作为开发依赖引入
 
 ```bash
 # 使用 pnpm (推荐)
@@ -137,84 +102,71 @@ pnpm add -D sextant-drift
 
 # 使用 npm
 npm install --save-dev sextant-drift
-
-# 使用 yarn
-yarn add -D sextant-drift
 ```
-
-安装后即可直接使用 `npx sextant-drift` 或在 `package.json` 的 scripts 中配置快捷脚本。
 
 ---
 
-## 四、详细使用教程
+## 🤖 AI 编程协同：MCP 原生集成 (Cursor / Claude / Windsurf)
 
-### 4.1 步骤 1：一键初始化架构规范 (`init`)
+这是让 AI Coding Agent 保持架构理智的**最有效姿态**：在 AI 生成代码的瞬间进行毫秒级拦截，避免把脏代码提交到仓库。
 
-在已有项目中，你无需从头手写规范。运行 `init` 命令，SextantDrift 会扫描源码结构并推导初始分层与依赖：
-
+### 1. 一键为本地 IDE 安装 MCP 配置
 ```bash
-# 扫描当前项目的 src 目录
-npx sextant-drift init
+npx sextant-drift mcp install
+```
+命令会自动探测并安全写入 `.cursor/mcp.json` 或 Claude 桌面端配置。
 
-# 若源码位于其他目录，可通过 -s 或 --source-dir 指定
-npx sextant-drift init --source-dir app
-
-# 若当前目录已存在配置，使用 -f 或 --force 强制覆盖
-npx sextant-drift init --force
+### 2. 手动配置 (`.cursor/mcp.json`)
+```json
+{
+  "mcpServers": {
+    "sextant-drift": {
+      "command": "npx",
+      "args": ["-y", "sextant-drift", "mcp", "run"]
+    }
+  }
+}
 ```
 
-运行完成后，会在项目根目录下生成两个文件：
-1. **`sextant.json`**：架构规范的配置单源，包含完整 JSON Schema 支持，在 VSCode 等编辑器中自带类型校验与自动补全；
-2. **`ARCHITECTURE.md`**：内嵌 Mermaid 拓扑图的说明文档，可在代码仓库页面直接预览。
+### 3. AI 获得的四大超能力工具
+- **`check_file`**：单文件增量预检。AI 在保存/生成文件前调用，发现跨层即刻自行改对；
+- **`check_drift`**：全量架构体检，输出确定性的违规证据清单；
+- **`explain_violation`**：依据 AST 节点给出确定性的根因解释与重构代码示例；
+- **`init_target`**：协助人类逆向推导与梳理架构规范。
 
 ---
 
-### 4.2 步骤 2：配置与定制架构规范 (`sextant.json`)
+## 📖 核心工作流实战指南
 
-打开生成的 `sextant.json`，根据项目的实际架构分层进行微调。以下为一个典型的三层架构示例：
+### 1. 架构规范单源配置 (`sextant.json`)
+SextantDrift 遵循**“单源事实与开放媒介”**，以带有 JSON Schema 强校验的 `sextant.json` 为事实单源：
 
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/blacktea1526/SextantDrift/main/schemas/sextant.schema.json",
   "name": "MyProject",
-  "version": "1.0.0",
   "layers": [
-    {
-      "id": "presentation",
-      "name": "表现层 (Presentation)",
-      "order": 1,
-      "description": "API 控制器与路由入口"
-    },
-    {
-      "id": "domain",
-      "name": "业务层 (Domain)",
-      "order": 2,
-      "description": "业务服务与核心领域逻辑"
-    },
-    {
-      "id": "infrastructure",
-      "name": "基础设施层 (Infrastructure)",
-      "order": 3,
-      "description": "数据持久化、仓储与第三方集成"
-    }
+    { "id": "presentation", "name": "表现层", "order": 1 },
+    { "id": "domain", "name": "业务领域层", "order": 2 },
+    { "id": "infrastructure", "name": "基础设施层", "order": 3 }
   ],
   "components": [
     {
       "id": "controllers",
-      "name": "Controllers",
+      "name": "API 控制器",
       "layerId": "presentation",
       "paths": ["src/controllers/**"],
-      "forbiddenImports": ["@prisma/client", "typeorm"]
+      "forbiddenImports": ["@prisma/client", "typeorm", "src/repositories/**"]
     },
     {
       "id": "services",
-      "name": "Services",
+      "name": "业务服务",
       "layerId": "domain",
       "paths": ["src/services/**"]
     },
     {
       "id": "repositories",
-      "name": "Repositories",
+      "name": "数据仓储",
       "layerId": "infrastructure",
       "paths": ["src/repositories/**"]
     }
@@ -222,329 +174,117 @@ npx sextant-drift init --force
   "allowDependencies": [
     { "from": "controllers", "to": "services" },
     { "from": "services", "to": "repositories" }
+  ],
+  "invariants": [
+    {
+      "id": "PERSIST_BEFORE_EXTERNAL",
+      "severity": "critical",
+      "desc": "用户数据必须先持久化落库，方可发起外部 LLM 或支付调用",
+      "pattern": {
+        "must_precede": ["orderRepo.save", "db.orders.create"],
+        "target": ["llmClient.generate", "paymentGateway.charge"],
+        "scope": "src/services/**"
+      }
+    }
   ]
 }
 ```
 
-#### 配置字段解析：
-- **`layers`**：定义层级列表。`order` 越小代表层级越靠上（上层可依赖下层，下层不可反向依赖上层）；
-- **`components`**：定义逻辑组件。通过 `paths` glob 模式匹配物理文件目录；
-- **`forbiddenImports`**：针对特定组件设置禁止引入的库或路径；
-- **`allowDependencies`**：显式声明允许的组件间调用关系。未声明的调用或跨层调用将被检测为违规。
-
----
-
-### 4.3 步骤 3：执行架构偏航检查 (`check`)
-
-在代码开发中或提交代码前，运行 `check` 命令检查是否发生架构违规：
+### 2. 存量老项目平滑纳管 (`baseline`)
+新接入老项目时，无需被历史遗留问题吓退：
 
 ```bash
-# 基础检查
-npx sextant-drift check
-
-# 严格模式：将 Warning 级别警告视为失败
-npx sextant-drift check --strict
-
-# 输出机器可读的 JSON 格式
-npx sextant-drift check --json
-
-# 指定特定的 Monorepo 子包目录
-npx sextant-drift check --filter packages/core
-
-# 检查中包含纯类型导入（默认仅检查运行时实际导入）
-npx sextant-drift check --count-type-only
-
-# 检查同时输出可视化 HTML 报告
-npx sextant-drift check --report
-```
-
-#### 终端诊断输出示例：
-
-```text
-✖ Architectural Drift Detected! (Found 2 violations)
-
-[CRITICAL] Layer Bypass Violation:
-  From: Controllers (src/controllers/order.controller.ts)
-  To:   Repositories (src/repositories/order.repo.ts)
-  Evidence: src/controllers/order.controller.ts:42:15
-  Snippet:
-    41 |   async createOrder(req: Request, res: Response) {
-  > 42 |     const repo = new OrderRepository();
-       |                      ^^^^^^^^^^^^^^^
-    43 |     await repo.insert(req.body);
-  Suggestion: Controllers must not bypass Services. Call OrderService instead.
-
-[CRITICAL] Semantic Invariant Broken (PERSIST_BEFORE_EXTERNAL):
-  Evidence: src/services/payment.service.ts:18:7
-  Rule: 外部支付调用前必须先完成订单持久化落库
-  Suggestion: Move orderRepo.save() before paymentGateway.charge()
-
-Checked 86 files (142 dependencies) in 380ms. Exit code: 1
-```
-
-#### 退出码说明 (Exit Codes)：
-- **`0`**：架构合规，未发现偏航，门禁通过；
-- **`1`**：存在架构偏航或不变量破损，门禁阻断；
-- **`2`**：参数有误或配置文件解析异常。
-
----
-
-### 4.4 步骤 4：存量项目平滑纳管 (`baseline`)
-
-对于既有的老项目，首次接入可能存在较多历史遗留违规。SextantDrift 支持基准线机制，隔离既有债务，确保**不引入新违规 (No New Drift)**：
-
-```bash
-# 步骤 1：记录当前所有既有违规并生成快照
+# 生成当前违规指纹快照 (.sextant/baseline.json)
 npx sextant-drift baseline
 ```
+- 后续在 CI 中执行 `npx sextant-drift check` 时，**已记录的历史违规将被豁免**；
+- 门禁仅拦截**增量新引入的违规（No New Drift）**，保障架构不再恶化，逐步平滑重构。
 
-- 该命令会在 `.sextant/baseline.json` 中保存当前所有违规的语义指纹；
-- 将 `.sextant/baseline.json` 提交到版本库后，后续执行 `npx sextant-drift check` 时，**存量违规将被自动豁免，只有新引入的代码偏航才会触发告警**；
-- 团队可在后续重构中逐步消化历史债务，平滑推进架构治理。
-
----
-
-### 4.5 步骤 5：生成可视化审查报告 (`report`)
-
-如果需要向团队展示全局架构健康度，或在浏览器中直观审查调用拓扑，可以生成离线 HTML 报告：
-
+### 3. 自包含原生 SVG 双图审查报告 (`report`)
 ```bash
-# 生成默认报告文件 (drift-report.html)
+# 生成自包含 HTML 报告 (默认: drift-report.html)
 npx sextant-drift report
 
-# 自定义报告输出路径
-npx sextant-drift report -o ./dist/architecture-report.html
-
-# 指定报告语言为英文 (默认: zh)
+# 指定英文语言
 npx sextant-drift report --lang en
 ```
-
-#### 报告特色：
-1. **完全自包含**：单一 HTML 文件，无外部网络请求与 CDN 依赖，断网环境下可正常打开与分享；
-2. **矢量双图交互**：左屏目标规范图对比右屏代码拓扑图，支持放大、拖拽与高亮连线；
-3. **违规卡片下钻**：点击红线可展开代码片段、调用上下游以及修复指引；
-4. **一键复制 AI 提示词**：违规项支持一键复制包含定位与建议的 Prompt，方便直接交由 AI 助手修复。
+- **纯原生 SVG 矢量双图**：完全基于自研布局引擎，**零外部 CDN、零第三方 JS 库、断网完全可用**；
+- **[ADR-009 报告设计](docs/decisions/ADR-009-report-understand-first.md)**：默认进入 **Understand 模式**，帮助开发者与 AI 快速看懂局部设计与职责；一键叠加 **Diff 模式**，高亮红线夹角与越界连线。
 
 ---
 
-### 4.6 语义不变量 (Semantic Invariants) 配置实战
+## 🛠️ CLI 命令行完整参考
 
-在 `sextant.json` 的 `invariants` 字段中，可以配置微观层面的调用规则：
+```text
+用法:
+  $ sextant-drift [command] [options]
 
-#### 场景 1：调用次序先验约束 (`must_precede`)
-要求关键状态持久化必须发生在外部网络请求之前：
+核心命令:
+  check [dir]                    执行架构偏航检查（默认命令，退出码 0/1/2）
+  init [dir]                     逆向推导：扫描现有代码生成 sextant.json 与 ARCHITECTURE.md
+  baseline [dir]                 基准线：将存量违规录入快照，实行增量门禁 (No New Drift)
+  report [dir]                   生成零依赖单文件 HTML 原生 SVG 审查报告
+  verify [dir]                   执行绑定内容版本的业务验收测试 (PASS/FAIL/UNVERIFIED/ERROR)
+  requirements <entityId> [dir]  审查业务需求实体的直接邻居关系（四列排布）
+  mcp [action]                   管理与启动 AI Agent MCP 协议服务 (run | install)
 
-```json
-{
-  "id": "PERSIST_BEFORE_LLM",
-  "severity": "critical",
-  "desc": "用户输入数据在调用外部模型前必须先落库持久化",
-  "pattern": {
-    "must_precede": ["messageRepo.save", "db.messages.create"],
-    "target": ["openai.chat.completions.create", "llmClient.generate"],
-    "scope": "src/services/**"
-  }
-}
-```
-
-#### 场景 2：违禁模块导入隔离 (`forbid_import`)
-防止在前端或表现层组件中导入系统级模块：
-
-```json
-{
-  "id": "FORBID_NODE_MODULES_IN_VIEW",
-  "severity": "critical",
-  "desc": "视图层组件中禁止直接导入 Node.js 原生模块",
-  "pattern": {
-    "forbid_import": ["fs", "node:fs", "child_process", "path"],
-    "in_path": "src/views/**,src/components/**"
-  }
-}
-```
-
-#### 场景 3：外部调用必配参数约束 (`require_config`)
-要求调用公共网络请求库时必须显式配置超时时长：
-
-```json
-{
-  "id": "MANDATORY_TIMEOUT",
-  "severity": "warning",
-  "desc": "外部 API 请求必须配置 timeout 超时参数",
-  "pattern": {
-    "target": ["axios.*", "fetchClient.*"],
-    "require_config": ["timeout"],
-    "scope": "src/integrations/**"
-  }
-}
+常用选项:
+  -c, --config <path>    指定自定义 sextant.json 路径
+  -b, --baseline <path>  指定自定义 baseline.json 路径
+  -t, --tsconfig <path>  指定自定义 tsconfig.json 路径
+  --strict               严格模式：将 Warning 级别警告同样判定为失败 (Exit Code 1)
+  --json                 输出机器可解析的标准 JSON 诊断数据
+  --report [file]        执行检查的同时输出离线 HTML 报告
+  --github-summary       自动向 GitHub Actions GITHUB_STEP_SUMMARY 输出美化 Markdown 表格
+  --fix-manifest         输出极度节约 Token 的 YAML 修复清单（供 AI 针对性修复）
+  --ai-prompt            输出包含代码定位与修复建议的可直接执行 Prompt
+  --filter <package>     Monorepo 场景下仅过滤并扫描特定子包
 ```
 
 ---
 
-## 五、工程实践与 CI/CD 集成
+## 🔄 接入常规 AI 工作流 (以 OpenSpec 为例)
 
-### 5.1 Git Pre-commit Hook 集成
+SextantDrift 不尝试包揽全生命周期的任务管理，而是与 **OpenSpec** 或 **GitHub Spec-Kit** 形成优雅互补：
 
-配合 `husky` 与 `lint-staged`，可以在开发者执行 `git commit` 时自动进行架构门禁拦截：
-
-```json
-// package.json
-{
-  "scripts": {
-    "prepare": "husky install"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "sextant-drift check"
-    ]
-  }
-}
+```
+[业务需求/Idea] ➔ [OpenSpec 提案 (proposal.md & tasks.md)] ➔ [AI 编码实现]
+                                                                  │
+                                                      💡 Sextant MCP (check_file)
+                                                         实时把关，越界当场打回
+                                                                  │
+                                                                  ▼
+                                                      [Sextant 5秒门禁 (check)]
+                                                         退出码 0 准予合并归档
 ```
 
+1. **OpenSpec 负责变更流**：在 `openspec/changes/` 中进行任务切片与需求演进；
+2. **SextantDrift 负责物理防腐**：AI 编码过程中，MCP 实时拦截破坏分层的改动；CI 门禁 `npx sextant-drift check` 充当最后一道防腐红线。
+
 ---
 
-### 5.2 GitHub Actions 自动化门禁
+## 🏛️ 项目工程结构与戒律
 
-在仓库的 `.github/workflows/architecture-gate.yml` 中添加门禁流水线：
+本项目自身严格按照 Monorepo 分包隔离，并在每次改动后全量执行测试自检：
 
-```yaml
-name: Architecture Drift Gate
-
-on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-
-jobs:
-  verify-architecture:
-    name: Verify Architectural Integrity
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      # 执行架构检查，并通过 --github-summary 自动将报告输出至 GitHub PR 摘要
-      - name: Run Architecture Drift Check
-        run: npx sextant-drift check --github-summary --report drift-report.html
-
-      # 上传 HTML 报告工件供团队审阅
-      - name: Upload Drift Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: architecture-drift-report
-          path: drift-report.html
+```text
+packages/
+├── core/         # @sextant/core: 纯 TypeScript 无头核心 (0 DOM, 0 CLI, 100% 单测)
+├── cli/          # sextant-drift: 终端交互、CAC 路由与 CI 门禁退出码控制
+├── mcp-server/   # @sextant/mcp-server: 面向 AI Agent 的 MCP 标准协议服务
+└── web-report/   # @sextant/web-report: 100% 离线自包含原生 SVG 矢量双图报告模板
 ```
 
----
-
-### 5.3 与 AI 编程助手协同修复
-
-当使用 Cursor、Claude Code 或 GitHub Copilot 时，SextantDrift 提供了针对 AI 优化的输出模式：
-
-```bash
-# 输出精简的 YAML 修复清单（节约 Token 消耗）
-npx sextant-drift check --fix-manifest
-
-# 输出可直接粘贴给 AI 的引导 Prompt
-npx sextant-drift check --ai-prompt
-```
-
-#### 常见工作流：
-1. AI 生成新功能代码后，在终端运行 `npx sextant-drift check`；
-2. 若捕获到跨层调用（例如 Controller 中直接构造了 Repository），复制报错建议或通过 `--ai-prompt` 生成提示；
-3. 将提示直接发送给 AI 助手，引导其将仓储调用移至 Service 层完成自愈修复。
+本项目严格信守 [AGENTS.md](AGENTS.md) 中的**六大绝对戒律**：
+- **戒律 1：严禁 Agent 自证自述**（实际拓扑必须由机器 AST 确凿解析，杜绝幻觉）；
+- **戒律 2：严禁静态猜时序**（静态只做确定性级别为 8~10 的分析，误报等于自杀）；
+- **戒律 3：Core-First 核心先行**（内核零 DOM/CLI 依赖，CI 环境秒级运行）；
+- **戒律 4：零侵入纯文本协议总线**（兼容既有 Spec 与 Git 纳管纯文本）；
+- **戒律 5：逆向推导优先**（提供 `init` 一键反向扫描，降低画图门槛）；
+- **戒律 6：严守包边界与改动必测**（代码修改必须同步增加测试并保持全绿）。
 
 ---
 
-## 六、CLI 命令行参数完整参考
+## 📄 开源协议
 
-### 全局常用命令
-
-| 命令 | 描述 |
-| :--- | :--- |
-| `sextant-drift init [dir]` | 扫描源码目录并初始化生成 `sextant.json` 与 `ARCHITECTURE.md` |
-| `sextant-drift check [dir]` | 核验代码依赖拓扑与语义不变量规范（默认命令） |
-| `sextant-drift baseline [dir]` | 将当前存量违规冻结快照至 `.sextant/baseline.json` |
-| `sextant-drift report [dir]` | 生成离线 HTML 架构双图审查报告 |
-
----
-
-### `check` 命令参数
-
-| 参数 | 缩写 | 默认值 | 说明 |
-| :--- | :---: | :---: | :--- |
-| `--config <path>` | `-c` | `sextant.json` | 指定自定义规范文件路径 |
-| `--baseline <path>` | `-b` | `.sextant/baseline.json` | 指定自定义基准线快照文件路径 |
-| `--tsconfig <path>` | `-t` | 自动查找 | 指定自定义 `tsconfig.json` 路径 |
-| `--strict` | - | `false` | 严格模式：将 Warning 级别告警同样视为检查失败 |
-| `--count-type-only` | - | `false` | 将 TypeScript 纯类型导入 (`import type`) 纳入拓扑检查 |
-| `--report [output]` | - | - | 检查的同时输出 HTML 报告（可指定输出文件名） |
-| `--github-summary` | - | `false` | 将检查结果写入 GitHub Actions `GITHUB_STEP_SUMMARY` |
-| `--filter <package>` | - | - | 在 Monorepo 项目中过滤指定子包目录 |
-| `--lang <lang>` | - | `zh` | 报告展示语言（可选 `zh` 或 `en`） |
-| `--json` | - | `false` | 以机器可读的 JSON 格式输出结果 |
-| `--fix-manifest` | - | `false` | 输出适合 AI 处理的紧凑 YAML 修复清单 |
-| `--ai-prompt` | - | `false` | 输出针对 AI 助手的可直接执行修复 Prompt |
-
----
-
-### `init` 命令参数
-
-| 参数 | 缩写 | 默认值 | 说明 |
-| :--- | :---: | :---: | :--- |
-| `--source-dir <dir>` | `-s` | `src` | 指定扫描推导的源码目录 |
-| `--force` | `-f` | `false` | 若目标文件已存在，强制覆盖现有配置 |
-| `--json` | - | `false` | 以 JSON 格式输出初始化结果状态 |
-
----
-
-### `report` 命令参数
-
-| 参数 | 缩写 | 默认值 | 说明 |
-| :--- | :---: | :---: | :--- |
-| `--output <path>` | `-o` | `drift-report.html` | 指定生成的 HTML 报告路径 |
-| `--lang <lang>` | - | `zh` | 报告语言（`zh` 为中文，`en` 为英文） |
-| `--config <path>` | `-c` | `sextant.json` | 指定规范文件路径 |
-| `--baseline <path>` | `-b` | `.sextant/baseline.json` | 指定基准线文件路径 |
-
----
-
-## 七、项目自测与开发管理
-
-本项目自身全面遵循分层规范管理，并内置了统一的管理脚本 `./start.sh`：
-
-```bash
-# 启动本地可视化审查工作台 (Workbench Web Server @ 3000)
-./start.sh
-
-# 运行单元测试套件 (Vitest)
-./start.sh --test
-
-# 启动交互式测试仪表盘
-./start.sh --ui
-
-# 运行项目自身的架构门禁自举检查
-./start.sh --check
-
-# 全量构建所有子包
-./start.sh --build
-
-# 查看测试覆盖率报告
-./start.sh --coverage
-```
-
----
-
-## 八、开源协议
-
-本项目基于 [MIT License](LICENSE) 开源。欢迎提交 Issue 与 Pull Request 共同改进！
+本项目采用 [MIT 许可证](LICENSE) 开源。欢迎提交 Issue 或 Pull Request！
