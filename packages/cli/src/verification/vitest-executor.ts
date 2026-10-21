@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import type { AcceptanceConfig, CheckEvidence } from '@sextant/core';
 
 export interface ExecuteAcceptanceOptions {
-  timeoutMs: number;
+  timeoutMs?: number;
 }
 
 export interface AcceptanceExecutionResult {
@@ -133,7 +133,7 @@ function ensureVitestAvailable(rootDir: string, vitestDir: string, runDir: strin
 export async function executeAcceptanceTests(
   rootDir: string,
   acceptance: AcceptanceConfig,
-  options: ExecuteAcceptanceOptions,
+  options: ExecuteAcceptanceOptions = {},
 ): Promise<AcceptanceExecutionResult> {
   const runId = randomUUID();
   const runDir = path.join(rootDir, '.sextant', 'verification', 'runs', runId);
@@ -245,6 +245,7 @@ export default {
     }
   });
 
+  const timeoutMs = options.timeoutMs ?? 10000;
   let forceKillTimer: NodeJS.Timeout | undefined;
   const timeoutTimer = setTimeout(() => {
     timedOut = true;
@@ -260,7 +261,7 @@ export default {
         // ignore
       }
     }, 2000);
-  }, options.timeoutMs);
+  }, timeoutMs);
 
   const exitCode = await new Promise<number | null>((resolve) => {
     child.on('close', (code) => {
@@ -279,7 +280,7 @@ export default {
   const errors: string[] = [];
 
   if (timedOut) {
-    errors.push(`Acceptance test execution timed out after ${options.timeoutMs}ms`);
+    errors.push(`Acceptance test execution timed out after ${timeoutMs}ms`);
     const result: AcceptanceExecutionResult = {
       runId,
       runDir,
