@@ -111,7 +111,7 @@ function nodesOf(article: string): DrawnNode[] {
 function edgesOf(article: string): DrawnEdge[] {
   return [
     ...article.matchAll(
-      /<g class="br-edge" data-from="([^"]+)" data-to="([^"]+)" data-type="([^"]+)" data-route="([^"]+)">[\s\S]*?<path d="([^"]+)"/g,
+      /<g class="br-edge" data-from="([^"]+)" data-to="([^"]+)" data-type="([^"]+)" data-route="([^"]+)"[^>]*>[\s\S]*?<path d="([^"]+)"/g,
     ),
   ].map((match) => {
     const nums = [...match[5].matchAll(/-?\d+(?:\.\d+)?/g)].map((item) => Number(item[0]));
@@ -368,5 +368,169 @@ describe('business requirement graph section', () => {
     expect(nodesOf(visible.html).map((node) => node.id).sort()).toEqual(['BR-001', 'RULE-003']);
     expect(section.indexOf('<svg')).toBeLessThan(section.indexOf('<pre>'));
     expect(generateHtmlReport(report())).not.toContain('id="business-requirement-graph"');
+  });
+
+  it('binds each edge label to that edge path and keeps produces distinct from affects', () => {
+    const section = sectionOf(generateHtmlReport(report(viewOf(
+      [
+        { id: 'RULE-003', kind: 'rule', title: '焦点规则' },
+        { id: 'STATE-001', kind: 'state', title: '已开通' },
+        { id: 'TC-003', kind: 'test', title: '验收用例' },
+        { id: 'RULE-009', kind: 'rule', title: '同列规则' },
+      ],
+      [
+        { from: 'RULE-003', to: 'STATE-001', type: 'produces' },
+        { from: 'RULE-003', to: 'TC-003', type: 'verified_by' },
+        { from: 'RULE-003', to: 'RULE-009', type: 'affects' },
+      ],
+    ))));
+    const article = articles(section).find((item) => item.id === 'RULE-003')!;
+    const edges = edgesOf(article.html);
+    const produces = edges.find((edge) => edge.type === 'produces')!;
+    const verified = edges.find((edge) => edge.type === 'verified_by')!;
+    const affects = edges.find((edge) => edge.type === 'affects')!;
+    expect(produces.route).toBe('channel');
+    expect(verified.route).toBe('channel');
+    expect(affects.route).toBe('side');
+    const labelOf = (type: string) => {
+      const match = article.html.match(
+        new RegExp(`data-type="${type}"[^>]*data-label-x="(\\d+)" data-label-y="(\\d+)"[\\s\\S]*?<text[^>]*>([^<]+)</text>`),
+      );
+      expect(match).toBeTruthy();
+      return { x: Number(match![1]), y: Number(match![2]), text: match![3] };
+    };
+    const producesLabel = labelOf('produces');
+    const verifiedLabel = labelOf('verified_by');
+    const affectsLabel = labelOf('affects');
+    expect(producesLabel.text).toBe('产生');
+    expect(verifiedLabel.text).toBe('验收');
+    expect(affectsLabel.text).toBe('影响');
+    expect(producesLabel.y).not.toBe(verifiedLabel.y);
+    const busY = (edge: DrawnEdge) => edge.points.reduce((min, [, y]) => Math.min(min, y), Infinity);
+    expect(Math.abs(producesLabel.y - (busY(produces) - 12))).toBeLessThanOrEqual(1);
+    expect(Math.abs(verifiedLabel.y - (busY(verified) - 12))).toBeLessThanOrEqual(1);
+    const railX = Math.min(...affects.points.map(([x]) => x));
+    expect(Math.abs(affectsLabel.x - railX)).toBeLessThanOrEqual(1);
+  });
+  it('draws duplicate same-type edges once and fails on unknown relation types', () => {
+    const dup = sectionOf(generateHtmlReport(report(viewOf(
+      [
+        { id: 'RULE-003', kind: 'rule', title: '规则' },
+        { id: 'TC-003', kind: 'test', title: '验收' },
+      ],
+      [
+        { from: 'RULE-003', to: 'TC-003', type: 'verified_by' },
+        { from: 'RULE-003', to: 'TC-003', type: 'verified_by' },
+      ],
+    ))));
+    const ruleView = articles(dup).find((item) => item.id === 'RULE-003')!;
+    expect(edgesOf(ruleView.html).filter((edge) => edge.type === 'verified_by')).toHaveLength(1);
+
+    const bad = sectionOf(generateHtmlReport(report(viewOf(
+      [
+        { id: 'BR-001', kind: 'requirement', title: '需求' },
+        { id: 'RULE-003', kind: 'rule', title: '规则' },
+      ],
+      [{ from: 'BR-001', to: 'RULE-003', type: 'mentions' }],
+    ))));
+    expect(bad).toContain('br-render-error');
+    expect(bad).toContain('BR-001');
+    expect(bad).toContain('RULE-003');
+    expect(bad).toContain('mentions');
+    expect(bad).not.toContain('<svg');
+  });
+
+  it('emits a kind and relation legend in the active language only', () => {
+    const zh = sectionOf(generateHtmlReport(report(star), { lang: 'zh' }));
+    const en = sectionOf(generateHtmlReport(report(star), { lang: 'en' }));
+    expect(zh).toContain('class="br-legend"');
+    expect(zh).toContain('需求');
+    expect(zh).toContain('规则');
+    expect(zh).toContain('包含');
+    expect(zh).not.toContain('>Requirement<');
+    expect(zh).not.toContain('>includes<');
+    expect(en).toContain('class="br-legend"');
+    expect(en).toContain('Requirement');
+    expect(en).toContain('Rule');
+    expect(en).toContain('includes');
+    expect(en).not.toContain('>需求<');
+    expect(en).not.toContain('>包含<');
+    const visible = visibleArticle(zh).html;
+    expect(visible).toContain('class="br-legend"');
+    expect(visible).toContain('data-legend-kind="requirement"');
+    expect(visible).toContain('data-legend-kind="rule"');
+    expect(visible).toContain('data-legend-kind="flow"');
+    expect(visible).not.toContain('data-legend-kind="state"');
+    expect(visible).toContain('data-legend-rel="includes"');
+    expect(visible).toContain('data-legend-rel="implemented_by"');
+  });
+
+  it('adds paired reading guidance when both views exist and keeps architecture pass separate from open questions', () => {
+    const withBoth = generateHtmlReport(report(star), { lang: 'zh' });
+    expect(withBoth).toContain('id="paired-reading"');
+    expect(withBoth).toContain('怎么一起读这两张图');
+    expect(withBoth).toContain('架构「验证通过」只说明结构门禁通过');
+    expect(withBoth).toContain('id="business-requirement-graph"');
+    expect(withBoth).toContain('架构验证通过（零偏航）');
+
+    const archOnly = generateHtmlReport(report(), { lang: 'zh' });
+    expect(archOnly).not.toContain('id="paired-reading"');
+    expect(archOnly).not.toContain('id="business-requirement-graph"');
+  });
+
+  it('joins CODE.source to an architecture component id and invents nothing when unmatched', () => {
+    const matched = report(viewOf(
+      [
+        { id: 'BR-001', kind: 'requirement', title: '兑换', questions: [] },
+        { id: 'CODE-004', kind: 'code', title: '兑换服务', source: 'src/services/redeem.ts' },
+        { id: 'CODE-009', kind: 'code', title: '未知路径', source: 'lib/orphan.ts' },
+        { id: 'CODE-010', kind: 'code', title: '无路径' },
+      ],
+      [
+        { from: 'BR-001', to: 'CODE-004', type: 'includes' },
+        { from: 'BR-001', to: 'CODE-009', type: 'includes' },
+        { from: 'BR-001', to: 'CODE-010', type: 'includes' },
+      ],
+    ));
+    matched.targetArchitecture = {
+      name: 'Redeem',
+      layers: [{ id: 'domain', name: 'Domain', order: 1 }],
+      components: [{ id: 'BillingService', name: 'Billing Service', layerId: 'domain', paths: ['src/services/**'] }],
+      allowDependencies: [],
+    };
+    matched.graphData = {
+      systemName: 'Redeem',
+      containers: [{ id: 'domain', name: 'Domain', order: 1, status: 'compliant', componentIds: ['BillingService'] }],
+      nodes: [{
+        id: 'BillingService',
+        name: 'Billing Service',
+        layerId: 'domain',
+        paths: ['src/services/**'],
+        fileCount: 1,
+        status: 'compliant',
+        violationCount: 0,
+      }],
+      edges: [],
+      targetEdges: [],
+      actualEdges: [],
+    };
+
+    const html = generateHtmlReport(matched, { lang: 'zh' });
+    const section = sectionOf(html);
+    const article = visibleArticle(section).html;
+    const codeHit = article.slice(article.indexOf('data-entity="CODE-004"'), article.indexOf('data-entity="CODE-009"'));
+    expect(codeHit).toContain('data-arch-component="BillingService"');
+    expect(codeHit).toContain('架构');
+    expect(codeHit).toContain('BillingService');
+    expect(article).toContain('data-action="locate"');
+    expect(article).toContain('data-source-component="BillingService"');
+    const orphanSlice = article.slice(article.indexOf('data-entity="CODE-009"'), article.indexOf('data-entity="CODE-010"'));
+    expect(orphanSlice).not.toContain('data-arch-component=');
+    expect(orphanSlice).not.toContain('BillingService');
+    const missingStart = article.indexOf('data-entity="CODE-010"');
+    const missingEnd = article.indexOf('</g>', missingStart);
+    const missingSlice = article.slice(missingStart, missingEnd);
+    expect(missingSlice).not.toContain('data-arch-component=');
+    expect(missingSlice).not.toContain('BillingService');
   });
 });

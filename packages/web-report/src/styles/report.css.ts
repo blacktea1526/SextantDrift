@@ -1188,6 +1188,72 @@ export function getReportCss(options: ReportCssOptions): string {
     .br-svg-wrap { overflow-x: auto; }
     .br-canvas { display: block; }
     .br-node { cursor: pointer; }
+    .br-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 28px;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      background: #FFFFFF;
+    }
+    .br-legend h4 { margin: 0 0 6px; font-size: 12px; color: #64748B; }
+    .br-legend-kinds, .br-legend-rels {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+    .br-legend-kinds li, .br-legend-rels li {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #334155;
+    }
+    .br-legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .br-legend-rel {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border: 1px solid #CBD5E1;
+      border-radius: 4px;
+      background: #F8FAFC;
+    }
+    .br-arch-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+    .br-arch-locate {
+      font: inherit;
+      font-size: 12px;
+      padding: 4px 10px;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      background: #FFFFFF;
+      color: #0F172A;
+      cursor: pointer;
+    }
+    .paired-reading {
+      margin: 24px 0 8px;
+      padding: 14px 16px;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      background: #F8FAFC;
+    }
+    .paired-reading h2 { margin: 0 0 8px; font-size: 16px; }
+    .paired-reading p { margin: 0 0 8px; color: #334155; font-size: 14px; line-height: 1.5; }
+    .paired-reading-questions { color: #B45309 !important; }
+    .diff-legend-absent {
+      margin: 0 0 12px;
+      color: #64748B;
+      font-size: 12px;
+    }
     .br-relations { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
     .br-relations li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
     .br-relation { padding: 4px 8px; }

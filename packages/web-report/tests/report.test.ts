@@ -182,15 +182,70 @@ describe('@sextant/web-report Visual Inspection Report Generator', () => {
         newViolations: 0,
         bypassCount: 0,
       },
+      graphData: {
+        ...baseReport.graphData!,
+        containers: (baseReport.graphData!.containers || []).map((c) => ({ ...c, status: 'compliant' as const })),
+        nodes: (baseReport.graphData!.nodes || []).map((n) => ({ ...n, status: 'compliant' as const, violationCount: 0 })),
+        edges: (baseReport.graphData!.edges || []).map((e) => ({ ...e, status: 'compliant' as const })),
+        actualEdges: (baseReport.graphData!.actualEdges || []).map((e) => ({ ...e, status: 'compliant' as const })),
+      },
     };
 
     const zhHtml = generateHtmlReport(cleanReport, { lang: 'zh' });
     expect(zhHtml).toContain('架构验证通过（零偏航）');
     expect(zhHtml).toContain('所有代码模块依赖均严格符合目标架构拓扑与不变量规范。');
+    expect(zhHtml).not.toContain('class="diff-legend-bar"');
+    expect(zhHtml).not.toContain('(Compliant Path)');
+    expect(zhHtml).not.toContain('[DRIFT ALERT]');
 
     const enHtml = generateHtmlReport(cleanReport, { lang: 'en' });
     expect(enHtml).toContain('ARCHITECTURE VERIFIED');
     expect(enHtml).toContain('All modules and dependencies conform strictly to target topology');
+    expect(enHtml).not.toContain('class="diff-legend-bar"');
+  });
+
+  it('shows the diff legend when drift edges exist and keeps sparse Domain→Service nodes', () => {
+    const html = generateHtmlReport(baseReport, { lang: 'zh' });
+    expect(html).toContain('class="diff-legend-bar"');
+    expect(html).toContain('data-i18n="legendGreen"');
+    expect(html).toContain('data-i18n="legendRed"');
+    expect(html).not.toContain('(Compliant Path)');
+    expect(html).not.toContain('[DRIFT ALERT]');
+
+    const sparse: DriftReport = {
+      ...baseReport,
+      passed: true,
+      exitCode: 0,
+      violations: [],
+      summary: { ...baseReport.summary, totalViolations: 0, newViolations: 0, bypassCount: 0 },
+      targetArchitecture: {
+        name: 'Sparse',
+        layers: [{ id: 'domain', name: 'Domain', order: 1 }],
+        components: [{ id: 'BillingService', name: 'Billing Service', layerId: 'domain', paths: ['src/services/**'] }],
+        allowDependencies: [],
+      },
+      graphData: {
+        systemName: 'Sparse',
+        containers: [{ id: 'domain', name: 'Domain', order: 1, status: 'compliant', componentIds: ['BillingService'] }],
+        nodes: [{
+          id: 'BillingService',
+          name: 'Billing Service',
+          layerId: 'domain',
+          paths: ['src/services/**'],
+          fileCount: 1,
+          status: 'compliant',
+          violationCount: 0,
+        }],
+        edges: [],
+        targetEdges: [],
+        actualEdges: [],
+      },
+    };
+    const sparseHtml = generateHtmlReport(sparse, { lang: 'zh' });
+    expect(sparseHtml).toContain('BillingService');
+    expect(sparseHtml).toContain('Domain');
+    expect(sparseHtml).toContain('架构验证通过（零偏航）');
+    expect(sparseHtml).not.toContain('class="diff-legend-bar"');
   });
 
   it('should dynamically generate native C4 architecture with containers and swimlanes when graphData is absent', () => {

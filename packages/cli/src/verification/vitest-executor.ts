@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
 import type { AcceptanceConfig, CheckEvidence } from '@sextant/core';
 
 export interface ExecuteAcceptanceOptions {
@@ -63,28 +62,8 @@ function resolveVitest(rootDir: string): { vitestBin: string; version: string; v
     pkgPath = localPkg;
   }
 
-  // 2. require.resolve from rootDir
   if (!pkgPath) {
-    try {
-      const req = createRequire(path.join(rootDir, 'package.json'));
-      pkgPath = req.resolve('vitest/package.json');
-    } catch {
-      // ignore
-    }
-  }
-
-  // 3. Fallback to current execution context / workspace
-  if (!pkgPath) {
-    try {
-      const req = createRequire(import.meta.url);
-      pkgPath = req.resolve('vitest/package.json');
-    } catch {
-      // ignore
-    }
-  }
-
-  if (!pkgPath || !fs.existsSync(pkgPath)) {
-    throw new Error(`Project-local Vitest 2.1.x not found in ${rootDir}`);
+    throw new Error(`Vitest not found in ${rootDir}/node_modules. Local Vitest v2.1.x is required.`);
   }
 
   const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
@@ -143,17 +122,47 @@ export async function executeAcceptanceTests(
     new Set((acceptance.checks || []).map((check) => check.testFile.trim()))
   ).filter(Boolean);
 
-  if (uniqueTestFiles.length === 0) {
+  if ((acceptance.checks || []).length === 0 || uniqueTestFiles.length === 0) {
     const emptyResult: AcceptanceExecutionResult = {
       runId,
       runDir,
-      complete: true,
+      complete: false,
       durationMs: 0,
       checks: [],
       errors: [],
     };
     fs.writeFileSync(path.join(runDir, 'evidence.json'), JSON.stringify(emptyResult, null, 2), 'utf8');
     return emptyResult;
+  }
+
+  const seenCheckIdsValidation = new Set<string>();
+  const seenIdentitiesValidation = new Set<string>();
+  const duplicateErrors: string[] = [];
+
+  for (const check of acceptance.checks || []) {
+    if (seenCheckIdsValidation.has(check.id)) {
+      duplicateErrors.push(`Duplicate check id "${check.id}".`);
+    }
+    seenCheckIdsValidation.add(check.id);
+
+    const identity = `${check.testFile}:::${check.testName}`;
+    if (seenIdentitiesValidation.has(identity)) {
+      duplicateErrors.push(`Duplicate test identity "${identity}" in check "${check.id}".`);
+    }
+    seenIdentitiesValidation.add(identity);
+  }
+
+  if (duplicateErrors.length > 0) {
+    const dupResult: AcceptanceExecutionResult = {
+      runId,
+      runDir,
+      complete: false,
+      durationMs: 0,
+      checks: [],
+      errors: duplicateErrors,
+    };
+    fs.writeFileSync(path.join(runDir, 'evidence.json'), JSON.stringify(dupResult, null, 2), 'utf8');
+    return dupResult;
   }
 
   let vitestInfo: { vitestBin: string; version: string; vitestDir: string };
@@ -176,21 +185,68 @@ export async function executeAcceptanceTests(
   ensureVitestAvailable(rootDir, vitestInfo.vitestDir, runDir);
 
   const reporterJsonPath = path.join(runDir, 'reporter.json');
-  const completionJsonPath = path.join(runDir, 'completion.json');
+  const endMarkerPath = path.join(runDir, 'end-marker.json');
   const configPath = path.join(runDir, 'vitest.config.mjs');
 
   const configContent = `
 import fs from 'node:fs';
+import path from 'node:path';
+
+function normalizePosix(p) {
+  return p.split(path.sep).join('/');
+}
+
+function extractSuites(task) {
+  const names = [];
+  let curr = task;
+  while (curr?.suite) {
+    curr = curr.suite;
+    if (curr?.name) names.unshift(curr.name);
+  }
+  return names;
+}
 
 class SextantReporter {
-  onFinished(files, errors) {
+  onFinished(files = [], errors = []) {
     try {
-      const payload = {
-        complete: true,
-        timestamp: Date.now(),
-        errors: (errors || []).map(e => e instanceof Error ? e.message : String(e)),
+      const inventory = [];
+
+      function collectTasks(task) {
+        if (task.type === 'suite') {
+          for (const sub of (task.tasks || [])) {
+            collectTasks(sub);
+          }
+        } else {
+          const absFilePath = task.file?.filepath || task.file?.name || '';
+          const relFilePath = normalizePosix(path.relative(${JSON.stringify(rootDir)}, absFilePath));
+          const suiteNames = extractSuites(task);
+          inventory.push({
+            testFile: relFilePath,
+            taskName: task.name,
+            fullNameArrow: [...suiteNames, task.name].join(' > '),
+            fullNameSpace: [...suiteNames, task.name].join(' '),
+            mode: task.mode,
+            state: task.result?.state,
+            retry: task.retry || 0,
+            repeats: task.repeats || 0,
+            fails: Boolean(task.fails),
+          });
+        }
+      }
+
+      for (const file of files) {
+        for (const task of (file.tasks || [])) {
+          collectTasks(task);
+        }
+      }
+
+      const endMarker = {
+        runId: ${JSON.stringify(runId)},
+        inventory,
+        errors: (errors || []).map(e => e instanceof Error ? (e.message || e.stack || String(e)) : String(e)),
+        finishedAt: Date.now(),
       };
-      fs.writeFileSync(${JSON.stringify(completionJsonPath)}, JSON.stringify(payload, null, 2), 'utf8');
+      fs.writeFileSync(${JSON.stringify(endMarkerPath)}, JSON.stringify(endMarker, null, 2), 'utf8');
     } catch {
       // ignore
     }
@@ -293,16 +349,16 @@ export default {
     return result;
   }
 
-  let completionData: { complete?: boolean; errors?: string[] } | null = null;
-  if (fs.existsSync(completionJsonPath)) {
+  let endMarkerData: { inventory?: Array<{ testFile: string; taskName: string; fullNameArrow: string; fullNameSpace: string; mode?: string; state?: string; retry?: number; repeats?: number; fails?: boolean }>; errors?: string[] } | null = null;
+  if (fs.existsSync(endMarkerPath)) {
     try {
-      completionData = JSON.parse(fs.readFileSync(completionJsonPath, 'utf8'));
+      endMarkerData = JSON.parse(fs.readFileSync(endMarkerPath, 'utf8'));
     } catch {
       // ignore
     }
   }
 
-  if (!completionData?.complete) {
+  if (!endMarkerData) {
     const tailErr = stderr.trim() ? `: ${stderr.slice(-500).trim()}` : '';
     errors.push(`Acceptance test execution did not complete normally (exit code ${exitCode})${tailErr}`);
     const result: AcceptanceExecutionResult = {
@@ -317,8 +373,8 @@ export default {
     return result;
   }
 
-  if (completionData.errors && completionData.errors.length > 0) {
-    errors.push(...completionData.errors);
+  if (endMarkerData.errors && endMarkerData.errors.length > 0) {
+    errors.push(...endMarkerData.errors);
   }
 
   if (!fs.existsSync(reporterJsonPath)) {
@@ -369,6 +425,7 @@ export default {
     fileResultsByRelPath.set(relPath, fileResult);
   }
 
+  const inventory = endMarkerData.inventory || [];
   const checksEvidenceList: CheckEvidence[] = [];
   const seenCheckIds = new Set<string>();
 
@@ -406,17 +463,51 @@ export default {
     }
 
     for (const check of fileChecks) {
-      const assertion = finalAttemptByName.get(check.testName);
-      if (!assertion) {
-        // Specific test was not run in this file; evaluator will handle absence of evidence
-        continue;
-      }
-
       if (seenCheckIds.has(check.id)) {
         errors.push(`Duplicate evidence for acceptance check "${check.id}".`);
         continue;
       }
       seenCheckIds.add(check.id);
+
+      // Check reporter inventory for task options like retry/repeats/fails or skip
+      const inv = inventory.find(
+        (item) =>
+          item.testFile === check.testFile &&
+          (item.fullNameArrow === check.testName ||
+            item.fullNameSpace === check.testName ||
+            item.taskName === check.testName),
+      );
+
+      if (inv && ((inv.retry && inv.retry > 0) || (inv.repeats && inv.repeats > 0) || inv.fails)) {
+        const msg = 'Test-level retry, repeats, or fails modes are not permitted in acceptance verification.';
+        errors.push(`Test-level retry/repeats/fails not permitted in "${check.id}": ${msg}`);
+        checksEvidenceList.push({
+          checkId: check.id,
+          scenarioId: check.scenarioId,
+          testFile: check.testFile,
+          testName: check.testName,
+          status: 'ERROR',
+          message: msg,
+        });
+        continue;
+      }
+
+      if (inv && (inv.mode === 'skip' || inv.state === 'skip')) {
+        checksEvidenceList.push({
+          checkId: check.id,
+          scenarioId: check.scenarioId,
+          testFile: check.testFile,
+          testName: check.testName,
+          status: 'SKIP',
+        });
+        continue;
+      }
+
+      const assertion = finalAttemptByName.get(check.testName);
+      if (!assertion) {
+        // Specific test was not run in this file; evaluator will handle absence of evidence
+        continue;
+      }
 
       let status: 'PASS' | 'FAIL' | 'SKIP' | 'ERROR';
       let message: string | undefined;
@@ -438,7 +529,12 @@ export default {
         const isAssertionFailure = (assertion.failureMessages || []).some((m) =>
           m.includes('AssertionError'),
         );
-        status = isAssertionFailure ? 'FAIL' : 'ERROR';
+        if (isAssertionFailure) {
+          status = 'FAIL';
+        } else {
+          status = 'ERROR';
+          errors.push(cleanMessage);
+        }
 
         // Extract location from failure stack trace if present
         const match = rawMessages.match(/(?:at\s+.*?\()?([^\s()]+):(\d+):(\d+)\)?/);
@@ -457,6 +553,7 @@ export default {
       } else {
         status = 'ERROR';
         message = `Unknown assertion status: ${assertion.status}`;
+        errors.push(message);
       }
 
       const evidence: CheckEvidence = {

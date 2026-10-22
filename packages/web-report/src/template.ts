@@ -65,6 +65,18 @@ export function renderHtmlTemplate(report: DriftReport, options?: RenderOptions)
   const criticalCount = violations.filter((v) => v.severity === 'critical').length;
   const warningCount = violations.filter((v) => v.severity === 'warning').length;
 
+  const edgeLists = [
+    graphData.edges || [],
+    graphData.actualEdges || [],
+    graphData.containerEdges || [],
+    graphData.actualContainerEdges || [],
+  ];
+  const hasDriftContrast =
+    violations.length > 0 ||
+    (summary?.totalViolations ?? 0) > 0 ||
+    edgeLists.some((edges) => edges.some((edge) => edge.status === 'drift')) ||
+    (graphData.nodes || []).some((node) => node.status === 'drift');
+
   const componentsList = targetArchitecture.components || [];
   const sortedComponents = [...componentsList].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
 
@@ -390,30 +402,30 @@ ${reportCss}
       `).join('')}
     </div>
 
-    <!-- Red/Green Architecture Diff Visual Legend Bar -->
+    ${hasDriftContrast ? `
+    <!-- Red/Green Architecture Diff Visual Legend Bar (only when drift contrast exists) -->
     <div class="diff-legend-bar">
       <div class="legend-items">
         <div class="legend-item">
           <span class="report-port report-port-ok" aria-hidden="true"></span>
           <span class="legend-line-sample" style="background: #16A34A;"></span>
           <strong style="color: #166534;" data-i18n="legendGreen">${t.legendGreen}</strong>
-          <span class="legend-muted">(Compliant Path)</span>
         </div>
         <div class="legend-item">
           <span class="report-port report-port-drift" aria-hidden="true"></span>
           <span class="legend-line-sample drift-sample"></span>
           <strong style="color: #991B1B;" data-i18n="legendRed">${t.legendRed}</strong>
-          <span class="legend-alert">[DRIFT ALERT]</span>
         </div>
         <div class="legend-item">
           <span class="report-port report-port-plan" aria-hidden="true"></span>
           <span class="legend-line-sample planned-sample"></span>
           <strong style="color: #475569;" data-i18n="legendGrey">${t.legendGrey}</strong>
-          <span class="legend-muted">(Planned Path)</span>
         </div>
       </div>
       <div class="legend-tip" data-i18n="drillDownHint">${t.drillDownHint}</div>
-    </div>
+    </div>` : `
+    <p class="diff-legend-absent" data-i18n="drillDownHint">${t.drillDownHint}</p>
+    `}
 
     <!-- Mode 1: Unified Flagship Overlay Diff Panel (Default) -->
     <div class="unified-panel-container" id="unified-panel-container">
@@ -511,13 +523,34 @@ ${reportCss}
     </main>
 
     ${report.businessRequirementView ? (() => {
-      const diagram = renderBusinessRequirementDiagram(report.businessRequirementView.structured, lang === 'zh' ? 'zh' : 'en');
+      const diagram = renderBusinessRequirementDiagram(
+        report.businessRequirementView.structured,
+        lang === 'zh' ? 'zh' : 'en',
+        { components: targetArchitecture.components || [] },
+      );
       const body = applyDarkTokensToSvg(diagram.body);
       const svgBytes = [...body.matchAll(/<svg\b[\s\S]*?<\/svg>/g)].reduce((sum, match) => sum + Buffer.byteLength(match[0], 'utf8'), 0);
       const metrics = lang === 'zh'
         ? `实体 ${diagram.entityCount} · SVG ${svgBytes} 字节 · 最大邻居 ${diagram.maxNeighbors}`
         : `${diagram.entityCount} entities · SVG ${svgBytes} bytes · max neighbors ${diagram.maxNeighbors}`;
+      let hasOpenQuestions = false;
+      try {
+        const parsed = JSON.parse(report.businessRequirementView.structured) as {
+          entities?: Array<{ questions?: unknown }>;
+        };
+        hasOpenQuestions = Array.isArray(parsed.entities)
+          && parsed.entities.some((entity) => Array.isArray(entity.questions) && entity.questions.length > 0);
+      } catch {
+        hasOpenQuestions = false;
+      }
+      const paired = `
+    <aside id="paired-reading" class="paired-reading" aria-label="${escapeHtml(t.pairedReadingTitle)}">
+      <h2 data-i18n="pairedReadingTitle">${escapeHtml(t.pairedReadingTitle)}</h2>
+      <p data-i18n="pairedReadingBody">${escapeHtml(t.pairedReadingBody)}</p>
+      ${hasOpenQuestions ? `<p class="paired-reading-questions" data-i18n="pairedReadingQuestions">${escapeHtml(t.pairedReadingQuestions)}</p>` : ''}
+    </aside>`;
       return `
+    ${paired}
     <section id="business-requirement-graph" data-entity-count="${diagram.entityCount}" data-svg-bytes="${svgBytes}" data-max-neighbors="${diagram.maxNeighbors}">
       <h2>${lang === 'zh' ? '业务需求图' : 'Business requirement graph'}</h2>
       <p>${lang === 'zh'

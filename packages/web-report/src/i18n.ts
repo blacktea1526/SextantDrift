@@ -97,6 +97,9 @@ export interface Translations {
   typeWarnUnresolvedImport: string;
   typeWarnPartialBarrel: string;
   typeWarnRuleMissingTarget: string;
+  pairedReadingTitle: string;
+  pairedReadingBody: string;
+  pairedReadingQuestions: string;
 }
 
 export const I18N_DICTIONARIES: Record<Lang, Translations> = {
@@ -195,6 +198,9 @@ export const I18N_DICTIONARIES: Record<Lang, Translations> = {
     typeWarnUnresolvedImport: '导入未解析',
     typeWarnPartialBarrel: 'Barrel 部分解析',
     typeWarnRuleMissingTarget: '规则缺少目标',
+    pairedReadingTitle: '怎么一起读这两张图',
+    pairedReadingBody: '上方架构图画模块与结构偏航（Domain / Service 等）；下方业务图画 BR / RULE / CODE 等声明实体与关系。共享组件名只在代码实体声明了路径、且该路径已归属某个架构组件时出现，不会从 id 前缀猜模块。',
+    pairedReadingQuestions: '架构「验证通过」只说明结构门禁通过；业务实体上的未关闭问题仍需人工确认，二者不互相抵消。',
   },
   en: {
     appName: 'SextantDrift Architecture Compass',
@@ -291,6 +297,9 @@ export const I18N_DICTIONARIES: Record<Lang, Translations> = {
     typeWarnUnresolvedImport: 'Unresolved Import',
     typeWarnPartialBarrel: 'Partial Barrel Resolution',
     typeWarnRuleMissingTarget: 'Rule Missing Target',
+    pairedReadingTitle: 'How to read these two views together',
+    pairedReadingBody: 'The architecture diagram names modules and structural drift (Domain / Service, …). The business section names declared BR / RULE / CODE entities and relations. A shared component id appears only when a code entity declares a source path already owned by an architecture component — never guessed from id prefixes.',
+    pairedReadingQuestions: 'Architecture “verified” means the structural gate passed; open questions on business entities still need human review. One does not cancel the other.',
   },
 };
 

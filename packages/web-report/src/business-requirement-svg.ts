@@ -17,7 +17,13 @@ interface Entity {
   title: string;
   source?: string;
   checkId?: string;
+  archComponentId?: string;
   questions: string[];
+}
+
+export interface BusinessDiagramOptions {
+  /** Architecture components used to resolve CODE.source → component id. */
+  components?: Array<{ id: string; paths: string[] }>;
 }
 
 interface Relation {
@@ -149,13 +155,57 @@ function wrap(text: string, maxWidth: number): string[] {
   return lines.length > 0 ? lines : [''];
 }
 
-function relationLabel(type: string, lang: 'zh' | 'en'): string {
-  return RELATION_LABEL[type]?.[lang] ?? type;
+function relationLabel(type: string, lang: 'zh' | 'en'): string | null {
+  const entry = RELATION_LABEL[type];
+  return entry ? entry[lang] : null;
+}
+
+function dedupeRelations(relations: Relation[]): Relation[] {
+  const seen = new Set<string>();
+  const out: Relation[] = [];
+  for (const relation of relations) {
+    const key = `${relation.from}|${relation.to}|${relation.type}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(relation);
+  }
+  return out;
+}
+
+function matchesPathPattern(filePath: string, pattern: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/');
+  const escaped = pattern
+    .replace(/\\/g, '/')
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*/g, '<<GLOBSTAR>>')
+    .replace(/\*/g, '[^/]*')
+    .replace(/<<GLOBSTAR>>/g, '.*');
+  return new RegExp(`^${escaped}$`).test(normalized);
+}
+
+function resolveArchComponent(
+  source: string | undefined,
+  components: Array<{ id: string; paths: string[] }> | undefined,
+): string | undefined {
+  if (!source?.trim() || !components || components.length === 0) return undefined;
+  const path = source.trim().replace(/\\/g, '/');
+  for (const component of components) {
+    if (component.paths.some((pattern) => matchesPathPattern(path, pattern))) {
+      return component.id;
+    }
+  }
+  return undefined;
 }
 
 function anchorText(entity: Entity, lang: 'zh' | 'en'): string | undefined {
   if (entity.kind === 'code') {
-    return entity.source?.trim() || (lang === 'zh' ? '锚点缺失' : 'anchor missing');
+    const source = entity.source?.trim() || (lang === 'zh' ? '锚点缺失' : 'anchor missing');
+    if (entity.archComponentId) {
+      return lang === 'zh'
+        ? `${source} · 架构 ${entity.archComponentId}`
+        : `${source} · arch ${entity.archComponentId}`;
+    }
+    return source;
   }
   if (entity.kind === 'test') {
     return entity.checkId?.trim() || (lang === 'zh' ? '锚点缺失' : 'anchor missing');
@@ -241,11 +291,17 @@ function readGraph(structured: string, lang: 'zh' | 'en'): Graph | string {
         ? `业务需求图无法绘制：关系指向未知实体「${missing}」。这条关系没有被删除。`
         : `The business diagram cannot be drawn: a relation names unknown entity "${missing}". That relation was not removed.`;
     }
+    if (!Object.prototype.hasOwnProperty.call(RELATION_LABEL, raw.type)) {
+      return lang === 'zh'
+        ? `业务需求图无法绘制：关系 ${raw.from} → ${raw.to} 的类型「${raw.type}」无法标注。这条关系没有被删除。`
+        : `The business diagram cannot be drawn: relation ${raw.from} → ${raw.to} has unlabeled type "${raw.type}". That relation was not removed.`;
+    }
     relations.push({ from: raw.from, to: raw.to, type: raw.type });
   }
   entities.sort(compareEntities);
-  relations.sort(compareRelations);
-  return { entities, relations };
+  const unique = dedupeRelations(relations);
+  unique.sort(compareRelations);
+  return { entities, relations: unique };
 }
 
 function incident(relations: Relation[], id: string): Relation[] {
@@ -345,8 +401,11 @@ function nodeMarkup(node: PlacedNode, lang: 'zh' | 'en', current: boolean): stri
       return markup;
     })
     .join('');
+  const archAttr = node.entity.archComponentId
+    ? ` data-arch-component="${escapeXml(node.entity.archComponentId)}"`
+    : '';
   return `
-    <g class="br-node" data-focus="${escapeXml(node.entity.id)}" data-entity="${escapeXml(node.entity.id)}" data-column="${COLUMN_KEY[node.column]}" data-x="${node.x}" data-y="${node.y}" data-width="${node.width}" data-height="${node.height}" data-title="${escapeXml(node.entity.title)}">
+    <g class="br-node" data-focus="${escapeXml(node.entity.id)}" data-entity="${escapeXml(node.entity.id)}" data-column="${COLUMN_KEY[node.column]}" data-x="${node.x}" data-y="${node.y}" data-width="${node.width}" data-height="${node.height}" data-title="${escapeXml(node.entity.title)}"${archAttr}>
       <title>${escapeXml(node.entity.title)}</title>
       <desc>${escapeXml(node.entity.questions.join('\n'))}</desc>
       <rect class="br-card" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="10" fill="#FFFFFF" stroke="${stroke}" stroke-width="${strokeWidth}" />
@@ -357,30 +416,45 @@ function nodeMarkup(node: PlacedNode, lang: 'zh' | 'en', current: boolean): stri
     </g>`;
 }
 
-function edgePath(from: PlacedNode, to: PlacedNode, route: 'side' | 'channel', lane: number, busY: number): string {
+function edgePath(
+  from: PlacedNode,
+  to: PlacedNode,
+  route: 'side' | 'channel',
+  lane: number,
+  busY: number,
+): { d: string; labelX: number; labelY: number } {
   const fromY = Math.round(from.y + from.height / 2);
   const toY = Math.round(to.y + to.height / 2);
   if (route === 'side') {
     const railX = from.x - 22 - lane * 14;
-    return `M ${from.x} ${fromY} L ${railX} ${fromY} L ${railX} ${toY} L ${to.x} ${toY}`;
+    return {
+      d: `M ${from.x} ${fromY} L ${railX} ${fromY} L ${railX} ${toY} L ${to.x} ${toY}`,
+      labelX: railX,
+      labelY: Math.round((fromY + toY) / 2),
+    };
   }
   const goingRight = to.x > from.x;
   const startX = goingRight ? from.x + from.width : from.x;
   const endX = goingRight ? to.x : to.x + to.width;
   const startRail = goingRight ? from.x + from.width + 36 : from.x - 36;
   const endRail = goingRight ? to.x - 36 : to.x + to.width + 36;
-  return `M ${startX} ${fromY} L ${startRail} ${fromY} L ${startRail} ${busY} L ${endRail} ${busY} L ${endRail} ${toY} L ${endX} ${toY}`;
+  return {
+    d: `M ${startX} ${fromY} L ${startRail} ${fromY} L ${startRail} ${busY} L ${endRail} ${busY} L ${endRail} ${toY} L ${endX} ${toY}`,
+    labelX: Math.round((startRail + endRail) / 2),
+    labelY: busY - 12,
+  };
 }
 
 function edgeMarkup(from: PlacedNode, to: PlacedNode, type: string, route: 'side' | 'channel', lane: number, busY: number, markerId: string, lang: 'zh' | 'en'): string {
-  const path = edgePath(from, to, route, lane, busY);
   const label = relationLabel(type, lang);
-  const labelX = route === 'side' ? from.x - 22 - lane * 14 : Math.round((from.x + to.x + CARD_W) / 2);
-  const labelY = route === 'side' ? Math.round((from.y + from.height / 2 + to.y + to.height / 2) / 2) : busY - 12;
+  if (!label) {
+    throw new Error(`unlabeled relation ${from.entity.id} → ${to.entity.id} (${type})`);
+  }
+  const { d, labelX, labelY } = edgePath(from, to, route, lane, busY);
   const pillWidth = Math.max(48, label.length * (lang === 'zh' ? 14 : 7) + 16);
   return `
-    <g class="br-edge" data-from="${escapeXml(from.entity.id)}" data-to="${escapeXml(to.entity.id)}" data-type="${escapeXml(type)}" data-route="${route}">
-      <path d="${path}" fill="none" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#${markerId})" />
+    <g class="br-edge" data-from="${escapeXml(from.entity.id)}" data-to="${escapeXml(to.entity.id)}" data-type="${escapeXml(type)}" data-route="${route}" data-label-x="${labelX}" data-label-y="${labelY}">
+      <path d="${d}" fill="none" stroke="#94A3B8" stroke-width="1.4" marker-end="url(#${markerId})" />
       <rect x="${labelX - pillWidth / 2}" y="${labelY - 9}" width="${pillWidth}" height="18" rx="4" fill="#FFFFFF" stroke="#CBD5E1" />
       <text x="${labelX}" y="${labelY + 4}" text-anchor="middle" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#475569">${escapeXml(label)}</text>
     </g>`;
@@ -428,6 +502,27 @@ function renderNeighborhood(graph: Graph, focus: Entity, lang: 'zh' | 'en'): str
   </svg>`;
 }
 
+function neighborhoodLegend(members: Entity[], edges: Relation[], lang: 'zh' | 'en'): string {
+  const kinds = [...new Set(members.map((entity) => entity.kind))]
+    .sort((left, right) => KIND_ORDER.indexOf(left as (typeof KIND_ORDER)[number]) - KIND_ORDER.indexOf(right as (typeof KIND_ORDER)[number]));
+  const types = [...new Set(edges.map((edge) => edge.type))].sort();
+  const kindItems = kinds.map((kind) => {
+    const style = KIND_STYLE[kind];
+    const label = lang === 'zh' ? style.zh : style.en;
+    return `<li data-legend-kind="${escapeXml(kind)}"><span class="br-legend-swatch" style="background:${style.color}"></span><span>${escapeXml(label)}</span></li>`;
+  }).join('');
+  const relItems = types.map((type) => {
+    const label = relationLabel(type, lang) ?? type;
+    return `<li data-legend-rel="${escapeXml(type)}"><span class="br-legend-rel">${escapeXml(label)}</span></li>`;
+  }).join('');
+  const kindTitle = lang === 'zh' ? '实体类型' : 'Entity kinds';
+  const relTitle = lang === 'zh' ? '关系类型' : 'Relation types';
+  return `<aside class="br-legend" aria-label="${escapeXml(lang === 'zh' ? '图例' : 'Legend')}">
+    <div class="br-legend-group"><h4>${kindTitle}</h4><ul class="br-legend-kinds">${kindItems}</ul></div>
+    <div class="br-legend-group"><h4>${relTitle}</h4><ul class="br-legend-rels">${relItems}</ul></div>
+  </aside>`;
+}
+
 function relationList(edges: Relation[], focusId: string, lang: 'zh' | 'en'): string {
   if (edges.length === 0) {
     return `<p class="br-relations-empty">${lang === 'zh' ? '没有直接关系' : 'No direct relations'}</p>`;
@@ -439,7 +534,8 @@ function relationList(edges: Relation[], focusId: string, lang: 'zh' | 'en'): st
     const to = edge.to === focusId
       ? `<span>${escapeXml(edge.to)}</span>`
       : `<button type="button" class="br-relation" data-focus="${escapeXml(edge.to)}">${escapeXml(edge.to)}</button>`;
-    return `<li>${from}<span class="br-rel-type">${escapeXml(relationLabel(edge.type, lang))}</span>${to}</li>`;
+    const typeLabel = relationLabel(edge.type, lang) ?? edge.type;
+    return `<li>${from}<span class="br-rel-type">${escapeXml(typeLabel)}</span>${to}</li>`;
   });
   return `<ul class="br-relations">${items.join('')}</ul>`;
 }
@@ -463,18 +559,30 @@ function directory(graph: Graph, defaultId: string, lang: 'zh' | 'en'): string {
 
 function article(graph: Graph, focus: Entity, hidden: boolean, lang: 'zh' | 'en'): string {
   const edges = incident(graph.relations, focus.id);
+  const byId = new Map(graph.entities.map((entity) => [entity.id, entity]));
+  const members = [focus, ...neighborIds(byId, graph.relations, focus.id).map((id) => byId.get(id)!)];
   const hint = lang === 'zh' ? '点击下面的邻居可切换焦点' : 'Choose a neighbor below to move the focus';
+  const locate = members
+    .filter((entity) => entity.archComponentId)
+    .map((entity) => `<button type="button" class="br-arch-locate" data-action="locate" data-source-component="${escapeXml(entity.archComponentId!)}">${lang === 'zh' ? '定位' : 'Locate'} ${escapeXml(entity.archComponentId!)}</button>`)
+    .join('');
   return `<article class="br-view" data-focus="${escapeXml(focus.id)}"${hidden ? ' hidden' : ''}>
     <p class="br-focus-label">${lang === 'zh' ? '焦点' : 'Focus'} · ${escapeXml(focus.id)} ${escapeXml(focus.title)}</p>
     <p class="br-focus-hint">${hint}</p>
+    ${neighborhoodLegend(members, edges, lang)}
     <div class="br-svg-wrap">${renderNeighborhood(graph, focus, lang)}</div>
+    ${locate ? `<p class="br-arch-links">${locate}</p>` : ''}
     <h3>${lang === 'zh' ? '直接关系' : 'Direct relations'}</h3>
     ${relationList(edges, focus.id, lang)}
   </article>`;
 }
 
 /** Renders the directory and one prebuilt neighborhood SVG per entity. */
-export function renderBusinessRequirementDiagram(structured: string, lang: 'zh' | 'en' = 'zh'): BusinessDiagram {
+export function renderBusinessRequirementDiagram(
+  structured: string,
+  lang: 'zh' | 'en' = 'zh',
+  options: BusinessDiagramOptions = {},
+): BusinessDiagram {
   const graph = readGraph(structured, lang);
   if (typeof graph === 'string') {
     let entityCount = 0;
@@ -505,6 +613,11 @@ export function renderBusinessRequirementDiagram(structured: string, lang: 'zh' 
       entityCount,
       maxNeighbors,
     };
+  }
+  for (const entity of graph.entities) {
+    if (entity.kind === 'code') {
+      entity.archComponentId = resolveArchComponent(entity.source, options.components);
+    }
   }
   const defaultId = graph.entities[0].id;
   const views = graph.entities.map((entity) => article(graph, entity, entity.id !== defaultId, lang)).join('');
